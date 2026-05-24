@@ -108,7 +108,7 @@ export function App() {
         .then((pool: Record<Variant, PuzzleResponse[]>) => {
           const choices = pool[vArg];
           if (!choices?.length) return setError(`no demo puzzles for ${vArg}`);
-          const pick = choices[Math.floor(Math.random() * choices.length)];
+          const pick = choices[Math.floor(Math.random() * choices.length)]!;
           setPuzzle(pick);
           setElapsedMs(Math.round(performance.now() - t0));
         })
