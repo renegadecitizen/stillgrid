@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/target
+**/.cache
+.git
+.github
+*.log
+.env
+.env.*
+.DS_Store
+**/coverage
+web/public/puzzles.json

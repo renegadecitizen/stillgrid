@@ -1,0 +1,18 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# After connecting the GitHub repo to Render, choose "New Blueprint" and
+# point at this file. Render reads it and provisions the service.
+
+services:
+  - type: web
+    name: stillgrid
+    runtime: docker
+    plan: starter
+    region: oregon
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"

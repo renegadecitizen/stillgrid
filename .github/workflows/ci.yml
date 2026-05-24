@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  engine:
+    name: engine (rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+      - name: fmt
+        working-directory: engine
+        run: cargo fmt --all -- --check
+      - name: clippy
+        working-directory: engine
+        run: cargo clippy --all-targets -- -D warnings
+      - name: test
+        working-directory: engine
+        run: cargo test --release
+
+  server:
+    name: server (node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - working-directory: server
+        run: npm ci
+      - working-directory: server
+        run: npm run build
+      - working-directory: server
+        run: npm test --if-present
+
+  web:
+    name: web (react)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - working-directory: web
+        run: npm ci
+      - working-directory: web
+        run: npm run build
+      - working-directory: web
+        run: npm test --if-present

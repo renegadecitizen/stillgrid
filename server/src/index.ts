@@ -1,0 +1,141 @@
+import express from "express";
+import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { generate, grade, solve } from "./engine.js";
+
+const PORT = Number(process.env.PORT ?? 3001);
+
+const app = express();
+app.use(express.json());
+
+// In production, serve the built React SPA from /app/web/dist (set by the
+// Dockerfile). In dev, Vite serves the SPA on :5173 and proxies /api here.
+const WEB_DIST =
+  process.env.STILLGRID_WEB_DIST ?? resolve(import.meta.dirname, "../../web/dist");
+const SERVE_STATIC = existsSync(WEB_DIST);
+if (SERVE_STATIC) {
+  app.use(
+    express.static(WEB_DIST, {
+      // Hashed JS/CSS bundles are immutable; long cache.
+      maxAge: "1y",
+      setHeaders: (res, path) => {
+        if (path.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+      },
+    }),
+  );
+}
+
+app.get("/healthz", (_req, res) => {
+  res.json({ ok: true, service: "stillgrid-server", version: "0.1.0" });
+});
+
+app.post("/api/solve", async (req, res) => {
+  const puzzle = typeof req.body?.puzzle === "string" ? req.body.puzzle : null;
+  if (!puzzle) {
+    res.status(400).json({ error: "missing 'puzzle' string in body" });
+    return;
+  }
+  try {
+    res.json(await solve(puzzle));
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : "unknown" });
+  }
+});
+
+// Phase 1: spawns the generator binary per request.
+// Phase 2 will replace this with a Postgres-backed puzzle pool to keep
+// generation off the request path entirely.
+const VARIANTS: ReadonlySet<string> = new Set(["classic", "xsudoku", "jigsaw", "killer"]);
+
+app.get("/api/puzzle", async (req, res) => {
+  const variant = String(req.query.variant ?? "classic");
+  if (!VARIANTS.has(variant)) {
+    res.status(400).json({ error: "unknown variant", variant, supported: [...VARIANTS] });
+    return;
+  }
+  const minClues = req.query.minClues ? Number(req.query.minClues) : undefined;
+  const seed = req.query.seed ? Number(req.query.seed) : undefined;
+  const wantTier = req.query.tier ? String(req.query.tier) : null;
+
+  // Tier filtering only meaningful for classic (the technique solver is
+  // currently classic-only). Killer/Jigsaw/X-Sudoku skip grading for now.
+  const canGrade = variant === "classic";
+  if (wantTier && !canGrade) {
+    res.status(400).json({
+      error: "tier filtering only supported for classic in Phase 1",
+      note: "Technique solver for variants lands in Phase 2.",
+    });
+    return;
+  }
+
+  const MAX_RETRIES = wantTier ? 60 : 1;
+  try {
+    let lastPuzzle: Awaited<ReturnType<typeof generate>> | null = null;
+    let lastGrade: Awaited<ReturnType<typeof grade>> | null = null;
+    let matched = !wantTier;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      const puzzle = await generate({
+        variant: variant as "classic" | "xsudoku" | "jigsaw" | "killer",
+        minClues,
+        seed: seed !== undefined ? seed + i : undefined,
+      });
+      lastPuzzle = puzzle;
+      if (canGrade) {
+        lastGrade = await grade(puzzle.givens);
+        if (wantTier && lastGrade.outcome === "solved" && lastGrade.tier_label === wantTier) {
+          matched = true;
+          break;
+        }
+      }
+      if (!wantTier) break;
+    }
+    if (!lastPuzzle) {
+      res.status(500).json({ error: "generator produced nothing" });
+      return;
+    }
+    const body: Record<string, unknown> = { ...lastPuzzle };
+    if (lastGrade) body.grade = lastGrade;
+    if (wantTier && !matched) {
+      body.requested_tier = wantTier;
+      body.tier_matched = false;
+      body.note = `Could not generate a '${wantTier}' puzzle in ${MAX_RETRIES} attempts. Phase 2 puzzle pool will fix.`;
+    }
+    res.json(body);
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : "unknown" });
+  }
+});
+
+app.post("/api/grade", async (req, res) => {
+  const puzzle = typeof req.body?.puzzle === "string" ? req.body.puzzle : null;
+  if (!puzzle) {
+    res.status(400).json({ error: "missing 'puzzle' string in body" });
+    return;
+  }
+  try {
+    res.json(await grade(puzzle));
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : "unknown" });
+  }
+});
+
+app.get("/api/daily", (req, res) => {
+  const date = String(req.query.date ?? new Date().toISOString().slice(0, 10));
+  res.status(501).json({ error: "not_implemented", date, note: "Phase 2" });
+});
+
+// SPA fallback: any unknown GET serves index.html so client-side routes work.
+if (SERVE_STATIC) {
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/")) return next();
+    res.sendFile(resolve(WEB_DIST, "index.html"));
+  });
+}
+
+app.listen(PORT, () => {
+  console.log(
+    `stillgrid-server listening on :${PORT} (static: ${SERVE_STATIC ? WEB_DIST : "off"})`,
+  );
+});

@@ -1,0 +1,22 @@
+{
+  "site": {
+    "name": "Stillgrid",
+    "tagline": "Sudoku, the quiet way."
+  },
+  "actions": {
+    "newGame": "New game",
+    "undo": "Undo",
+    "redo": "Redo",
+    "hint": "Hint",
+    "pencil": "Pencil",
+    "settings": "Settings"
+  },
+  "difficulty": {
+    "t1": "Easy",
+    "t2": "Medium",
+    "t3": "Hard",
+    "t4": "Diabolical",
+    "t5": "Nightmare",
+    "t6": "Setter's Choice"
+  }
+}
