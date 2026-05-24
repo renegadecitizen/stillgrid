@@ -121,9 +121,37 @@ app.post("/api/grade", async (req, res) => {
   }
 });
 
-app.get("/api/daily", (req, res) => {
-  const date = String(req.query.date ?? new Date().toISOString().slice(0, 10));
-  res.status(501).json({ error: "not_implemented", date, note: "Phase 2" });
+// Deterministic daily challenge: same date → same two puzzles for everyone.
+// Phase 2 will move this to a pre-generated Postgres pool keyed by date.
+function dailySeed(date: string, kind: "classic" | "killer"): number {
+  // YYYY-MM-DD → bigint-ish seed. Adding a per-kind salt so classic + killer
+  // diverge.
+  const [y, m, d] = date.split("-").map(Number);
+  const base = (y! * 10000 + m! * 100 + d!) * 1000;
+  return base + (kind === "classic" ? 1 : 2);
+}
+
+app.get("/api/daily", async (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const date = String(req.query.date ?? today);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: "date must be YYYY-MM-DD" });
+    return;
+  }
+  try {
+    const [classic, killer] = await Promise.all([
+      generate({ variant: "classic", seed: dailySeed(date, "classic"), minClues: 28 }),
+      generate({ variant: "killer", seed: dailySeed(date, "killer") }),
+    ]);
+    const g = await grade(classic.givens);
+    res.json({
+      date,
+      classic: { ...classic, grade: g },
+      killer,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : "unknown" });
+  }
 });
 
 // SPA fallback: any unknown GET serves index.html so client-side routes work.

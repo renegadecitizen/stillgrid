@@ -1,4 +1,26 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  getBest,
+  recordRun,
+  getStreak,
+  markDailyDone,
+  getDailyDone,
+  todayKey,
+  type Best,
+  type RecordOutcome,
+} from "./storage";
+import {
+  type BoardState,
+  initialState,
+  isSolved as boardIsSolved,
+  autoPencil as boardAutoPencil,
+  clearAllNotes as boardClearAllNotes,
+  placeValue,
+  toggleNote,
+  clearCell,
+  listNotes,
+  getValue,
+} from "./boardState";
 
 type Variant = "classic" | "xsudoku" | "jigsaw" | "killer";
 
@@ -28,11 +50,34 @@ interface PuzzleResponse {
   note?: string;
 }
 
-const VARIANT_LABEL: Record<Variant, string> = {
-  classic: "Classic",
-  xsudoku: "X-Sudoku",
-  jigsaw: "Jigsaw",
-  killer: "Killer",
+const VARIANT_COLOR: Record<Variant, { main: string; soft: string; label: string }> = {
+  classic: { main: "var(--color-sage)", soft: "var(--color-sage-soft)", label: "Classic" },
+  xsudoku: { main: "var(--color-teal)", soft: "var(--color-teal-soft)", label: "X-Sudoku" },
+  jigsaw: { main: "var(--color-plum)", soft: "var(--color-plum-soft)", label: "Jigsaw" },
+  killer: { main: "var(--color-terracotta)", soft: "var(--color-terracotta-soft)", label: "Killer" },
+};
+
+const TIER_COLOR: Record<string, { main: string; soft: string }> = {
+  easy: { main: "var(--color-easy)", soft: "var(--color-easy-soft)" },
+  medium: { main: "var(--color-medium)", soft: "var(--color-medium-soft)" },
+  hard: { main: "var(--color-hard)", soft: "var(--color-hard-soft)" },
+};
+
+const kbd: React.CSSProperties = {
+  background: "var(--color-paper)",
+  border: "1px solid var(--color-divider)",
+  borderRadius: 3,
+  padding: "0 4px",
+  fontFamily: "var(--font-body)",
+  fontSize: 10,
+  color: "var(--color-ink-soft)",
+};
+
+const VARIANT_BLURB: Record<Variant, string> = {
+  classic: "The original. Rows, columns, and 3×3 boxes — each holds 1 through 9.",
+  xsudoku: "Classic, plus both main diagonals must contain 1 through 9.",
+  jigsaw: "The boxes aren't 3×3 — they're irregular regions of nine cells.",
+  killer: "No starting digits. Cages give you a target sum; no digit repeats inside a cage.",
 };
 
 export function App() {
@@ -41,24 +86,28 @@ export function App() {
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
   const [tier, setTier] = useState<string>("");
   const [variant, setVariant] = useState<Variant>("classic");
+  const [showSolution, setShowSolution] = useState(false);
+  // If the currently-loaded puzzle came from a "daily" load, we mark its
+  // completion in the daily streak store.
+  const [dailyTag, setDailyTag] = useState<{ date: string; kind: "classic" | "killer" } | null>(
+    null,
+  );
 
   const isDemo = import.meta.env.VITE_DEMO === "1";
 
   const load = (vArg: Variant = variant, tArg: string = tier) => {
     setPuzzle(null);
     setError(null);
+    setShowSolution(false);
+    setDailyTag(null);
     const t0 = performance.now();
 
     if (isDemo) {
-      // Demo mode: pick from a pre-baked pool of static puzzles.
       fetch("puzzles.json")
         .then((r) => r.json())
         .then((pool: Record<Variant, PuzzleResponse[]>) => {
           const choices = pool[vArg];
-          if (!choices || choices.length === 0) {
-            setError(`no demo puzzles for ${vArg}`);
-            return;
-          }
+          if (!choices?.length) return setError(`no demo puzzles for ${vArg}`);
           const pick = choices[Math.floor(Math.random() * choices.length)];
           setPuzzle(pick);
           setElapsedMs(Math.round(performance.now() - t0));
@@ -81,122 +130,1063 @@ export function App() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
+  // Load today's daily for a given variant. Demo mode reads from puzzles.json
+  // under a "daily" key; production hits /api/daily.
+  const loadDaily = (kind: "classic" | "killer") => {
+    setPuzzle(null);
+    setError(null);
+    setShowSolution(false);
+    const date = todayKey();
+    const t0 = performance.now();
+
+    if (isDemo) {
+      fetch("puzzles.json")
+        .then((r) => r.json())
+        .then(
+          (pool: Record<string, PuzzleResponse[]> & {
+            daily?: { date: string; classic: PuzzleResponse; killer: PuzzleResponse };
+          }) => {
+            const d = pool.daily;
+            if (!d) return setError("no daily in demo pool");
+            const pick = kind === "classic" ? d.classic : d.killer;
+            setVariant(pick.variant);
+            setTier("");
+            setPuzzle(pick);
+            setDailyTag({ date: d.date, kind });
+            setElapsedMs(Math.round(performance.now() - t0));
+          },
+        )
+        .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+      return;
+    }
+
+    fetch(`/api/daily?date=${date}`)
+      .then((r) => r.json())
+      .then((data: { date: string; classic: PuzzleResponse; killer: PuzzleResponse } | { error: string }) => {
+        if ("error" in data) {
+          setError(data.error);
+          return;
+        }
+        const pick = kind === "classic" ? data.classic : data.killer;
+        setVariant(pick.variant);
+        setTier("");
+        setPuzzle(pick);
+        setDailyTag({ date: data.date, kind });
+        setElapsedMs(Math.round(performance.now() - t0));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  };
+
   useEffect(() => load("classic", ""), []);
 
+  const variantColor = VARIANT_COLOR[variant];
+  // Play-surface accent: difficulty color takes over when set (matches what
+  // the user picked); otherwise fall back to the variant's hue.
+  const playAccent =
+    tier && TIER_COLOR[tier] ? TIER_COLOR[tier] : { main: variantColor.main, soft: variantColor.soft };
+
   return (
-    <main
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        padding: 24,
-        maxWidth: 760,
-        margin: "0 auto",
-        color: "#222",
-      }}
-    >
-      <h1 style={{ fontWeight: 500, letterSpacing: -0.5 }}>Stillgrid</h1>
-      <p style={{ color: "#555" }}>Sudoku, the quiet way.</p>
+    <div className="min-h-screen flex flex-col">
+      <Topbar />
+      <main className="flex-1 w-full max-w-6xl mx-auto px-6 pt-10 pb-20">
+        <Hero />
 
-      <section style={{ marginTop: 32 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-          <select
-            value={variant}
-            onChange={(e) => {
-              const v = e.target.value as Variant;
-              setVariant(v);
-              load(v, tier);
-            }}
-            style={{ fontFamily: "inherit", fontSize: 13, padding: "4px 6px" }}
-          >
-            <option value="classic">Classic</option>
-            <option value="xsudoku">X-Sudoku</option>
-            <option value="jigsaw">Jigsaw</option>
-            <option value="killer">Killer</option>
-          </select>
-          <select
-            value={tier}
-            onChange={(e) => {
-              setTier(e.target.value);
-              load(variant, e.target.value);
-            }}
-            disabled={variant !== "classic"}
-            style={{ fontFamily: "inherit", fontSize: 13, padding: "4px 6px" }}
-          >
-            <option value="">Any difficulty</option>
-            <option value="easy">Easy (T1)</option>
-            <option value="medium">Medium (T2)</option>
-            <option value="hard">Hard (T3)</option>
-          </select>
-          <button
-            onClick={() => load(variant, tier)}
-            style={{
-              fontFamily: "inherit",
-              fontSize: 13,
-              padding: "4px 10px",
-              borderRadius: 4,
-              border: "1px solid #ccc",
-              background: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            new puzzle
-          </button>
-        </div>
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <section className="lg:col-span-2">
+            <Controls
+              variant={variant}
+              tier={tier}
+              variantColor={variantColor.main}
+              onVariant={(v) => {
+                setVariant(v);
+                load(v, tier);
+              }}
+              onTier={(t) => {
+                setTier(t);
+                load(variant, t);
+              }}
+              onNew={() => load(variant, tier)}
+            />
 
-        {error && <p style={{ color: "#b00", marginTop: 12 }}>error: {error}</p>}
-        {!puzzle && !error && <p style={{ color: "#888" }}>generating…</p>}
-
-        {puzzle && (
-          <>
-            <p style={{ color: "#555", fontSize: 14 }}>
-              <strong>{VARIANT_LABEL[puzzle.variant]}</strong>
-              {puzzle.clue_count > 0 && ` · ${puzzle.clue_count} clues`}
-              {puzzle.cages && ` · ${puzzle.cages.length} cages`}
-              {puzzle.grade && puzzle.grade.outcome === "solved" && (
-                <>
-                  {" · "}
-                  <strong style={{ color: "#0a0" }}>
-                    {puzzle.grade.tier_label} (T{puzzle.grade.tier}, {puzzle.grade.steps} steps)
-                  </strong>
-                </>
-              )}
-              {puzzle.grade && puzzle.grade.outcome === "stuck" && (
-                <span style={{ color: "#a60", marginLeft: 6 }}>
-                  needs T4+ techniques (Swordfish / XY-Wing)
-                </span>
-              )}
-              {elapsedMs !== null && (
-                <span style={{ color: "#888", marginLeft: 8 }}>({elapsedMs} ms)</span>
-              )}
+            <p
+              className="mt-4 text-sm italic leading-relaxed"
+              style={{ color: "var(--color-ink-soft)" }}
+            >
+              {VARIANT_BLURB[variant]}
             </p>
-            <Grid puzzle={puzzle} />
-            {puzzle.note && (
-              <p style={{ color: "#a60", fontSize: 12, marginTop: 8 }}>{puzzle.note}</p>
-            )}
-            <details style={{ marginTop: 12 }}>
-              <summary style={{ cursor: "pointer", color: "#888", fontSize: 13 }}>solution</summary>
-              <Grid puzzle={{ ...puzzle, givens: puzzle.solution }} muted />
-            </details>
-          </>
-        )}
-      </section>
 
-      <p style={{ color: "#888", fontSize: 13, marginTop: 32 }}>
-        {isDemo
-          ? "Demo build — pulls from a fixed pool of pre-baked puzzles. The live engine generates fresh ones."
-          : "Phase 1 Week 5 — variants live."}
-      </p>
-    </main>
+            {error && (
+              <p
+                className="mt-6 text-sm rounded-lg px-4 py-3"
+                style={{ background: "#fee", color: "#7a1f1f", border: "1px solid #fcc" }}
+              >
+                {error}
+              </p>
+            )}
+
+            {!puzzle && !error && (
+              <p className="mt-8 text-sm" style={{ color: "var(--color-ink-mute)" }}>
+                generating…
+              </p>
+            )}
+
+            {puzzle && (
+              <PlayCard
+                puzzle={puzzle}
+                elapsedMs={elapsedMs}
+                showSolution={showSolution}
+                onToggleSolution={() => setShowSolution((s) => !s)}
+                variantAccent={variantColor.main}
+                variantAccentSoft={variantColor.soft}
+                playAccent={playAccent.main}
+                playAccentSoft={playAccent.soft}
+                dailyTag={dailyTag}
+              />
+            )}
+          </section>
+
+          <aside className="lg:col-span-1 space-y-4">
+            <DailyCard onPlay={loadDaily} />
+            <StreakCard />
+            <VariantsCard active={variant} onPick={(v) => { setVariant(v); load(v, tier); }} />
+            <RoadmapCard />
+          </aside>
+        </div>
+      </main>
+      <Footer isDemo={isDemo} />
+    </div>
   );
 }
 
-function Grid({ puzzle, muted = false }: { puzzle: PuzzleResponse; muted?: boolean }) {
-  const cells = puzzle.givens.split("");
-  // Map cell index → cage index, for killer rendering
+// --- Topbar / Hero -------------------------------------------------------
+
+function Topbar() {
+  return (
+    <div className="border-b" style={{ borderColor: "var(--color-divider)", background: "rgba(250, 247, 242, 0.7)" }}>
+      <div className="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between text-xs">
+        <span style={{ color: "var(--color-ink-mute)" }}>stillgrid.app</span>
+        <div className="flex items-center gap-5" style={{ color: "var(--color-ink-soft)" }}>
+          <a href="#" className="hover:text-ink transition-colors">Play</a>
+          <a href="#" className="hover:text-ink transition-colors">Daily</a>
+          <a href="#" className="hover:text-ink transition-colors">Learn</a>
+          <a href="#" className="hover:text-ink transition-colors">About</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Hero() {
+  return (
+    <header className="flex items-start justify-between gap-8 flex-wrap">
+      <div className="flex flex-col items-start gap-3">
+        <div className="flex items-baseline gap-3">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" style={{ background: "var(--color-sage)", color: "white" }}>
+            <GridMark />
+          </span>
+          <h1 className="text-6xl leading-none tracking-tight" style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}>Stillgrid</h1>
+          <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--color-ink-mute)" }}>v0.1</span>
+        </div>
+        <p className="text-xl italic" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink-soft)" }}>
+          Sudoku, the quiet way.
+        </p>
+        <p className="text-sm max-w-md leading-relaxed mt-1" style={{ color: "var(--color-ink-soft)" }}>
+          A modern sudoku site with variants, technique-graded difficulty, and no signup.
+          Made for the morning cup of coffee.
+        </p>
+      </div>
+      <div className="text-right text-xs flex flex-col items-end gap-1" style={{ color: "var(--color-ink-mute)" }}>
+        <Badge color="var(--color-sage)" text="100% solvable" />
+        <Badge color="var(--color-teal)" text="4 variants live" />
+        <Badge color="var(--color-plum)" text="No signup, ever" />
+      </div>
+    </header>
+  );
+}
+
+function GridMark() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="0.5" y="0.5" width="13" height="13" rx="2" stroke="white" strokeWidth="1" />
+      <line x1="5" y1="1" x2="5" y2="13" stroke="white" strokeWidth="1" opacity="0.7" />
+      <line x1="9" y1="1" x2="9" y2="13" stroke="white" strokeWidth="1" opacity="0.7" />
+      <line x1="1" y1="5" x2="13" y2="5" stroke="white" strokeWidth="1" opacity="0.7" />
+      <line x1="1" y1="9" x2="13" y2="9" stroke="white" strokeWidth="1" opacity="0.7" />
+    </svg>
+  );
+}
+
+function Badge({ color, text }: { color: string; text: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+      <span>{text}</span>
+    </span>
+  );
+}
+
+// --- controls ------------------------------------------------------------
+
+function Controls({
+  variant,
+  tier,
+  variantColor,
+  onVariant,
+  onTier,
+  onNew,
+}: {
+  variant: Variant;
+  tier: string;
+  variantColor: string;
+  onVariant: (v: Variant) => void;
+  onTier: (t: string) => void;
+  onNew: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <VariantSelect value={variant} onChange={onVariant} />
+      <TierSelect value={tier} onChange={onTier} disabled={variant !== "classic"} />
+      <button
+        onClick={onNew}
+        className="rounded-full px-4 py-1.5 text-sm font-medium ml-auto transition-colors text-white"
+        style={{ background: variantColor }}
+      >
+        New puzzle
+      </button>
+    </div>
+  );
+}
+
+function VariantSelect({ value, onChange }: { value: Variant; onChange: (v: Variant) => void }) {
+  const options: Variant[] = ["classic", "xsudoku", "jigsaw", "killer"];
+  return (
+    <div className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)" }}>
+      {options.map((v) => {
+        const active = v === value;
+        const c = VARIANT_COLOR[v];
+        return (
+          <button
+            key={v}
+            onClick={() => onChange(v)}
+            className="px-3 py-1 text-xs rounded-full transition-colors"
+            style={{ background: active ? c.main : "transparent", color: active ? "white" : "var(--color-ink-soft)" }}
+          >
+            {c.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TierSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const options = [
+    { v: "", label: "Any" },
+    { v: "easy", label: "Easy" },
+    { v: "medium", label: "Medium" },
+    { v: "hard", label: "Hard" },
+  ];
+  return (
+    <div className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)", opacity: disabled ? 0.5 : 1 }}>
+      {options.map(({ v, label }) => {
+        const active = v === value;
+        const tc = TIER_COLOR[v];
+        return (
+          <button
+            key={v}
+            disabled={disabled}
+            onClick={() => onChange(v)}
+            className="px-3 py-1 text-xs rounded-full transition-colors"
+            style={{ background: active ? (tc?.main ?? "var(--color-ink-soft)") : "transparent", color: active ? "white" : "var(--color-ink-soft)", cursor: disabled ? "not-allowed" : "pointer" }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- playable card (selection + keyboard input) --------------------------
+
+function PlayCard({
+  puzzle,
+  elapsedMs,
+  showSolution,
+  onToggleSolution,
+  variantAccent,
+  variantAccentSoft,
+  playAccent,
+  playAccentSoft,
+  dailyTag,
+}: {
+  puzzle: PuzzleResponse;
+  elapsedMs: number | null;
+  showSolution: boolean;
+  onToggleSolution: () => void;
+  variantAccent: string;
+  variantAccentSoft: string;
+  playAccent: string;
+  playAccentSoft: string;
+  dailyTag: { date: string; kind: "classic" | "killer" } | null;
+}) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [notesMode, setNotesMode] = useState(false);
+  // Snapshot-based history. history[historyIdx] is the current state.
+  const [history, setHistory] = useState<BoardState[]>(() => [initialState(puzzle.givens)]);
+  const [historyIdx, setHistoryIdx] = useState(0);
+  const state = history[historyIdx]!;
+
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState<number>(Date.now());
+  const [mistakes, setMistakes] = useState(0);
+  const [finishedAt, setFinishedAt] = useState<number | null>(null);
+  const [outcome, setOutcome] = useState<RecordOutcome | null>(null);
+
+  const tierBucket: string | null =
+    puzzle.grade && puzzle.grade.outcome === "solved" ? puzzle.grade.tier_label : null;
+
+  const [currentBest, setCurrentBest] = useState<Best | null>(null);
+  useEffect(() => {
+    setCurrentBest(getBest(puzzle.variant, tierBucket));
+  }, [puzzle.variant, tierBucket]);
+
+  // Reset everything on puzzle change
+  useEffect(() => {
+    setSelected(null);
+    setNotesMode(false);
+    setHistory([initialState(puzzle.givens)]);
+    setHistoryIdx(0);
+    setStartedAt(null);
+    setMistakes(0);
+    setFinishedAt(null);
+    setOutcome(null);
+  }, [puzzle.givens]);
+
+  // Tick the clock
+  useEffect(() => {
+    if (startedAt === null || finishedAt !== null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [startedAt, finishedAt]);
+
+  const pushState = useCallback((next: BoardState) => {
+    if (next === state) return;
+    setStartedAt((s) => s ?? Date.now());
+    setHistory((h) => [...h.slice(0, historyIdx + 1), next]);
+    setHistoryIdx((i) => i + 1);
+  }, [historyIdx, state]);
+
+  const isGiven = useCallback((i: number) => state.givenMask[i] === 1, [state.givenMask]);
+
+  const handlePlace = useCallback(
+    (i: number, v: number) => {
+      if (isGiven(i)) return;
+      // mistake counter: did the user place a wrong value?
+      const expected = puzzle.solution.charCodeAt(i) - 48;
+      const current = state.values[i] ?? 0;
+      if (v !== expected && current !== v) {
+        setMistakes((m) => m + 1);
+      }
+      // Tapping the same digit clears it (familiar UX).
+      const next = current === v ? clearCell(state, i) : placeValue(state, i, v);
+      pushState(next);
+    },
+    [isGiven, puzzle.solution, state, pushState],
+  );
+
+  const handleToggleNote = useCallback(
+    (i: number, d: number) => {
+      if (isGiven(i)) return;
+      pushState(toggleNote(state, i, d));
+    },
+    [isGiven, state, pushState],
+  );
+
+  const handleClear = useCallback(
+    (i: number) => {
+      if (isGiven(i)) return;
+      pushState(clearCell(state, i));
+    },
+    [isGiven, state, pushState],
+  );
+
+  const handleAutoPencil = useCallback(() => {
+    pushState(boardAutoPencil(state));
+  }, [state, pushState]);
+
+  const handleClearAllNotes = useCallback(() => {
+    pushState(boardClearAllNotes(state));
+  }, [state, pushState]);
+
+  const handleUndo = useCallback(() => {
+    setHistoryIdx((i) => (i > 0 ? i - 1 : i));
+  }, []);
+  const handleRedo = useCallback(() => {
+    setHistoryIdx((i) => (i < history.length - 1 ? i + 1 : i));
+  }, [history.length]);
+
+  // Keyboard handling
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const isInput = (e.target as HTMLElement)?.tagName === "INPUT";
+      if (isInput) return;
+
+      // Global shortcuts (don't require a selected cell)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        if (e.shiftKey) handleRedo();
+        else handleUndo();
+        e.preventDefault();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
+        handleRedo();
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "n" || e.key === "N") {
+        setNotesMode((m) => !m);
+        e.preventDefault();
+        return;
+      }
+
+      if (selected === null) return;
+
+      const r = Math.floor(selected / 9);
+      const c = selected % 9;
+
+      if (/^[1-9]$/.test(e.key)) {
+        const d = parseInt(e.key, 10);
+        // Shift+digit always toggles a note. Otherwise honor notes mode.
+        if (e.shiftKey || notesMode) handleToggleNote(selected, d);
+        else handlePlace(selected, d);
+        e.preventDefault();
+      } else if (e.key === "0" || e.key === "Backspace" || e.key === "Delete") {
+        handleClear(selected);
+        e.preventDefault();
+      } else if (e.key === "ArrowLeft" && c > 0) {
+        setSelected(selected - 1);
+        e.preventDefault();
+      } else if (e.key === "ArrowRight" && c < 8) {
+        setSelected(selected + 1);
+        e.preventDefault();
+      } else if (e.key === "ArrowUp" && r > 0) {
+        setSelected(selected - 9);
+        e.preventDefault();
+      } else if (e.key === "ArrowDown" && r < 8) {
+        setSelected(selected + 9);
+        e.preventDefault();
+      } else if (e.key === "Escape") {
+        setSelected(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, notesMode, handlePlace, handleToggleNote, handleClear, handleUndo, handleRedo]);
+
+  const isSolved = useMemo(
+    () => boardIsSolved(state, puzzle.solution),
+    [state, puzzle.solution],
+  );
+
+  // Lock the clock when solved
+  useEffect(() => {
+    if (isSolved && finishedAt === null && startedAt !== null) {
+      setFinishedAt(Date.now());
+    }
+  }, [isSolved, finishedAt, startedAt]);
+
+  useEffect(() => {
+    if (!isSolved || finishedAt === null || startedAt === null || outcome) return;
+    const seconds = Math.max(1, Math.floor((finishedAt - startedAt) / 1000));
+    const tierLabel =
+      puzzle.grade && puzzle.grade.outcome === "solved" ? puzzle.grade.tier_label : "easy";
+    const tierMult: Record<string, number> = {
+      easy: 1, medium: 2, hard: 4, diabolical: 8, nightmare: 16,
+    };
+    const raw = (1000 * (tierMult[tierLabel] ?? 1)) / Math.sqrt(seconds);
+    const scoreValue = Math.max(0, Math.round(raw - mistakes * 50));
+    const result = recordRun({
+      variant: puzzle.variant,
+      tierLabel: tierBucket,
+      timeSec: seconds,
+      mistakes,
+      score: scoreValue,
+    });
+    setOutcome(result);
+    setCurrentBest(result.best);
+
+    // If this puzzle came from "Daily", mark it.
+    if (dailyTag) {
+      markDailyDone(dailyTag.date, dailyTag.kind, {
+        timeSec: seconds,
+        mistakes,
+        score: scoreValue,
+      });
+      // Force the streak widget to refresh next render.
+      window.dispatchEvent(new CustomEvent("stillgrid:dailyDone"));
+    }
+  }, [isSolved, finishedAt, startedAt, mistakes, outcome, puzzle.variant, puzzle.grade, tierBucket, dailyTag]);
+
+  const elapsedSeconds =
+    startedAt === null
+      ? 0
+      : Math.floor(((finishedAt ?? now) - startedAt) / 1000);
+
+  // Provisional score: difficulty × time × accuracy.
+  // We don't ship a "rating" yet — this is just the formula we'll use when
+  // accounts + leaderboards land. Hidden until solved to avoid distracting.
+  const score = useMemo(() => {
+    if (!isSolved || finishedAt === null || startedAt === null) return null;
+    const seconds = Math.max(1, Math.floor((finishedAt - startedAt) / 1000));
+    const tierLabel =
+      puzzle.grade && puzzle.grade.outcome === "solved"
+        ? puzzle.grade.tier_label
+        : "easy";
+    const tierMult: Record<string, number> = {
+      easy: 1,
+      medium: 2,
+      hard: 4,
+      diabolical: 8,
+      nightmare: 16,
+    };
+    const base = 1000;
+    const raw = (base * (tierMult[tierLabel] ?? 1)) / Math.sqrt(seconds);
+    const penalty = mistakes * 50;
+    return Math.max(0, Math.round(raw - penalty));
+  }, [isSolved, finishedAt, startedAt, mistakes, puzzle.grade]);
+
+  return (
+    <div
+      className="rounded-2xl p-6 sm:p-8 mt-6"
+      style={{ background: "var(--color-card)", boxShadow: "var(--shadow-paper)", borderTop: `3px solid ${variantAccent}` }}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-5">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="text-lg" style={{ fontFamily: "var(--font-display)", fontWeight: 500, color: variantAccent }}>
+            {VARIANT_COLOR[puzzle.variant].label}
+          </h2>
+          <div className="text-xs flex items-baseline gap-2 flex-wrap" style={{ color: "var(--color-ink-mute)" }}>
+            {puzzle.clue_count > 0 && <span>{puzzle.clue_count} clues</span>}
+            {puzzle.cages && <span>· {puzzle.cages.length} cages</span>}
+            {puzzle.grade && puzzle.grade.outcome === "solved" && (
+              <TierBadge tier={puzzle.grade.tier_label} steps={puzzle.grade.steps} />
+            )}
+            {puzzle.grade && puzzle.grade.outcome === "stuck" && (
+              <span style={{ color: "var(--color-medium)", fontStyle: "italic" }}>· needs Tier 4+ techniques</span>
+            )}
+          </div>
+        </div>
+        {/* live stats: timer + mistakes + best (right-aligned) */}
+        <div className="flex flex-col items-end gap-1 text-xs tabular-nums">
+          <div className="flex items-baseline gap-3" style={{ color: "var(--color-ink-soft)" }}>
+            <Stat label="time" value={formatTime(elapsedSeconds)} accent={playAccent} active={startedAt !== null && finishedAt === null} />
+            <Stat label="mistakes" value={String(mistakes)} accent={mistakes > 0 ? "var(--color-hard)" : "var(--color-ink-mute)"} />
+          </div>
+          {currentBest && (
+            <div
+              className="text-[10px] flex items-baseline gap-1.5"
+              style={{ color: "var(--color-ink-mute)" }}
+            >
+              <span className="uppercase tracking-wider">Best</span>
+              <span style={{ color: "var(--color-ink-soft)", fontWeight: 500 }}>
+                {formatTime(currentBest.bestTimeSec)} · {currentBest.bestMistakes} mistake{currentBest.bestMistakes === 1 ? "" : "s"} · {currentBest.bestScore.toLocaleString()} pts
+              </span>
+              <span style={{ opacity: 0.6 }}>· {currentBest.solves} solve{currentBest.solves === 1 ? "" : "s"}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-center">
+        <Grid
+          puzzle={puzzle}
+          state={state}
+          selected={selected}
+          accent={playAccent}
+          accentSoft={playAccentSoft}
+          onSelect={setSelected}
+          muted={false}
+          interactive
+        />
+      </div>
+
+      {isSolved && (
+        <div
+          className="mt-5 rounded-lg p-4 text-center relative"
+          style={{ background: playAccentSoft, color: playAccent }}
+        >
+          {outcome?.newPersonalBest && (
+            <span
+              className="absolute top-2 right-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full"
+              style={{ background: playAccent, color: "white", fontWeight: 600 }}
+            >
+              New best
+            </span>
+          )}
+          <div className="text-base" style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}>
+            Solved. Quietly done.
+          </div>
+          {score !== null && (
+            <div className="mt-1 text-xs" style={{ color: playAccent, opacity: 0.85 }}>
+              {formatTime(elapsedSeconds)} · {mistakes} mistake{mistakes === 1 ? "" : "s"} · {score.toLocaleString()} pts
+            </div>
+          )}
+          {outcome && (outcome.newFastestTime || outcome.newFewestMistakes) && !outcome.newPersonalBest && (
+            <div className="mt-1 text-[10px] italic" style={{ color: playAccent, opacity: 0.75 }}>
+              {[
+                outcome.newFastestTime ? "fastest time" : null,
+                outcome.newFewestMistakes ? "fewest mistakes" : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
+        </div>
+      )}
+
+      <NumberPad
+        accent={playAccent}
+        notesMode={notesMode}
+        onDigit={(d) => {
+          if (selected === null) return;
+          if (notesMode) handleToggleNote(selected, d);
+          else handlePlace(selected, d);
+        }}
+        onClear={() => selected !== null && handleClear(selected)}
+        onToggleNotes={() => setNotesMode((m) => !m)}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onAutoPencil={handleAutoPencil}
+        onClearAllNotes={handleClearAllNotes}
+        canUndo={historyIdx > 0}
+        canRedo={historyIdx < history.length - 1}
+      />
+
+      <div
+        className="mt-4 flex items-start justify-between gap-3 text-[11px] leading-relaxed"
+        style={{ color: "var(--color-ink-mute)" }}
+      >
+        <div className="flex flex-col gap-0.5">
+          {notesMode ? (
+            <>
+              <span style={{ color: "var(--color-ink-soft)" }}>
+                <strong style={{ color: playAccent }}>Notes are ON.</strong> Typing 1–9 writes small
+                candidate digits in the selected cell instead of placing a value.
+              </span>
+              <span>Turn off with the Notes button or press N.</span>
+            </>
+          ) : selected === null ? (
+            <>
+              <span>
+                Click a cell, then type 1–9 to fill it. <strong>Notes</strong> mode (or Shift+digit)
+                writes small pencil-mark candidates.
+              </span>
+              <span>Shortcuts: <kbd style={kbd}>N</kbd> notes · <kbd style={kbd}>⌘Z</kbd> undo · arrows navigate</span>
+            </>
+          ) : (
+            <>
+              <span>
+                <strong>1–9</strong> places a value · <strong>Shift+digit</strong> toggles a note ·{" "}
+                <strong>⌫</strong> clears
+              </span>
+              <span>Toggle Notes mode for pen-and-paper-style candidates · <kbd style={kbd}>⌘Z</kbd> undo</span>
+            </>
+          )}
+        </div>
+        <button
+          onClick={onToggleSolution}
+          className="underline-offset-4 hover:underline transition-colors text-xs shrink-0"
+          style={{ color: "var(--color-ink-soft)" }}
+        >
+          {showSolution ? "Hide solution" : "Show solution"}
+        </button>
+      </div>
+
+      {elapsedMs !== null && (
+        <div className="mt-1 text-[10px] opacity-50" style={{ color: "var(--color-ink-mute)" }}>
+          generated in {elapsedMs} ms
+        </div>
+      )}
+
+      {showSolution && (
+        <div className="mt-5 pt-5 flex justify-center" style={{ borderTop: "1px solid var(--color-divider)" }}>
+          <Grid
+            puzzle={{ ...puzzle, givens: puzzle.solution }}
+            state={initialState(puzzle.solution)}
+            selected={null}
+            accent={playAccent}
+            accentSoft={playAccentSoft}
+            onSelect={() => {}}
+            muted
+          />
+        </div>
+      )}
+
+      <div className="mt-6 rounded-full h-[3px]" style={{ background: variantAccentSoft }} />
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  accent,
+  active,
+}: {
+  label: string;
+  value: string;
+  accent: string;
+  active?: boolean;
+}) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      {active && (
+        <span
+          className="inline-block w-1.5 h-1.5 rounded-full"
+          style={{ background: accent, animation: "stillgrid-pulse 1.5s ease-in-out infinite" }}
+        />
+      )}
+      <span style={{ color: accent, fontWeight: 600 }}>{value}</span>
+      <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--color-ink-mute)" }}>
+        {label}
+      </span>
+    </span>
+  );
+}
+
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function TierBadge({ tier, steps }: { tier: string; steps: number }) {
+  const c = TIER_COLOR[tier];
+  if (!c) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ background: c.soft, color: c.main }}>
+      <span className="capitalize">{tier}</span>
+      <span style={{ opacity: 0.7 }}>· {steps} steps</span>
+    </span>
+  );
+}
+
+function NotesGrid({
+  notes,
+  highlightDigit,
+}: {
+  notes: number[];
+  highlightDigit: number | null;
+}) {
+  const set = new Set(notes);
+  return (
+    <div
+      className="grid w-full h-full p-0.5"
+      style={{ gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "repeat(3, 1fr)" }}
+    >
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => {
+        const present = set.has(d);
+        const hl = highlightDigit === d && present;
+        return (
+          <span
+            key={d}
+            className="flex items-center justify-center leading-none"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 9,
+              fontWeight: hl ? 700 : 500,
+              color: present
+                ? hl
+                  ? "var(--color-ink)"
+                  : "var(--color-ink-mute)"
+                : "transparent",
+            }}
+          >
+            {d}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function NumberPad({
+  accent,
+  notesMode,
+  onDigit,
+  onClear,
+  onToggleNotes,
+  onUndo,
+  onRedo,
+  onAutoPencil,
+  onClearAllNotes,
+  canUndo,
+  canRedo,
+}: {
+  accent: string;
+  notesMode: boolean;
+  onDigit: (d: number) => void;
+  onClear: () => void;
+  onToggleNotes: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onAutoPencil: () => void;
+  onClearAllNotes: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}) {
+  // Both rows use the same gap and the same button height so they read as
+  // a single control surface.
+  const ROW_GAP = "gap-2";
+  const BTN_H = 44; // px — matches the digit buttons exactly
+
+  return (
+    <div className={`mt-6 flex flex-col items-center ${ROW_GAP}`}>
+      {/* tool row: Notes (prominent toggle) · Auto-fill · Clear notes · Undo · Redo */}
+      <div className={`flex items-center justify-center flex-wrap ${ROW_GAP}`}>
+        <button
+          onClick={onToggleNotes}
+          title="Toggle notes mode (N). When on, 1-9 writes small candidate digits instead of placing a value."
+          className="inline-flex items-center gap-2 px-4 rounded-lg text-sm transition-colors"
+          style={{
+            height: BTN_H,
+            background: notesMode ? accent : "var(--color-paper)",
+            color: notesMode ? "white" : "var(--color-ink-soft)",
+            border: notesMode ? `1px solid ${accent}` : "1px solid var(--color-divider)",
+            fontWeight: 500,
+          }}
+        >
+          <PencilIcon />
+          <span>Notes</span>
+          <span
+            className="text-[9px] px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+            style={{
+              background: notesMode ? "rgba(255,255,255,0.25)" : "var(--color-divider)",
+              color: notesMode ? "white" : "var(--color-ink-mute)",
+              fontWeight: 600,
+            }}
+          >
+            {notesMode ? "On" : "Off"}
+          </span>
+        </button>
+
+        <ToolButton h={BTN_H} accent={accent} onClick={onAutoPencil} title="Fill every empty cell with valid candidates">
+          <SparkleIcon />
+          <span>Auto-fill</span>
+        </ToolButton>
+        <ToolButton h={BTN_H} accent={accent} onClick={onClearAllNotes} title="Erase all notes from every cell (values stay)">
+          <EraserIcon />
+          <span>Clear notes</span>
+        </ToolButton>
+        <ToolButton h={BTN_H} accent={accent} onClick={onUndo} disabled={!canUndo} title="Undo last move (⌘Z)">
+          <UndoIcon />
+          <span>Undo</span>
+        </ToolButton>
+        <ToolButton h={BTN_H} accent={accent} onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+          <RedoIcon />
+          <span>Redo</span>
+        </ToolButton>
+      </div>
+
+      {/* digit row */}
+      <div className={`flex justify-center flex-wrap ${ROW_GAP}`}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
+          <button
+            key={d}
+            onClick={() => onDigit(d)}
+            className="rounded-md text-lg transition-colors"
+            style={{
+              width: BTN_H,
+              height: BTN_H,
+              background: notesMode ? "var(--color-card)" : "var(--color-paper)",
+              border: notesMode ? `1px dashed ${accent}` : "1px solid var(--color-divider)",
+              color: accent,
+              fontFamily: "var(--font-display)",
+              fontWeight: 500,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "var(--color-divider)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = notesMode
+                ? "var(--color-card)"
+                : "var(--color-paper)";
+            }}
+          >
+            {d}
+          </button>
+        ))}
+        <button
+          onClick={onClear}
+          title="Clear the selected cell (Backspace)"
+          className="rounded-md text-sm transition-colors flex items-center justify-center"
+          style={{
+            width: BTN_H,
+            height: BTN_H,
+            background: "var(--color-paper)",
+            color: "var(--color-ink-soft)",
+            border: "1px solid var(--color-divider)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "var(--color-divider)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "var(--color-paper)";
+          }}
+        >
+          ⌫
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ToolButton({
+  active,
+  accent,
+  onClick,
+  disabled,
+  title,
+  h = 36,
+  children,
+}: {
+  active?: boolean;
+  accent: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title: string;
+  h?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="inline-flex items-center gap-1.5 px-3 rounded-lg text-sm transition-colors"
+      style={{
+        height: h,
+        background: active ? accent : "var(--color-paper)",
+        color: active ? "white" : disabled ? "var(--color-ink-mute)" : "var(--color-ink-soft)",
+        border: "1px solid var(--color-divider)",
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontWeight: 500,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M8 1L9.5 6.5L15 8L9.5 9.5L8 15L6.5 9.5L1 8L6.5 6.5L8 1Z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EraserIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M9.5 1.5L14.5 6.5L7.5 13.5H3L1.5 12L9.5 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M6 5L11 10" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+function UndoIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M3 7H10C12.2 7 14 8.8 14 11C14 13.2 12.2 15 10 15H6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6 3L2.5 7L6 11"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ transform: "scaleX(-1)" }}>
+      <path
+        d="M3 7H10C12.2 7 14 8.8 14 11C14 13.2 12.2 15 10 15H6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6 3L2.5 7L6 11"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// --- Grid ----------------------------------------------------------------
+
+function Grid({
+  puzzle,
+  state,
+  selected,
+  accent,
+  accentSoft,
+  onSelect,
+  muted,
+  interactive,
+}: {
+  puzzle: PuzzleResponse;
+  state: BoardState;
+  selected: number | null;
+  accent: string;
+  accentSoft: string;
+  onSelect: (i: number) => void;
+  muted: boolean;
+  interactive?: boolean;
+}) {
   const cageOf: (number | null)[] = Array(81).fill(null);
   if (puzzle.cages) {
     puzzle.cages.forEach((cage, ci) => cage.cells.forEach((c) => (cageOf[c] = ci)));
   }
-  // For killer, find each cage's top-left cell (lowest index) to display the sum
   const cageSumAt = new Map<number, number>();
   if (puzzle.cages) {
     puzzle.cages.forEach((cage) => {
@@ -204,105 +1194,135 @@ function Grid({ puzzle, muted = false }: { puzzle: PuzzleResponse; muted?: boole
       cageSumAt.set(topLeft, cage.sum);
     });
   }
+  const boxOf = puzzle.box_of ?? defaultBoxOf();
+
+  const selRow = selected !== null ? Math.floor(selected / 9) : -1;
+  const selCol = selected !== null ? selected % 9 : -1;
+  const selBox = selected !== null ? boxOf[selected] : -1;
+  const selDigit = selected !== null ? getValue(state, selected) || null : null;
 
   return (
     <div
+      className="grid"
       style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(9, 42px)",
-        gridTemplateRows: "repeat(9, 42px)",
-        width: "max-content",
-        marginTop: 12,
-        background: "#fff",
-        position: "relative",
-        outline: "2px solid #222",
+        gridTemplateColumns: "repeat(9, minmax(34px, 46px))",
+        gridTemplateRows: "repeat(9, minmax(34px, 46px))",
+        border: "2px solid var(--color-box-line)",
+        borderRadius: 4,
+        overflow: "hidden",
+        background: "var(--color-card)",
+        userSelect: "none",
       }}
     >
-      {cells.map((ch, i) => {
+      {Array.from({ length: 81 }, (_, i) => {
         const row = Math.floor(i / 9);
         const col = i % 9;
-        const value = ch === "." || ch === "0" ? "" : ch;
-        const sumHere = cageSumAt.get(i);
+        const given = state.givenMask[i] === 1;
+        const value = state.values[i] ?? 0;
+        const valueChar = value === 0 ? "" : String(value);
+        const notes = value === 0 ? listNotes(state, i) : [];
 
-        // Box borders — use jigsaw box_of if present, otherwise classic 3x3
-        const boxOf = puzzle.box_of ?? defaultBoxOf();
+        const sumHere = cageSumAt.get(i);
         const myBox = boxOf[i];
+
+        const isSelected = i === selected;
+        const isPeer =
+          !isSelected &&
+          selected !== null &&
+          (row === selRow || col === selCol || myBox === selBox);
+        const isSameDigit =
+          !isSelected && selDigit !== null && value !== 0 && value === selDigit;
+
+        const expected = puzzle.solution.charCodeAt(i) - 48;
+        const isConflict = !given && value !== 0 && value !== expected;
+
+        let bg: string | undefined;
+        if (puzzle.diagonals && (row === col || row + col === 8)) {
+          bg = "var(--color-diagonal)";
+        }
+        if (isPeer) bg = accentSoft;
+        if (isSameDigit) bg = "var(--color-paper)";
+        if (isSelected) bg = accentSoft;
+
+        // cell borders
         const rightIdx = col < 8 ? i + 1 : null;
         const bottomIdx = row < 8 ? i + 9 : null;
         const borderRight =
           col === 8
             ? "none"
             : rightIdx !== null && boxOf[rightIdx] !== myBox
-              ? "2px solid #222"
-              : "1px solid #ddd";
+              ? "2px solid var(--color-box-line)"
+              : "1px solid var(--color-cell-line)";
         const borderBottom =
           row === 8
             ? "none"
             : bottomIdx !== null && boxOf[bottomIdx] !== myBox
-              ? "2px solid #222"
-              : "1px solid #ddd";
+              ? "2px solid var(--color-box-line)"
+              : "1px solid var(--color-cell-line)";
 
-        // Diagonal highlight for X-Sudoku
-        let bg: string | undefined;
-        if (puzzle.diagonals && (row === col || row + col === 8)) {
-          bg = "#fafaf0";
-        }
-
-        // Cage outlines for killer (dashed borders where adjacent cell is in a different cage)
-        let cageBorderTop, cageBorderLeft, cageBorderRight, cageBorderBottom;
+        // killer cage borders
+        const cageInsets: string[] = [];
         if (puzzle.cages) {
           const myCage = cageOf[i];
           const above = row > 0 ? cageOf[i - 9] : null;
           const left = col > 0 ? cageOf[i - 1] : null;
           const right = col < 8 ? cageOf[i + 1] : null;
           const below = row < 8 ? cageOf[i + 9] : null;
-          if (above !== myCage) cageBorderTop = "1px dashed #888";
-          if (left !== myCage) cageBorderLeft = "1px dashed #888";
-          if (right !== myCage) cageBorderRight = "1px dashed #888";
-          if (below !== myCage) cageBorderBottom = "1px dashed #888";
+          const c = "var(--color-cage)";
+          if (above !== myCage) cageInsets.push(`inset 0 2px 0 -1px ${c}`);
+          if (left !== myCage) cageInsets.push(`inset 2px 0 0 -1px ${c}`);
+          if (right !== myCage) cageInsets.push(`inset -2px 0 0 -1px ${c}`);
+          if (below !== myCage) cageInsets.push(`inset 0 -2px 0 -1px ${c}`);
+        }
+
+        // selected ring (visible inset)
+        const allInsets = [...cageInsets];
+        if (isSelected) {
+          allInsets.push(`inset 0 0 0 2px ${accent}`);
+        }
+
+        let textColor = "var(--color-ink)";
+        if (muted) textColor = "var(--color-ink-mute)";
+        else if (!given && value !== 0) {
+          textColor = isConflict ? "#b91c1c" : accent;
         }
 
         return (
           <div
             key={i}
+            role={interactive ? "button" : undefined}
+            onClick={interactive ? () => onSelect(i) : undefined}
+            className="relative flex items-center justify-center transition-colors"
             style={{
-              width: 42,
-              height: 42,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
-              fontSize: 18,
-              color: muted ? "#888" : "#222",
               background: bg,
               borderRight,
               borderBottom,
-              boxShadow: [
-                cageBorderTop && `inset 0 2px 0 -1px ${cageBorderTop.split(" ").slice(-1)[0]}`,
-                cageBorderLeft && `inset 2px 0 0 -1px ${cageBorderLeft.split(" ").slice(-1)[0]}`,
-                cageBorderRight && `inset -2px 0 0 -1px ${cageBorderRight.split(" ").slice(-1)[0]}`,
-                cageBorderBottom && `inset 0 -2px 0 -1px ${cageBorderBottom.split(" ").slice(-1)[0]}`,
-              ]
-                .filter(Boolean)
-                .join(", "),
-              position: "relative",
+              boxShadow: allInsets.join(", ") || undefined,
+              fontFamily: "var(--font-grid)",
+              fontSize: 22,
+              fontWeight: given ? 500 : 600,
+              color: textColor,
+              cursor: interactive ? "pointer" : "default",
             }}
           >
             {sumHere !== undefined && (
               <span
+                className="absolute top-[2px] left-[3px] leading-none"
                 style={{
-                  position: "absolute",
-                  top: 2,
-                  left: 3,
-                  fontSize: 10,
-                  color: "#666",
-                  lineHeight: 1,
+                  fontFamily: "var(--font-body)",
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: "var(--color-cage)",
                 }}
               >
                 {sumHere}
               </span>
             )}
-            {value}
+            {valueChar ? (
+              valueChar
+            ) : notes.length > 0 ? (
+              <NotesGrid notes={notes} highlightDigit={selDigit} />
+            ) : null}
           </div>
         );
       })}
@@ -310,9 +1330,229 @@ function Grid({ puzzle, muted = false }: { puzzle: PuzzleResponse; muted?: boole
   );
 }
 
+// --- sidebar -------------------------------------------------------------
+
+function SidebarCard({
+  accent,
+  title,
+  tag,
+  children,
+}: {
+  accent: string;
+  title: string;
+  tag?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl p-4" style={{ background: "var(--color-card)", boxShadow: "var(--shadow-soft)", borderLeft: `3px solid ${accent}` }}>
+      <div className="flex items-baseline justify-between mb-2">
+        <h3 className="text-sm" style={{ fontFamily: "var(--font-display)", fontWeight: 600, color: accent }}>{title}</h3>
+        {tag && (
+          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--color-paper)", color: "var(--color-ink-mute)" }}>
+            {tag}
+          </span>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DailyCard({ onPlay }: { onPlay: (kind: "classic" | "killer") => void }) {
+  const date = todayKey();
+  const niceDate = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+  const [done, setDone] = useState(getDailyDone(date));
+  useEffect(() => {
+    const handler = () => setDone(getDailyDone(date));
+    window.addEventListener("stillgrid:dailyDone", handler);
+    return () => window.removeEventListener("stillgrid:dailyDone", handler);
+  }, [date]);
+
+  const Row = ({
+    kind,
+    accent,
+    label,
+  }: {
+    kind: "classic" | "killer";
+    accent: string;
+    label: string;
+  }) => {
+    const completed = done[kind];
+    return (
+      <button
+        onClick={() => onPlay(kind)}
+        className="w-full flex items-center justify-between gap-2 px-2 py-2 rounded-md transition-colors text-left text-xs"
+        style={{
+          background: completed ? "var(--color-paper)" : "transparent",
+          color: "var(--color-ink-soft)",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = "var(--color-paper)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = completed
+            ? "var(--color-paper)"
+            : "transparent";
+        }}
+      >
+        <span className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: accent }} />
+          <span style={{ color: "var(--color-ink)" }}>{label}</span>
+        </span>
+        <span className="flex items-center gap-1">
+          {completed ? (
+            <>
+              <CheckIcon color={accent} />
+              <span style={{ color: accent, fontWeight: 600 }}>
+                {Math.floor(completed.timeSec / 60)}:
+                {String(completed.timeSec % 60).padStart(2, "0")}
+              </span>
+            </>
+          ) : (
+            <span style={{ color: "var(--color-ink-mute)" }}>Play →</span>
+          )}
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <SidebarCard accent="var(--color-sage)" title="Daily" tag={niceDate}>
+      <p className="text-[11px] leading-relaxed mb-2" style={{ color: "var(--color-ink-mute)" }}>
+        Same two puzzles for everyone, every day.
+      </p>
+      <div className="flex flex-col gap-0.5">
+        <Row kind="classic" accent="var(--color-sage)" label="Today's Classic" />
+        <Row kind="killer" accent="var(--color-terracotta)" label="Today's Killer" />
+      </div>
+    </SidebarCard>
+  );
+}
+
+function CheckIcon({ color }: { color: string }) {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M3 8.5L6.5 12L13 4.5"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function StreakCard() {
+  const [streak, setStreak] = useState(0);
+  useEffect(() => {
+    const refresh = () => setStreak(getStreak());
+    refresh();
+    window.addEventListener("stillgrid:dailyDone", refresh);
+    return () => window.removeEventListener("stillgrid:dailyDone", refresh);
+  }, []);
+
+  return (
+    <SidebarCard accent="var(--color-medium)" title="Your streak">
+      <div className="flex items-baseline gap-2">
+        <span
+          className="text-3xl tabular-nums"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 600,
+            color: streak > 0 ? "var(--color-medium)" : "var(--color-ink-mute)",
+          }}
+        >
+          {streak}
+        </span>
+        <span className="text-xs" style={{ color: "var(--color-ink-soft)" }}>
+          day{streak === 1 ? "" : "s"}
+        </span>
+      </div>
+      <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-mute)" }}>
+        {streak === 0
+          ? "Solve the daily to start your streak."
+          : streak === 1
+            ? "Keep it going tomorrow."
+            : "Don't let it slip — come back tomorrow."}
+      </p>
+    </SidebarCard>
+  );
+}
+
+function VariantsCard({ active, onPick }: { active: Variant; onPick: (v: Variant) => void }) {
+  const variants: Variant[] = ["classic", "xsudoku", "jigsaw", "killer"];
+  return (
+    <SidebarCard accent="var(--color-plum)" title="Variants">
+      <div className="flex flex-col gap-1">
+        {variants.map((v) => {
+          const c = VARIANT_COLOR[v];
+          const isActive = v === active;
+          return (
+            <button
+              key={v}
+              onClick={() => onPick(v)}
+              className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md transition-colors text-left text-xs"
+              style={{ background: isActive ? c.soft : "transparent", color: isActive ? c.main : "var(--color-ink-soft)" }}
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ background: c.main }} />
+                <span style={{ fontWeight: isActive ? 600 : 400 }}>{c.label}</span>
+              </span>
+              {isActive && <span className="text-[10px]">●</span>}
+            </button>
+          );
+        })}
+      </div>
+    </SidebarCard>
+  );
+}
+
+function RoadmapCard() {
+  const items = [
+    { label: "Scoring + leaderboards", when: "Phase 2", color: "var(--color-sage)" },
+    { label: "Daily challenge + streaks", when: "Phase 2", color: "var(--color-teal)" },
+    { label: "Mini 6×6, 16×16", when: "Phase 2", color: "var(--color-plum)" },
+    { label: "Print pack (weekly PDF)", when: "Phase 2", color: "var(--color-medium)" },
+    { label: "Technique guides", when: "Phase 3", color: "var(--color-terracotta)" },
+    { label: "Multilingual (6 langs)", when: "Phase 3", color: "var(--color-ink-soft)" },
+  ];
+  return (
+    <SidebarCard accent="var(--color-terracotta)" title="What's coming" tag="Roadmap">
+      <ul className="flex flex-col gap-2">
+        {items.map((it, i) => (
+          <li key={i} className="flex items-center gap-2 text-xs">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: it.color }} />
+            <span style={{ color: "var(--color-ink-soft)" }}>{it.label}</span>
+            <span className="ml-auto text-[10px]" style={{ color: "var(--color-ink-mute)" }}>{it.when}</span>
+          </li>
+        ))}
+      </ul>
+    </SidebarCard>
+  );
+}
+
+function Footer({ isDemo }: { isDemo: boolean }) {
+  return (
+    <footer className="border-t mt-8" style={{ borderColor: "var(--color-divider)" }}>
+      <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-mute)" }}>
+        <span>© {new Date().getFullYear()} Stillgrid. Made with patience.</span>
+        <div className="flex items-center gap-4">
+          {isDemo && <span className="italic">Demo build · pool of pre-baked puzzles</span>}
+          <a href="#" className="hover:underline">About</a>
+          <a href="#" className="hover:underline">Contact</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 function defaultBoxOf(): number[] {
   const out: number[] = [];
-  for (let r = 0; r < 9; r++)
-    for (let c = 0; c < 9; c++) out.push(Math.floor(r / 3) * 3 + Math.floor(c / 3));
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) out.push(Math.floor(r / 3) * 3 + Math.floor(c / 3));
   return out;
 }

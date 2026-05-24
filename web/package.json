@@ -11,8 +11,10 @@
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.3.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
