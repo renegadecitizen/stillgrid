@@ -37,7 +37,12 @@ if (SERVE_STATIC) {
 }
 
 app.get("/healthz", (_req, res) => {
-  res.json({ ok: true, service: "stillgrid-server", version: "0.1.0" });
+  res.json({
+    ok: true,
+    service: "stillgrid-server",
+    version: "0.1.0",
+    commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? "dev",
+  });
 });
 
 app.post("/api/solve", async (req, res) => {
