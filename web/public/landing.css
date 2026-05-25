@@ -1,0 +1,98 @@
+:root {
+  --color-cream: #faf7f2;
+  --color-ink: #2a2a2a;
+  --color-ink-soft: #6a6a6a;
+  --color-sage: #3d5a4e;
+  --color-teal: #2d6a72;
+  --color-terracotta: #c65d47;
+  --color-plum: #6b4d6e;
+  --color-border: #e6e0d3;
+  --accent: var(--color-sage);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 6rem;
+}
+.brand {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  font-size: 1.25rem;
+  color: var(--color-ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.brand:hover { color: var(--accent); }
+h1 {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 2.5rem 0 1.25rem;
+  color: var(--color-ink);
+}
+h2 {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+  margin: 2.5rem 0 0.75rem;
+}
+.lede {
+  font-size: 1.2rem;
+  color: var(--color-ink-soft);
+  margin: 0 0 2rem;
+}
+p { margin: 0 0 1.25rem; }
+a.cta {
+  display: inline-block;
+  padding: 0.85rem 1.6rem;
+  background: var(--accent);
+  color: var(--color-cream);
+  text-decoration: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s ease;
+}
+a.cta:hover { opacity: 0.85; }
+ul { padding-left: 1.25rem; margin: 0 0 1.5rem; }
+li { margin-bottom: 0.4rem; }
+.variant-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.variant-row a {
+  font-size: 0.95rem;
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  transition: all 0.15s ease;
+}
+.variant-row a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+footer {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  color: var(--color-ink-soft);
+}
+footer a { color: var(--color-ink-soft); }

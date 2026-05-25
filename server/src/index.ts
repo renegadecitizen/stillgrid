@@ -153,6 +153,18 @@ app.get("/api/daily", async (req, res) => {
   }
 });
 
+// Variant landing pages — server-rendered (well, prerendered) HTML for SEO.
+// These must be registered BEFORE the SPA fallback so /killer etc. resolve to
+// the landing pages rather than the SPA shell.
+const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku"] as const;
+if (SERVE_STATIC) {
+  for (const slug of LANDING_ROUTES) {
+    app.get(`/${slug}`, (_req, res) => {
+      res.sendFile(resolve(WEB_DIST, `${slug}.html`));
+    });
+  }
+}
+
 // SPA fallback: any unknown GET serves index.html so client-side routes work.
 if (SERVE_STATIC) {
   app.get("*", (req, res, next) => {
