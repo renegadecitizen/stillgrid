@@ -11,5 +11,5 @@ pub use board::Board;
 pub use generator::{generate, generate_for, generate_killer, generate_variant, Puzzle};
 pub use rng::Rng;
 pub use solver::{solve, solve_variant, SolveOutcome};
-pub use techniques::{grade, GradeOutcome, Step, Technique, Tier};
+pub use techniques::{grade, grade_variant, GradeOutcome, Step, Technique, Tier};
 pub use variant::{Cage, Variant, VariantKind};

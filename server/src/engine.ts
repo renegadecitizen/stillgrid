@@ -89,6 +89,17 @@ export type Grade =
   | { outcome: "stuck"; steps_taken: number }
   | { outcome: "error"; error: string };
 
-export function grade(puzzle: string, timeoutMs = 5000): Promise<Grade> {
-  return runJson<Grade>(GRADE_BIN, [puzzle], null, timeoutMs);
+export interface GradeInput {
+  givens: string;
+  variant?: VariantKind;
+  box_of?: number[];
+  cages?: Array<{ cells: number[]; sum: number }>;
+}
+
+export function grade(input: string | GradeInput, timeoutMs = 5000): Promise<Grade> {
+  if (typeof input === "string") {
+    return runJson<Grade>(GRADE_BIN, [input], null, timeoutMs);
+  }
+  // Variant-aware: send JSON on stdin.
+  return runJson<Grade>(GRADE_BIN, [], JSON.stringify(input), timeoutMs);
 }

@@ -1,7 +1,16 @@
 import express from "express";
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
-import { generate, grade, solve } from "./engine.js";
+import { generate, grade, solve, type GradeInput, type GeneratedPuzzle } from "./engine.js";
+
+function puzzleToGradeInput(p: GeneratedPuzzle): GradeInput {
+  return {
+    givens: p.givens,
+    variant: p.variant,
+    box_of: p.box_of,
+    cages: p.cages,
+  };
+}
 
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -59,17 +68,6 @@ app.get("/api/puzzle", async (req, res) => {
   const seed = req.query.seed ? Number(req.query.seed) : undefined;
   const wantTier = req.query.tier ? String(req.query.tier) : null;
 
-  // Tier filtering only meaningful for classic (the technique solver is
-  // currently classic-only). Killer/Jigsaw/X-Sudoku skip grading for now.
-  const canGrade = variant === "classic";
-  if (wantTier && !canGrade) {
-    res.status(400).json({
-      error: "tier filtering only supported for classic in Phase 1",
-      note: "Technique solver for variants lands in Phase 2.",
-    });
-    return;
-  }
-
   const MAX_RETRIES = wantTier ? 60 : 1;
   try {
     let lastPuzzle: Awaited<ReturnType<typeof generate>> | null = null;
@@ -82,12 +80,10 @@ app.get("/api/puzzle", async (req, res) => {
         seed: seed !== undefined ? seed + i : undefined,
       });
       lastPuzzle = puzzle;
-      if (canGrade) {
-        lastGrade = await grade(puzzle.givens);
-        if (wantTier && lastGrade.outcome === "solved" && lastGrade.tier_label === wantTier) {
-          matched = true;
-          break;
-        }
+      lastGrade = await grade(puzzleToGradeInput(puzzle));
+      if (wantTier && lastGrade.outcome === "solved" && lastGrade.tier_label === wantTier) {
+        matched = true;
+        break;
       }
       if (!wantTier) break;
     }
@@ -143,11 +139,14 @@ app.get("/api/daily", async (req, res) => {
       generate({ variant: "classic", seed: dailySeed(date, "classic"), minClues: 28 }),
       generate({ variant: "killer", seed: dailySeed(date, "killer") }),
     ]);
-    const g = await grade(classic.givens);
+    const [g, gk] = await Promise.all([
+      grade(puzzleToGradeInput(classic)),
+      grade(puzzleToGradeInput(killer)),
+    ]);
     res.json({
       date,
       classic: { ...classic, grade: g },
-      killer,
+      killer: { ...killer, grade: gk },
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : "unknown" });
