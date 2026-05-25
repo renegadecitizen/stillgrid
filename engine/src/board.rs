@@ -4,9 +4,6 @@ pub const N: usize = 9;
 pub const CELLS: usize = N * N;
 
 /// 0 = empty cell. 1..=9 = filled.
-///
-/// Phase 2 will add a JSON wire format (Serialize/Deserialize) for the
-/// puzzle pool API. For now we keep the in-memory representation only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Board(pub [u8; CELLS]);
 

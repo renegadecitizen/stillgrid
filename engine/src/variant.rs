@@ -8,7 +8,6 @@
 //! - **Killer**: cells are grouped into cages; each cage has a target sum
 //!   and no digit repeats within it.
 //!
-//! Phase 1 Week 5 ships Classic + X-Sudoku + Jigsaw + Killer.
 //! Mini 6×6 and 16×16 require generalizing the `N=9` constant across the
 //! engine and are deferred to a separate refactor.
 

@@ -10,17 +10,10 @@ name = "stillgrid_engine"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# Phase 0 has no runtime deps.
-# Phase 1 (generator) will add:
-#   rand = "0.8"
-#   rand_chacha = "0.3"
-# Phase 2 (puzzle pool wire format) will add:
-#   serde = { version = "1.0", features = ["derive"] }
-#   serde_json = "1.0"
-#   serde-big-array = "0.5"
+# Engine has no external runtime deps — RNG is custom (src/rng.rs), JSON
+# wire format is hand-rolled in the binaries (avoids serde weight).
 
 [dev-dependencies]
-# Benchmarks (criterion) will be added in Phase 1 when the generator lands.
 
 [profile.release]
 lto = true
