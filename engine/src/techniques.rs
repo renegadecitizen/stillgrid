@@ -31,6 +31,10 @@ pub enum Technique {
     // Tier 3 — candidate elimination
     XWingRow,
     XWingCol,
+    // Tier 4 — candidate elimination
+    SwordfishRow,
+    SwordfishCol,
+    XYWing,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -64,6 +68,7 @@ impl Technique {
             | HiddenPairCage
             | PointingPair => Tier::T2Medium,
             XWingRow | XWingCol => Tier::T3Hard,
+            SwordfishRow | SwordfishCol | XYWing => Tier::T4Diabolical,
         }
     }
 }
@@ -649,15 +654,220 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
     None
 }
 
+// --- Tier 4: Swordfish ---------------------------------------------------
+//
+// Row-based Swordfish: for a digit v, find 3 rows whose candidate-columns for v
+// all lie within the same set of 3 columns (each row uses 2 or 3 of them).
+// v must be in those 3×3 intersections, so eliminate v from those columns
+// in every other row. Symmetric for columns.
+
+fn find_swordfish(c: &Candidates) -> Option<Step> {
+    for v in 1u8..=9 {
+        let mask = bit(v);
+
+        // Row-based
+        let row_cols: Vec<Vec<usize>> = (0..N)
+            .map(|r| (0..N).filter(|&col| c.get(r, col) & mask != 0).collect())
+            .collect();
+        let candidate_rows: Vec<usize> = (0..N)
+            .filter(|&r| {
+                let n = row_cols[r].len();
+                n == 2 || n == 3
+            })
+            .collect();
+        for i in 0..candidate_rows.len() {
+            for j in (i + 1)..candidate_rows.len() {
+                for k in (j + 1)..candidate_rows.len() {
+                    let (r1, r2, r3) = (candidate_rows[i], candidate_rows[j], candidate_rows[k]);
+                    let mut union: Vec<usize> = Vec::new();
+                    for r in [r1, r2, r3] {
+                        for &c in &row_cols[r] {
+                            if !union.contains(&c) {
+                                union.push(c);
+                            }
+                        }
+                    }
+                    if union.len() != 3 {
+                        continue;
+                    }
+                    let mut removed = Vec::new();
+                    for &col in &union {
+                        for r in 0..N {
+                            if r == r1 || r == r2 || r == r3 {
+                                continue;
+                            }
+                            if c.get(r, col) & mask != 0 {
+                                removed.push((r, col, v));
+                            }
+                        }
+                    }
+                    if !removed.is_empty() {
+                        return Some(Step::Elimination {
+                            technique: Technique::SwordfishRow,
+                            removed,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Column-based
+        let col_rows: Vec<Vec<usize>> = (0..N)
+            .map(|col| (0..N).filter(|&r| c.get(r, col) & mask != 0).collect())
+            .collect();
+        let candidate_cols: Vec<usize> = (0..N)
+            .filter(|&col| {
+                let n = col_rows[col].len();
+                n == 2 || n == 3
+            })
+            .collect();
+        for i in 0..candidate_cols.len() {
+            for j in (i + 1)..candidate_cols.len() {
+                for k in (j + 1)..candidate_cols.len() {
+                    let (c1, c2, c3) = (candidate_cols[i], candidate_cols[j], candidate_cols[k]);
+                    let mut union: Vec<usize> = Vec::new();
+                    for col in [c1, c2, c3] {
+                        for &r in &col_rows[col] {
+                            if !union.contains(&r) {
+                                union.push(r);
+                            }
+                        }
+                    }
+                    if union.len() != 3 {
+                        continue;
+                    }
+                    let mut removed = Vec::new();
+                    for &r in &union {
+                        for col in 0..N {
+                            if col == c1 || col == c2 || col == c3 {
+                                continue;
+                            }
+                            if c.get(r, col) & mask != 0 {
+                                removed.push((r, col, v));
+                            }
+                        }
+                    }
+                    if !removed.is_empty() {
+                        return Some(Step::Elimination {
+                            technique: Technique::SwordfishCol,
+                            removed,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+// --- Tier 4: XY-Wing -----------------------------------------------------
+//
+// Pivot is a cell with exactly two candidates {X, Y}. Two wing cells, each a
+// peer of the pivot, have candidates {X, Z} and {Y, Z}. Then any cell that
+// sees BOTH wings can have Z eliminated (because one of the wings must end
+// up as Z regardless of which value the pivot takes).
+//
+// Variant-aware via PeerTable.
+
+fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
+    // Collect bivalue cells (exactly 2 candidates).
+    let bivalues: Vec<(usize, u16)> = (0..CELLS)
+        .filter_map(|i| {
+            let m = c.masks[i];
+            if popcount(m) == 2 {
+                Some((i, m))
+            } else {
+                None
+            }
+        })
+        .collect();
+    if bivalues.len() < 3 {
+        return None;
+    }
+
+    for &(pivot, pivot_mask) in &bivalues {
+        // Decompose pivot mask into (X, Y).
+        let mut digits = [0u8; 2];
+        let mut k = 0;
+        for v in 1u8..=9 {
+            if pivot_mask & bit(v) != 0 {
+                digits[k] = v;
+                k += 1;
+            }
+        }
+        let (x, y) = (digits[0], digits[1]);
+
+        // Wings must be peers of pivot AND bivalue.
+        let pivot_peers = &peers.peers[pivot];
+        for &(w1, w1_mask) in &bivalues {
+            if w1 == pivot || !pivot_peers.contains(&w1) {
+                continue;
+            }
+            // w1 must contain X and exactly one other digit Z != Y.
+            let w1_has_x = w1_mask & bit(x) != 0;
+            let w1_has_y = w1_mask & bit(y) != 0;
+            if !(w1_has_x ^ w1_has_y) {
+                continue;
+            }
+            // w1 holds {X, Z} or {Y, Z}. Identify Z.
+            let shared_digit = if w1_has_x { x } else { y };
+            let z_mask = w1_mask & !bit(shared_digit);
+            if popcount(z_mask) != 1 {
+                continue;
+            }
+            let z = only_bit(z_mask);
+            if z == x || z == y {
+                continue;
+            }
+            // The other shared digit between pivot and wing-2 must be the one
+            // NOT shared with w1.
+            let other = if w1_has_x { y } else { x };
+            let want_mask = bit(other) | bit(z);
+            for &(w2, w2_mask) in &bivalues {
+                if w2 == pivot || w2 == w1 || !pivot_peers.contains(&w2) {
+                    continue;
+                }
+                if w2_mask != want_mask {
+                    continue;
+                }
+                // XY-Wing found. Eliminate Z from cells that see BOTH wings.
+                let w1_peers = &peers.peers[w1];
+                let w2_peers = &peers.peers[w2];
+                let mut removed = Vec::new();
+                for i in 0..CELLS {
+                    if i == pivot || i == w1 || i == w2 {
+                        continue;
+                    }
+                    if !w1_peers.contains(&i) || !w2_peers.contains(&i) {
+                        continue;
+                    }
+                    if c.masks[i] & bit(z) != 0 {
+                        removed.push((i / N, i % N, z));
+                    }
+                }
+                if !removed.is_empty() {
+                    return Some(Step::Elimination {
+                        technique: Technique::XYWing,
+                        removed,
+                    });
+                }
+            }
+        }
+    }
+    None
+}
+
 // --- main loop ------------------------------------------------------------
 
-fn try_step(c: &Candidates, variant: &Variant, units: &[Unit]) -> Option<Step> {
+fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable) -> Option<Step> {
     find_naked_single(c)
         .or_else(|| find_hidden_single(c, units))
         .or_else(|| find_naked_pair(c, units))
         .or_else(|| find_hidden_pair(c, units))
         .or_else(|| find_pointing_pair(c, variant))
         .or_else(|| find_xwing(c))
+        .or_else(|| find_swordfish(c))
+        .or_else(|| find_xywing(c, peers))
 }
 
 fn apply(step: &Step, board: &mut Board, cands: &mut Candidates, peers: &PeerTable) {
@@ -697,7 +907,7 @@ pub fn grade_variant(board: &Board, variant: &Variant) -> GradeOutcome {
                 tier: highest,
             };
         }
-        match try_step(&cands, variant, &units) {
+        match try_step(&cands, variant, &units, &peers) {
             Some(step) => {
                 let t = step.technique().tier();
                 if t > highest {
@@ -862,5 +1072,81 @@ mod tests {
         let c_classic2 = Candidates::from_board(&b2, &peers_classic);
         assert_ne!(c_classic2.get(3, 3) & bit(5), 0);
         let _ = (c, peers); // silence
+    }
+
+    /// Swordfish row-based: 3 rows where digit 1 lives only in columns {0,3,6}
+    /// (each row using 2 of the 3). Eliminates 1 from those columns in other rows.
+    #[test]
+    fn swordfish_row_eliminates() {
+        // Start from ALL candidates, then prune digit 1 outside the target
+        // pattern in rows 0, 4, 8.
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates {
+            masks: [ALL; CELLS],
+        };
+        // Row 0: keep 1 only in cols 0,3
+        for col in 0..N {
+            if col != 0 && col != 3 {
+                let i = cell_index(0, col);
+                c.masks[i] &= !bit(1);
+            }
+        }
+        // Row 4: keep 1 only in cols 0,6
+        for col in 0..N {
+            if col != 0 && col != 6 {
+                let i = cell_index(4, col);
+                c.masks[i] &= !bit(1);
+            }
+        }
+        // Row 8: keep 1 only in cols 3,6
+        for col in 0..N {
+            if col != 3 && col != 6 {
+                let i = cell_index(8, col);
+                c.masks[i] &= !bit(1);
+            }
+        }
+        // Some other row (row 2) has 1 in col 3 — should be eliminated.
+        // Already true since row 2 cells still have full ALL mask.
+        let step = find_swordfish(&c).expect("swordfish should fire");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::SwordfishRow);
+                // At least one removal should be (r, col, 1) with col in {0,3,6}
+                // and r not in {0,4,8}.
+                let valid = removed.iter().any(|&(r, col, v)| {
+                    v == 1 && matches!(col, 0 | 3 | 6) && !matches!(r, 0 | 4 | 8)
+                });
+                assert!(valid, "expected swordfish elimination, got {:?}", removed);
+            }
+            _ => panic!("expected elimination"),
+        }
+        let _ = peers;
+    }
+
+    /// XY-Wing: pivot {1,2} at (0,0), wings {2,3} at (0,5) and {1,3} at (5,0).
+    /// Cell (5,5) sees both wings — digit 3 should be eliminated there.
+    #[test]
+    fn xywing_eliminates() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates {
+            masks: [ALL; CELLS],
+        };
+        // Force pivot (0,0) = {1,2}
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        // Force wing 1 (0,5) = {2,3}
+        c.masks[cell_index(0, 5)] = bit(2) | bit(3);
+        // Force wing 2 (5,0) = {1,3}
+        c.masks[cell_index(5, 0)] = bit(1) | bit(3);
+        // (5,5) is a peer of both wings (same row as wing1, same col as wing2)
+        // and still has 3 as a candidate (full ALL mask).
+        let step = find_xywing(&c, &peers).expect("xy-wing should fire");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::XYWing);
+                let hit_55 = removed.iter().any(|&(r, col, v)| (r, col, v) == (5, 5, 3));
+                assert!(hit_55, "expected 3 removed at (5,5), got {:?}", removed);
+            }
+            _ => panic!("expected elimination"),
+        }
     }
 }
