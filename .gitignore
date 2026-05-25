@@ -16,3 +16,4 @@ coverage/
 .vscode/
 pkg/
 *.tsbuildinfo
+.claude/settings.local.json
