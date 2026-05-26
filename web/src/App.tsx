@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getBest,
   recordRun,
@@ -6,9 +6,12 @@ import {
   markDailyDone,
   getDailyDone,
   todayKey,
+  hasVisitedBefore,
+  markVisited,
   type Best,
   type RecordOutcome,
 } from "./storage";
+import { track } from "./analytics";
 import {
   type BoardState,
   initialState,
@@ -178,6 +181,15 @@ export function App() {
   };
 
   useEffect(() => load("classic", ""), []);
+
+  // Fire first_visit_ever once per browser (localStorage-flagged).
+  // Mount-only effect — empty deps array.
+  useEffect(() => {
+    if (!hasVisitedBefore()) {
+      track("first_visit_ever");
+      markVisited();
+    }
+  }, []);
 
   const variantColor = VARIANT_COLOR[variant];
   // Play-surface accent: difficulty color takes over when set (matches what
@@ -461,6 +473,18 @@ function PlayCard({
     setMistakes(0);
     setFinishedAt(null);
     setOutcome(null);
+  }, [puzzle.givens]);
+
+  // Track puzzle_started on every new puzzle load.
+  // Strict deps: puzzle.variant, tierBucket, dailyTag change in lockstep
+  // with puzzle.givens, so we deliberately omit them to keep this single-fire.
+  useEffect(() => {
+    track("puzzle_started", {
+      variant: puzzle.variant,
+      tier: tierBucket ?? "any",
+      is_daily: dailyTag !== null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle.givens]);
 
   // Tick the clock
