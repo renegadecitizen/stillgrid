@@ -726,6 +726,16 @@ function PlayCard({
         mistakes,
         score: scoreValue,
       });
+
+      // Fire daily_streak_milestone if this completion crosses a notable
+      // streak length. getStreak() recomputes from the daily-done store,
+      // so call it AFTER markDailyDone to get the post-completion value.
+      const streakAfter = getStreak();
+      const STREAK_MILESTONES = [7, 14, 30, 60, 90, 180, 365];
+      if (STREAK_MILESTONES.includes(streakAfter)) {
+        track("daily_streak_milestone", { length: streakAfter });
+      }
+
       // Force the streak widget to refresh next render.
       window.dispatchEvent(new CustomEvent("stillgrid:dailyDone"));
     }
