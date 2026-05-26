@@ -455,6 +455,22 @@ function PlayCard({
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [outcome, setOutcome] = useState<RecordOutcome | null>(null);
 
+  // For puzzle_abandoned tracking: snapshot of current in-progress state.
+  // Read by the reset effect when puzzle.givens changes to decide whether
+  // to fire puzzle_abandoned for the OUTGOING puzzle.
+  const prevInProgressRef = useRef<{
+    variant: string;
+    tier: string | null;
+    progressPct: number;
+  } | null>(null);
+
+  // Tracks which puzzle.givens the current `state` corresponds to. Used
+  // by the ref-update effect to skip writes during the in-between render
+  // after puzzle.givens changes but before state has been reset to the
+  // new initialState. Without this guard, the ref would receive garbage
+  // mixing the new puzzle's variant/tier with the old puzzle's progress.
+  const stateBelongsToRef = useRef<string | null>(null);
+
   const tierBucket: string | null =
     puzzle.grade && puzzle.grade.outcome === "solved" ? puzzle.grade.tier_label : null;
 
@@ -463,8 +479,21 @@ function PlayCard({
     setCurrentBest(getBest(puzzle.variant, tierBucket));
   }, [puzzle.variant, tierBucket]);
 
-  // Reset everything on puzzle change
+  // Reset everything on puzzle change. First, if the PREVIOUS puzzle was in
+  // progress and never completed, fire puzzle_abandoned with its last-seen
+  // state. The ref is updated continuously by the effect above while a
+  // puzzle is in progress.
   useEffect(() => {
+    const prev = prevInProgressRef.current;
+    if (prev !== null) {
+      track("puzzle_abandoned", {
+        variant: prev.variant,
+        tier: prev.tier ?? "any",
+        progress_pct: prev.progressPct,
+      });
+      prevInProgressRef.current = null;
+    }
+
     setSelected(null);
     setNotesMode(false);
     setHistory([initialState(puzzle.givens)]);
@@ -486,6 +515,49 @@ function PlayCard({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [puzzle.givens]);
+
+  // Mark the current `state` as belonging to the current puzzle.givens.
+  // Strict deps: ONLY [state]. Deliberately omits puzzle.givens — if both
+  // were deps, this effect would fire in the render where puzzle.givens
+  // changes but state hasn't yet been reset, prematurely writing B.givens
+  // to the ref and letting the ref-update effect's guard pass with stale
+  // state. Depending only on state means the ref lags by exactly one
+  // render in that transition, giving the guard a true signal.
+  useEffect(() => {
+    stateBelongsToRef.current = puzzle.givens;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  // Keep prevInProgressRef current while THIS puzzle is in progress.
+  // When the puzzle is solved (finishedAt set) or abandoned (reset effect
+  // fires), the ref is cleared.
+  //
+  // Guard: skip write when `state` doesn't yet correspond to puzzle.givens —
+  // this happens in the render after puzzle changes but before reset's
+  // setHistory call has applied. Without the guard, we'd write garbage
+  // mixing the new puzzle's variant/tier with the old puzzle's progress.
+  useEffect(() => {
+    if (stateBelongsToRef.current !== puzzle.givens) return;
+    if (startedAt !== null && finishedAt === null) {
+      const givenCount = state.givenMask.reduce((a, b) => a + b, 0);
+      const userCells = 81 - givenCount;
+      let userFilled = 0;
+      for (let i = 0; i < 81; i++) {
+        if ((state.givenMask[i] ?? 0) === 0 && (state.values[i] ?? 0) !== 0) {
+          userFilled += 1;
+        }
+      }
+      const progressPct = userCells === 0 ? 0 : Math.floor((userFilled / userCells) * 100);
+      prevInProgressRef.current = {
+        variant: puzzle.variant,
+        tier: tierBucket,
+        progressPct,
+      };
+    } else if (finishedAt !== null) {
+      // Puzzle finished — not an abandonment candidate
+      prevInProgressRef.current = null;
+    }
+  }, [startedAt, finishedAt, state, puzzle.variant, tierBucket]);
 
   // Tick the clock
   useEffect(() => {
