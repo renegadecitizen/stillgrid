@@ -185,3 +185,25 @@ export function getStreak(): number {
   }
   return streak;
 }
+
+// --- First-visit tracking (for Plausible first_visit_ever event) -----------
+
+const FIRST_VISIT_KEY = "stillgrid:first_visit:v1";
+
+export function hasVisitedBefore(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(FIRST_VISIT_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function markVisited(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(FIRST_VISIT_KEY, new Date().toISOString());
+  } catch {
+    /* quota / disabled — silently ignore */
+  }
+}
