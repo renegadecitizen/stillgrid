@@ -21,7 +21,7 @@ Session length, DAU, bounce rate, devices, referrers, and geographic distributio
 | Consent banner | None for Plausible | Plausible is cookieless, no PII, no cross-site tracking. UK ICO + EDPB consistently cite this model as not requiring consent. PRD's "deferred until consent" applies to GA4 (Sourcepoint Week 18), not Plausible. |
 | Integration style | Vanilla script tag + typed helper | Matches Plausible's recommended setup. Zero npm deps. Smallest footprint. |
 | Event scope | Pageviews + 5 custom events | Smallest set that answers ULTRAPLAN Week 18's questions + new-vs-returning visitor split. Avoids YAGNI expansion. |
-| Script variant | `script.outbound-links.js` | Adds outbound-click tracking essentially free (~0.2KB). Swap to `script.outbound-links.file-downloads.js` when print-PDF ships. |
+| Script variant | Plausible v2 per-site snippet | Plausible's onboarding now issues a unique script ID per site (e.g. `pa-HB79xhSO4XQqtCrZGd-vn.js`). Outbound-link tracking and file-download tracking are toggled in the Plausible dashboard's site settings, not via URL suffix. |
 
 ## Architecture & file changes
 
@@ -38,12 +38,17 @@ web/
     └── App.tsx                   # 4–5 call sites added, no structural changes
 ```
 
-Identical script tag in all 5 HTML files:
+Identical Plausible v2 snippet in all 5 HTML files (per-site script ID, not data-domain):
 
 ```html
-<script defer data-domain="stillgrid.app"
-        src="https://plausible.io/js/script.outbound-links.js"></script>
+<!-- Privacy-friendly analytics by Plausible -->
+<script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+<script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
 ```
+
+The script ID `pa-HB79xhSO4XQqtCrZGd-vn` identifies the stillgrid.app site to Plausible. It's not a secret — Plausible designs it to be public in HTML. The inline init stub creates `window.plausible` as a queue function immediately, so any custom events fired before the main script loads get queued and replayed.
+
+Outbound-link tracking and file-download tracking are toggled in the Plausible dashboard under site settings, not via the script URL.
 
 **Out of project scope:** signing up at plausible.io and adding `stillgrid.app` as a site (one-time 60-second browser action).
 
@@ -119,7 +124,7 @@ Just from the script tag deployed on all 5 pages, Plausible auto-tracks the foll
 | Entry / exit pages | First and last page in a session |
 | Devices, browsers, OSes | Mobile vs desktop split |
 | Country / region | Geographic distribution |
-| Outbound link clicks | What external links get clicked (from `script.outbound-links.js`) |
+| Outbound link clicks | What external links get clicked (toggle in Plausible dashboard → site settings) |
 | UTM parameters | Campaign attribution if you ever run paid traffic |
 
 For these, no custom events are needed. Just confirm in the Plausible dashboard after deploy.

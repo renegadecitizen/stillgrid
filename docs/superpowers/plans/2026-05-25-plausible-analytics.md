@@ -41,13 +41,19 @@ After this phase, Plausible dashboard shows pageviews. No event-tracking code ye
 
 Open <https://plausible.io/register>. Sign up. Add `stillgrid.app` as a site (exact form: no protocol, no www, no trailing slash).
 
-Plausible's onboarding will show a script snippet. Confirm it matches what we'll add:
+Plausible's onboarding will show a snippet with a unique per-site script ID. As of 2026, the format is "Plausible v2":
 
 ```html
-<script defer data-domain="stillgrid.app" src="https://plausible.io/js/script.outbound-links.js"></script>
+<!-- Privacy-friendly analytics by Plausible -->
+<script async src="https://plausible.io/js/pa-<UNIQUE_SITE_ID>.js"></script>
+<script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
 ```
 
-If Plausible shows you `script.js` (no extension), note the difference — we deliberately use the `.outbound-links.js` variant for free outbound-click tracking. The data-domain stays `stillgrid.app`.
+The script ID (e.g. `pa-HB79xhSO4XQqtCrZGd-vn`) is your site's identifier. Copy the EXACT snippet Plausible gives you — the script ID is what tells Plausible "this is stillgrid.app." It is NOT a secret; designed to be public.
+
+After installing the snippet across the 5 HTML files and deploying, return to Plausible's onboarding "verify installation" step — once Plausible detects the script firing pageviews, the site is verified.
+
+Outbound-link tracking and file-download tracking are toggled in the Plausible dashboard under site settings → "extensions" (or similar). Don't worry about it for Phase A — enable them later if you want them.
 
 ## Task A2: Add Plausible script tag to all 5 HTML files
 
@@ -67,21 +73,25 @@ In `web/index.html`, find the existing line:
     <link rel="canonical" href="https://stillgrid.app/" />
 ```
 
-Insert between those two lines:
+Insert between those two lines (using the exact Plausible v2 snippet shipped for stillgrid.app — script ID `pa-HB79xhSO4XQqtCrZGd-vn`):
 
 ```html
-    <script defer data-domain="stillgrid.app" src="https://plausible.io/js/script.outbound-links.js"></script>
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
 ```
 
 Result:
 
 ```html
     <meta name="description" content="A modern, mobile-first sudoku site with variants, technique-graded difficulty, daily challenges, and no signup. Play Classic, X-Sudoku, Jigsaw, and Killer." />
-    <script defer data-domain="stillgrid.app" src="https://plausible.io/js/script.outbound-links.js"></script>
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
     <link rel="canonical" href="https://stillgrid.app/" />
 ```
 
-- [ ] **Step 2: Edit web/public/classic.html — insert script before `<style>:root...`**
+- [ ] **Step 2: Edit web/public/classic.html — insert snippet before `<style>:root...`**
 
 Find this line in `web/public/classic.html`:
 
@@ -89,24 +99,26 @@ Find this line in `web/public/classic.html`:
     <style>:root { --accent: var(--color-sage); }</style>
 ```
 
-Insert the SAME script tag IMMEDIATELY BEFORE it:
+Insert the SAME Plausible snippet (all 3 lines) IMMEDIATELY BEFORE it:
 
 ```html
-    <script defer data-domain="stillgrid.app" src="https://plausible.io/js/script.outbound-links.js"></script>
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
     <style>:root { --accent: var(--color-sage); }</style>
 ```
 
 - [ ] **Step 3: Edit web/public/killer.html — same pattern**
 
-The `--accent` value differs per variant (`--color-terracotta` for killer), but the script tag is identical. Insert the same script tag immediately before the `<style>:root...` line.
+The `--accent` value differs per variant (`--color-terracotta` for killer), but the Plausible snippet is identical. Insert the same 3-line snippet immediately before the `<style>:root...` line.
 
 - [ ] **Step 4: Edit web/public/jigsaw.html — same pattern**
 
-`--accent: var(--color-plum)`. Same script tag insertion.
+`--accent: var(--color-plum)`. Same snippet insertion.
 
 - [ ] **Step 5: Edit web/public/xsudoku.html — same pattern**
 
-`--accent: var(--color-teal)`. Same script tag insertion.
+`--accent: var(--color-teal)`. Same snippet insertion.
 
 - [ ] **Step 6: Build web/ to verify Vite passes the script through cleanly**
 
@@ -144,9 +156,10 @@ Foundation commit for Plausible integration. Just the script tag —
 gives us pageviews on all 5 indexable pages. Custom events come in a
 follow-up commit per the two-phase plan.
 
-Using script.outbound-links.js variant to get outbound-click tracking
-for free. data-domain is the exact form Plausible expects
-(stillgrid.app, no protocol, no www).
+Uses Plausible v2 snippet format (per-site script ID, async load,
+inline init stub that queues calls before main script loads).
+Outbound-link tracking is enabled via the Plausible dashboard's
+site settings, not the URL.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
