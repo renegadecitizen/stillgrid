@@ -71,7 +71,7 @@ Fires when all 81 cells are correctly filled.
 | `tier` | string | as above |
 | `is_daily` | boolean | as above |
 | `duration_seconds` | number | wall-clock seconds from start to solve |
-| `used_hint` | boolean | true if `Hint` button pressed ≥1 time during solve |
+| `used_hint` | boolean | _Deferred to when hint UI ships_ — Hint feature doesn't exist in App.tsx as of 2026-05-25. Add this prop when the hint button lands. |
 
 ### `puzzle_abandoned`
 Fires when user starts a new puzzle while a previous one has progress and isn't complete.
@@ -80,7 +80,7 @@ Fires when user starts a new puzzle while a previous one has progress and isn't 
 |---|---|---|
 | `variant` | string | variant of the abandoned puzzle |
 | `tier` | string | tier of the abandoned puzzle |
-| `progress_pct` | number | 0–100, `floor(non_empty_cells / 81 * 100)` — counts any user-entered digit regardless of correctness |
+| `progress_pct` | number | 0–100, `floor(user_filled / (81 - given_count) * 100)` — only counts user-entered digits (excludes givens). Killer puzzles with 0 givens use denominator 81. |
 
 **Note on abandonment semantics:** we do NOT fire `puzzle_abandoned` on `beforeunload` / tab close. Mobile browsers handle unload events unreliably, and Plausible's own docs recommend against it. We capture the practical abandonment signal (started another puzzle without finishing) and accept that pure window-close abandonments aren't measured.
 
