@@ -719,26 +719,28 @@ function PlayCard({
       duration_seconds: seconds,
     });
 
-    // If this puzzle came from "Daily", mark it.
-    if (dailyTag) {
-      markDailyDone(dailyTag.date, dailyTag.kind, {
-        timeSec: seconds,
-        mistakes,
-        score: scoreValue,
-      });
+    // Every solve counts toward the streak — daily or not. If this puzzle
+    // came from the daily UI, record under its (date, kind); otherwise
+    // record under today + current variant.
+    const solveDate = dailyTag ? dailyTag.date : todayKey();
+    const solveVariant = dailyTag ? dailyTag.kind : puzzle.variant;
+    markDailyDone(solveDate, solveVariant, {
+      timeSec: seconds,
+      mistakes,
+      score: scoreValue,
+    });
 
-      // Fire daily_streak_milestone if this completion crosses a notable
-      // streak length. getStreak() recomputes from the daily-done store,
-      // so call it AFTER markDailyDone to get the post-completion value.
-      const streakAfter = getStreak();
-      const STREAK_MILESTONES = [7, 14, 30, 60, 90, 180, 365];
-      if (STREAK_MILESTONES.includes(streakAfter)) {
-        track("daily_streak_milestone", { length: streakAfter });
-      }
-
-      // Force the streak widget to refresh next render.
-      window.dispatchEvent(new CustomEvent("stillgrid:dailyDone"));
+    // Fire daily_streak_milestone if this completion crosses a notable
+    // streak length. getStreak() recomputes from the solves store, so
+    // call it AFTER markDailyDone to get the post-completion value.
+    const streakAfter = getStreak();
+    const STREAK_MILESTONES = [7, 14, 30, 60, 90, 180, 365];
+    if (STREAK_MILESTONES.includes(streakAfter)) {
+      track("daily_streak_milestone", { length: streakAfter });
     }
+
+    // Force the streak widget to refresh next render.
+    window.dispatchEvent(new CustomEvent("stillgrid:dailyDone"));
   }, [isSolved, finishedAt, startedAt, mistakes, outcome, puzzle.variant, puzzle.grade, tierBucket, dailyTag]);
 
   const elapsedSeconds =
@@ -803,7 +805,7 @@ function PlayCard({
             >
               <span className="uppercase tracking-wider">Best</span>
               <span style={{ color: "var(--color-ink-soft)", fontWeight: 500 }}>
-                {formatTime(currentBest.bestTimeSec)} · {currentBest.bestMistakes} mistake{currentBest.bestMistakes === 1 ? "" : "s"} · {currentBest.bestScore.toLocaleString()} pts
+                {formatTime(currentBest.bestTimeSec)} · {currentBest.bestMistakes} mistake{currentBest.bestMistakes === 1 ? "" : "s"}
               </span>
               <span style={{ opacity: 0.6 }}>· {currentBest.solves} solve{currentBest.solves === 1 ? "" : "s"}</span>
             </div>
@@ -840,9 +842,9 @@ function PlayCard({
           <div className="text-base" style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}>
             Solved. Quietly done.
           </div>
-          {score !== null && (
+          {isSolved && (
             <div className="mt-1 text-xs" style={{ color: playAccent, opacity: 0.85 }}>
-              {formatTime(elapsedSeconds)} · {mistakes} mistake{mistakes === 1 ? "" : "s"} · {score.toLocaleString()} pts
+              {formatTime(elapsedSeconds)} · {mistakes} mistake{mistakes === 1 ? "" : "s"}
             </div>
           )}
           {outcome && (outcome.newFastestTime || outcome.newFewestMistakes) && !outcome.newPersonalBest && (
@@ -1588,7 +1590,7 @@ function StreakCard() {
       </div>
       <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-mute)" }}>
         {streak === 0
-          ? "Solve the daily to start your streak."
+          ? "Solve a puzzle each day to start your streak."
           : streak === 1
             ? "Keep it going tomorrow."
             : "Don't let it slip — come back tomorrow."}

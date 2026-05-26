@@ -114,15 +114,17 @@ export function formatTime(seconds: number): string {
 
 const DAILY_KEY = "stillgrid:daily:v1";
 
+export type StreakVariant = "classic" | "xsudoku" | "jigsaw" | "killer";
+
 export interface DailyDone {
-  variant: "classic" | "killer";
+  variant: StreakVariant;
   timeSec: number;
   mistakes: number;
   score: number;
   completedAt: string;
 }
 
-type DailyMap = Record<string, { classic?: DailyDone; killer?: DailyDone }>;
+type DailyMap = Record<string, Partial<Record<StreakVariant, DailyDone>>>;
 
 function loadDaily(): DailyMap {
   if (typeof window === "undefined") return {};
@@ -145,13 +147,13 @@ export function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function getDailyDone(date: string): { classic?: DailyDone; killer?: DailyDone } {
+export function getDailyDone(date: string): Partial<Record<StreakVariant, DailyDone>> {
   return loadDaily()[date] ?? {};
 }
 
 export function markDailyDone(
   date: string,
-  variant: "classic" | "killer",
+  variant: StreakVariant,
   run: { timeSec: number; mistakes: number; score: number },
 ): void {
   const all = loadDaily();
