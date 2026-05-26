@@ -59,10 +59,7 @@ fn search(
     }
 }
 
-fn find_empty_min_options(
-    board: &Board,
-    variant: &Variant,
-) -> Option<(usize, usize, Vec<u8>)> {
+fn find_empty_min_options(board: &Board, variant: &Variant) -> Option<(usize, usize, Vec<u8>)> {
     let mut best: Option<(usize, usize, Vec<u8>)> = None;
     for r in 0..N {
         for c in 0..N {

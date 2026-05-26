@@ -50,22 +50,10 @@ impl Technique {
     pub fn tier(self) -> Tier {
         use Technique::*;
         match self {
-            NakedSingle
-            | HiddenSingleRow
-            | HiddenSingleCol
-            | HiddenSingleBox
-            | HiddenSingleDiag
-            | HiddenSingleCage => Tier::T1Easy,
-            NakedPairRow
-            | NakedPairCol
-            | NakedPairBox
-            | NakedPairDiag
-            | NakedPairCage
-            | HiddenPairRow
-            | HiddenPairCol
-            | HiddenPairBox
-            | HiddenPairDiag
-            | HiddenPairCage
+            NakedSingle | HiddenSingleRow | HiddenSingleCol | HiddenSingleBox
+            | HiddenSingleDiag | HiddenSingleCage => Tier::T1Easy,
+            NakedPairRow | NakedPairCol | NakedPairBox | NakedPairDiag | NakedPairCage
+            | HiddenPairRow | HiddenPairCol | HiddenPairBox | HiddenPairDiag | HiddenPairCage
             | PointingPair => Tier::T2Medium,
             XWingRow | XWingCol => Tier::T3Hard,
             SwordfishRow | SwordfishCol | XYWing => Tier::T4Diabolical,
@@ -281,10 +269,7 @@ fn build_units(variant: &Variant) -> Vec<Unit> {
     for b in 0..9 {
         units.push(Unit {
             kind: UnitKind::Box,
-            cells: variant.boxes[b]
-                .iter()
-                .map(|&i| (i / N, i % N))
-                .collect(),
+            cells: variant.boxes[b].iter().map(|&i| (i / N, i % N)).collect(),
         });
     }
     if variant.diagonals {
@@ -396,11 +381,7 @@ fn find_hidden_single(c: &Candidates, units: &[Unit]) -> Option<Step> {
 
 // --- Tier 2: naked pair ---------------------------------------------------
 
-fn find_naked_pair_unit(
-    c: &Candidates,
-    cells: &[(usize, usize)],
-    tech: Technique,
-) -> Option<Step> {
+fn find_naked_pair_unit(c: &Candidates, cells: &[(usize, usize)], tech: Technique) -> Option<Step> {
     for i in 0..cells.len() {
         let (r1, c1) = cells[i];
         let m1 = c.get(r1, c1);
@@ -520,10 +501,7 @@ fn find_hidden_pair(c: &Candidates, units: &[Unit]) -> Option<Step> {
 
 fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
     for b in 0..9 {
-        let cells: Vec<(usize, usize)> = variant.boxes[b]
-            .iter()
-            .map(|&i| (i / N, i % N))
-            .collect();
+        let cells: Vec<(usize, usize)> = variant.boxes[b].iter().map(|&i| (i / N, i % N)).collect();
         for v in 1u8..=9 {
             let mask = bit(v);
             let mut rows = [false; N];
@@ -872,7 +850,9 @@ fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable
 
 fn apply(step: &Step, board: &mut Board, cands: &mut Candidates, peers: &PeerTable) {
     match step {
-        Step::Placement { row, col, value, .. } => {
+        Step::Placement {
+            row, col, value, ..
+        } => {
             board.set(*row, *col, *value);
             cands.fill(*row, *col, *value, peers);
         }
@@ -964,7 +944,9 @@ mod tests {
         let c = Candidates::from_board(&b, &peers);
         let s = find_naked_single(&c).expect("should find naked single");
         match s {
-            Step::Placement { row, col, value, .. } => assert_eq!((row, col, value), (0, 4, 5)),
+            Step::Placement {
+                row, col, value, ..
+            } => assert_eq!((row, col, value), (0, 4, 5)),
             _ => panic!("expected placement"),
         }
     }

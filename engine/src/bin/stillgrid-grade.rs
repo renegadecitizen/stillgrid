@@ -358,7 +358,9 @@ impl<'a> JsonParser<'a> {
         }
         let s = std::str::from_utf8(&self.src[start..self.pos])
             .map_err(|_| "invalid utf8 in number".to_string())?;
-        let n: f64 = s.parse().map_err(|e: std::num::ParseFloatError| e.to_string())?;
+        let n: f64 = s
+            .parse()
+            .map_err(|e: std::num::ParseFloatError| e.to_string())?;
         Ok(JsonValue::Number(n))
     }
 }

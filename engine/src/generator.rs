@@ -67,8 +67,8 @@ fn first_empty(board: &Board) -> Option<(usize, usize)> {
 /// For Killer use `generate_killer` instead — this function returns a
 /// classic-style puzzle even if you pass a killer variant.
 pub fn generate_variant(rng: &mut Rng, variant: &Variant, min_clues: usize) -> Puzzle {
-    let solution = random_solution(rng, variant)
-        .expect("solution always exists for non-degenerate variants");
+    let solution =
+        random_solution(rng, variant).expect("solution always exists for non-degenerate variants");
     let mut givens = solution;
 
     let mut order: Vec<usize> = (0..CELLS).collect();
