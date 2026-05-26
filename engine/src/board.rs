@@ -13,6 +13,7 @@ impl Board {
     }
 
     /// Parse from an 81-char string. '.' or '0' = empty, '1'..='9' = filled.
+    #[allow(clippy::should_implement_trait)] // method name matches intent; error type differs from FromStr
     pub fn from_str(s: &str) -> Result<Self, String> {
         let trimmed: String = s.chars().filter(|c| !c.is_whitespace()).collect();
         if trimmed.len() != CELLS {

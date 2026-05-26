@@ -4,7 +4,7 @@
 //! - argv[1]: 81-char classic puzzle string.
 //! - stdin (no argv): either an 81-char classic string OR a JSON object:
 //!   {"givens":"...","variant":"classic|xsudoku|jigsaw|killer",
-//!    "box_of":[...81 ints], "cages":[{"cells":[..],"sum":N}]}
+//!   "box_of":[...81 ints], "cages":[{"cells":[..],"sum":N}]}
 //!   box_of is required for jigsaw, cages required for killer.
 
 use std::collections::HashMap;

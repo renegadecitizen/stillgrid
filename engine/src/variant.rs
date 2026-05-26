@@ -105,8 +105,8 @@ impl Variant {
     pub fn jigsaw(box_partition: [u8; CELLS]) -> Self {
         let mut boxes = [[0usize; 9]; 9];
         let mut counts = [0usize; 9];
-        for i in 0..CELLS {
-            let b = box_partition[i] as usize;
+        for (i, &bp) in box_partition.iter().enumerate() {
+            let b = bp as usize;
             assert!(b < 9, "box id out of range");
             assert!(counts[b] < 9, "box {b} has more than 9 cells");
             boxes[b][counts[b]] = i;
@@ -334,7 +334,6 @@ mod tests {
 
     #[test]
     fn killer_cage_uniqueness_and_sum() {
-        let cells: Vec<usize> = (0..81).map(|i| vec![i]).flatten().collect::<Vec<_>>();
         // Make 81 single-cell cages, each with sum being whatever digit must go there.
         // Use a degenerate variant just to test plumbing.
         let cages: Vec<Cage> = (0..81)
@@ -343,7 +342,6 @@ mod tests {
                 sum: 5,
             })
             .collect();
-        let _ = cells;
         let v = Variant::killer(cages);
         let b = Board::empty();
         // Any non-5 fails the sum guard.

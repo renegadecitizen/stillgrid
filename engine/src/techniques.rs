@@ -574,8 +574,8 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
                 continue;
             }
             let cols = row_cols[r1].clone();
-            for r2 in (r1 + 1)..N {
-                if row_cols[r2] != cols {
+            for (r2, r2_cols) in row_cols.iter().enumerate().skip(r1 + 1) {
+                if *r2_cols != cols {
                     continue;
                 }
                 let mut removed = Vec::new();
@@ -605,8 +605,8 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
                 continue;
             }
             let rows = col_rows[c1].clone();
-            for c2 in (c1 + 1)..N {
-                if col_rows[c2] != rows {
+            for (c2, c2_rows) in col_rows.iter().enumerate().skip(c1 + 1) {
+                if *c2_rows != rows {
                     continue;
                 }
                 let mut removed = Vec::new();
@@ -1046,7 +1046,7 @@ mod tests {
         assert_eq!(c.get(2, 2) & bit(5), 0);
         // Sanity: without cage involvement, classic peer table doesn't kill it.
         let peers_classic = PeerTable::build(&Variant::classic());
-        let c_classic = Candidates::from_board(&b, &peers_classic);
+        let _c_classic = Candidates::from_board(&b, &peers_classic);
         // (2,2) IS in the same 3×3 box as (0,0) in classic, so this would be eliminated.
         // Use (3,3) instead for the classic sanity check — different row/col/box.
         let mut b2 = Board::empty();
