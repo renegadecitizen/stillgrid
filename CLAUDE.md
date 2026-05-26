@@ -59,6 +59,22 @@ Open http://localhost:5173. Vite proxies `/api` → `:3001`.
 - All player state (best times, streaks, daily-done flag, current run) lives in `localStorage`. No accounts, no DB.
 - See `web/src/storage.ts` for the schema and helpers. localStorage keys are versioned — bump if shape changes.
 
+## Analytics
+
+Plausible Analytics (hosted, plausible.io) is the source of truth for product metrics.
+
+- Script tag in all 5 HTML files (`web/index.html` + `web/public/*.html`).
+- Typed event helper at `web/src/analytics.ts` — single `track(eventName, props?)` function.
+- Five custom events: `puzzle_started`, `puzzle_completed`, `puzzle_abandoned`, `daily_streak_milestone`, `first_visit_ever`.
+- Dev mode no-ops via `import.meta.env.PROD` check — localhost traffic doesn't pollute prod stats.
+- Dashboard: https://plausible.io/stillgrid.app
+- Full spec: `docs/superpowers/specs/2026-05-25-plausible-integration-design.md`
+
+To add a new event:
+1. Add the name to the `EventName` union in `web/src/analytics.ts`.
+2. Add a row to the event taxonomy table in the spec doc.
+3. Call `track("event_name", { ...props })` from the appropriate handler.
+
 ## Conventions
 
 - **Design philosophy:** "quiet meditative" (Things 3 / Calm-like), not casino-lobby energy. Cream base, muted accents, generous whitespace. Brand is "sudoku, the quiet way." Avoid neon, gradients, gamification stickers.
