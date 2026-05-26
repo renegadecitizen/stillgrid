@@ -9,7 +9,9 @@
 
 ## Summary
 
-Add Plausible Analytics to stillgrid to capture pageviews and four custom puzzle-behavior events. Hosted Plausible Cloud, no consent banner, no npm dependencies. Targets ULTRAPLAN Week 18's telemetry questions: "where do people quit puzzles? What variants get plays?"
+Add Plausible Analytics to stillgrid to capture pageviews and five custom puzzle-behavior events. Hosted Plausible Cloud, no consent banner, no npm dependencies. Targets ULTRAPLAN Week 18's telemetry questions: "where do people quit puzzles? What variants get plays?"
+
+Session length, DAU, bounce rate, devices, referrers, and geographic distribution are auto-tracked by Plausible from the script tag alone — no code needed for those. See the "What Plausible tracks automatically" section below.
 
 ## Decisions locked
 
@@ -18,7 +20,7 @@ Add Plausible Analytics to stillgrid to capture pageviews and four custom puzzle
 | Hosted vs self-hosted | Hosted plausible.io ($9/mo) | PRD targets <$300/mo infra at 100K sessions; self-hosting ClickHouse on Render is operationally heavier and likely more expensive at our scale. |
 | Consent banner | None for Plausible | Plausible is cookieless, no PII, no cross-site tracking. UK ICO + EDPB consistently cite this model as not requiring consent. PRD's "deferred until consent" applies to GA4 (Sourcepoint Week 18), not Plausible. |
 | Integration style | Vanilla script tag + typed helper | Matches Plausible's recommended setup. Zero npm deps. Smallest footprint. |
-| Event scope | Pageviews + 4 custom events | Smallest set that answers ULTRAPLAN Week 18's questions. Avoids YAGNI expansion. |
+| Event scope | Pageviews + 5 custom events | Smallest set that answers ULTRAPLAN Week 18's questions + new-vs-returning visitor split. Avoids YAGNI expansion. |
 | Script variant | `script.outbound-links.js` | Adds outbound-click tracking essentially free (~0.2KB). Swap to `script.outbound-links.file-downloads.js` when print-PDF ships. |
 
 ## Architecture & file changes
@@ -49,7 +51,7 @@ Identical script tag in all 5 HTML files:
 
 ## Event taxonomy
 
-Four custom events. Snake_case per Plausible convention. Each has a strict prop schema enforced by the TypeScript helper.
+Five custom events. Snake_case per Plausible convention. Each has a strict prop schema enforced by the TypeScript helper.
 
 ### `puzzle_started`
 Fires when a puzzle is loaded/begun.
@@ -89,6 +91,39 @@ Fires when daily streak reaches a notable length.
 |---|---|---|
 | `length` | number | 7, 14, 30, 60, 90, 180, 365 (one of these exactly) |
 
+### `first_visit_ever`
+Fires once per browser, ever. Uses a localStorage flag to ensure single-fire.
+
+| Prop | Type | Values |
+|---|---|---|
+| _(none)_ | — | — |
+
+**Purpose:** lets us distinguish new vs returning visitors in funnel analysis. Plausible's anonymized rotating identifier doesn't natively support new-vs-returning, so we add a single signal at the moment a fresh browser first reaches the SPA.
+
+**Limitations to know:**
+- Fires only on first SPA load (App.tsx mount). A user who lands on `/classic` and bounces without reaching the SPA won't be counted as "new" by this signal — though Plausible's auto-tracked bounce rate already covers that funnel question.
+- Private/incognito browsing: localStorage is per-session, so each new incognito session will fire the event. Acceptable — incognito users are by definition transient and rare.
+- localStorage flag key: `stillgrid:plausible_first_visit_fired`. Versioned with the prefix per stillgrid's storage conventions.
+
+## What Plausible tracks automatically
+
+Just from the script tag deployed on all 5 pages, Plausible auto-tracks the following — no code, no events, no setup beyond signing up at plausible.io:
+
+| Metric | What it tells you |
+|---|---|
+| Pageviews (total + per page) | Which variants and routes get views |
+| Unique visitors per day | DAU — filter the unique-visitors metric by day |
+| Visit duration | Average and median session length |
+| Bounce rate | % of single-page visits |
+| Top sources / referrers | Where traffic comes from (Google, direct, social, etc.) |
+| Entry / exit pages | First and last page in a session |
+| Devices, browsers, OSes | Mobile vs desktop split |
+| Country / region | Geographic distribution |
+| Outbound link clicks | What external links get clicked (from `script.outbound-links.js`) |
+| UTM parameters | Campaign attribution if you ever run paid traffic |
+
+For these, no custom events are needed. Just confirm in the Plausible dashboard after deploy.
+
 ## The `analytics.ts` helper
 
 ```ts
@@ -98,7 +133,8 @@ type EventName =
   | "puzzle_started"
   | "puzzle_completed"
   | "puzzle_abandoned"
-  | "daily_streak_milestone";
+  | "daily_streak_milestone"
+  | "first_visit_ever";
 
 type EventProps = Record<string, string | number | boolean>;
 
@@ -129,6 +165,7 @@ Conceptual — exact line numbers will be confirmed during the implementation-pl
 | `puzzle_completed` | In the win-detection branch — the same place the "Solved!" UI is triggered |
 | `puzzle_abandoned` | At the TOP of `newGame()` — if a previous puzzle exists with `progress > 0%` and isn't complete, fire abandon first, then proceed to load the new one |
 | `daily_streak_milestone` | In `web/src/storage.ts` where streak is updated — if new streak length is in the milestone list, fire event |
+| `first_visit_ever` | In `App.tsx` mount effect (or `main.tsx`) — check localStorage for `stillgrid:plausible_first_visit_fired`; if absent, call `track("first_visit_ever")` and write the flag |
 
 If the storage.ts streak update is wired up as a pure function that returns the new streak (rather than firing side effects), we wrap the call site in App.tsx rather than reaching into storage.ts.
 
@@ -149,6 +186,21 @@ If the storage.ts streak update is wired up as a pure function that returns the 
 5. Open `/`, start a puzzle. Within seconds, dashboard's "Goals" / events panel shows `puzzle_started` with correct props.
 6. Solve the puzzle. Dashboard shows `puzzle_completed`.
 7. Start a new puzzle without solving the next one. Dashboard shows `puzzle_abandoned` then `puzzle_started`.
+
+## Honest limits of Plausible
+
+These aren't gaps in our implementation — they're trade-offs baked into Plausible's privacy-first design. Worth knowing so future-you isn't surprised.
+
+| Limit | Detail | Workaround if you ever need it |
+|---|---|---|
+| **True MAU** is impossible | Plausible's identifier is a daily-rotated hash. "Did this same human visit on day 1 and day 18?" cannot be answered. You can see "monthly unique visits" but not deduplicated unique humans. | Add a privacy-friendly localStorage UUID, send as a custom prop. Reconsiders the privacy posture — discuss before doing. |
+| **Cross-session attribution** | "User clicked an ad on day 1, signed up day 5" cannot be linked. | Pair with a server-side click-tracker; out of scope for stillgrid. |
+| **Cohort analysis** | Filter by date range only. Can't easily compare "users who arrived in week 1" vs "week 2" behavior over time. | Use UTM-tagged campaigns to segment acquisition cohorts; basic but works. |
+| **Per-user history** | You can't view "what did THIS person do" for any specific visitor. | By design — the privacy promise. If you ever need this, you've changed the product, not the analytics. |
+| **Ad-blocker miss rate** | uBlock Origin and others block plausible.io by default. Estimated 10–30% of tech-savvy traffic. | Plausible's outbound-proxy pattern: serve script through stillgrid.app/api/event. Not v1; revisit if data looks suspiciously low. |
+| **Real-user CWV / RUM** | Plausible doesn't measure Core Web Vitals or front-end performance. | Use Google Search Console's CWV report (field data) or Lighthouse CI (lab data). |
+
+If any of these become blockers, the answer is usually "add a second tool layered on top" rather than "replace Plausible." Plausible covers the 80% case beautifully; the remaining 20% needs more invasive tooling that breaks the privacy posture.
 
 ### CLAUDE.md addition
 
