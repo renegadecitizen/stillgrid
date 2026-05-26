@@ -640,6 +640,13 @@ function PlayCard({
     setOutcome(result);
     setCurrentBest(result.best);
 
+    track("puzzle_completed", {
+      variant: puzzle.variant,
+      tier: tierBucket ?? "any",
+      is_daily: dailyTag !== null,
+      duration_seconds: seconds,
+    });
+
     // If this puzzle came from "Daily", mark it.
     if (dailyTag) {
       markDailyDone(dailyTag.date, dailyTag.kind, {
