@@ -1519,4 +1519,48 @@ mod tests {
             assert_eq!(technique, Technique::Coloring);
         }
     }
+
+    /// Color trap: a victim candidate outside the chain sees both colors of a
+    /// 2-coloring on digit `d` → that candidate is eliminated.
+    ///
+    /// Chain on digit 5: (0,0) — (4,0) — (4,4) — (0,4), 4 nodes, linear.
+    /// 2-coloring: A = {(0,0), (4,4)}, B = {(4,0), (0,4)}.
+    /// Victim (0,8) sees (0,0) [A] and (0,4) [B] via row 0 weak links.
+    /// Expected: eliminate digit 5 from (0,8).
+    #[test]
+    fn simple_coloring_trap_actually_eliminates() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [ALL; CELLS] };
+        // Remove digit 5 everywhere, then re-add it only at the chain + victim cells.
+        for i in 0..CELLS {
+            c.masks[i] &= !bit(5);
+        }
+        let cells_with_5 = [(0, 0), (4, 0), (4, 4), (0, 4), (0, 8)];
+        for &(r, col) in &cells_with_5 {
+            c.masks[cell_index(r, col)] |= bit(5);
+        }
+
+        // Sanity: row 0 has 3 bearers (no row 0 strong link), col 0 has 2
+        // (strong link), col 4 has 2 (strong link), row 4 has 2 (strong link).
+        let row0_5 = (0..N).filter(|&col| c.masks[cell_index(0, col)] & bit(5) != 0).count();
+        let col0_5 = (0..N).filter(|&r| c.masks[cell_index(r, 0)] & bit(5) != 0).count();
+        let col4_5 = (0..N).filter(|&r| c.masks[cell_index(r, 4)] & bit(5) != 0).count();
+        let row4_5 = (0..N).filter(|&col| c.masks[cell_index(4, col)] & bit(5) != 0).count();
+        assert_eq!(row0_5, 3, "row 0 should have 5 at (0,0),(0,4),(0,8)");
+        assert_eq!(col0_5, 2, "col 0 should have 5 at (0,0),(4,0)");
+        assert_eq!(col4_5, 2, "col 4 should have 5 at (0,4),(4,4)");
+        assert_eq!(row4_5, 2, "row 4 should have 5 at (4,0),(4,4)");
+
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let step = find_simple_coloring(&g).expect("color trap should fire on (0,8)");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::Coloring);
+                let hit_08 = removed.iter().any(|&(r, col, v)| (r, col, v) == (0, 8, 5));
+                assert!(hit_08, "expected (0,8,5) eliminated, got {:?}", removed);
+            }
+            _ => panic!("expected elimination, got {:?}", step),
+        }
+    }
 }
