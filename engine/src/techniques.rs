@@ -1021,7 +1021,9 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
         for start in 0..g.nodes.len() {
             if g.nodes[start].digit != d { continue; }
             if color[start] != 0 { continue; }
-            // BFS, alternating colors at each strong link to a same-digit node.
+            // DFS via stack, alternating colors at each strong link to a same-digit node.
+            // For 2-coloring on a bipartite graph, traversal order doesn't affect the
+            // resulting color assignment — only the discovery order.
             let mut queue: Vec<usize> = vec![start];
             color[start] = 1;
             let mut group_a: Vec<usize> = vec![start];
@@ -1055,12 +1057,10 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
                             let cell = g.nodes[n].cell as usize;
                             (cell / N, cell % N, d)
                         }).collect();
-                        if !removed.is_empty() {
-                            return Some(Step::Elimination {
-                                technique: Technique::Coloring,
-                                removed,
-                            });
-                        }
+                        return Some(Step::Elimination {
+                            technique: Technique::Coloring,
+                            removed,
+                        });
                     }
                 }
             }
@@ -1072,12 +1072,10 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
                             let cell = g.nodes[n].cell as usize;
                             (cell / N, cell % N, d)
                         }).collect();
-                        if !removed.is_empty() {
-                            return Some(Step::Elimination {
-                                technique: Technique::Coloring,
-                                removed,
-                            });
-                        }
+                        return Some(Step::Elimination {
+                            technique: Technique::Coloring,
+                            removed,
+                        });
                     }
                 }
             }
