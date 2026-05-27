@@ -223,6 +223,64 @@ impl Candidates {
     }
 }
 
+// --- chain graph ----------------------------------------------------------
+//
+// Shared inference structure used by T5+ techniques. Nodes are individual
+// (cell, digit) candidates; edges encode strong and weak links derived from
+// bivalue cells, bilocal units, and unit peer relationships. Built lazily
+// once per try_step invocation, only when T1–T4 techniques have failed.
+
+#[allow(dead_code)]
+const NONE_NODE: u16 = u16::MAX;
+
+#[derive(Clone, Copy, Debug)]
+#[allow(dead_code)]
+struct Node {
+    cell: u16,
+    digit: u8,
+}
+
+#[allow(dead_code)]
+struct ChainGraph {
+    /// node_of[cell_index][digit-1] -> node id, or NONE_NODE if no candidate.
+    node_of: [[u16; N]; CELLS],
+    /// One node per (cell, digit) candidate present in Candidates at build time.
+    nodes: Vec<Node>,
+    /// strong[n] = nodes that are TRUE iff n is FALSE (bivalue cell, bilocal unit).
+    /// Symmetric: if a is in strong[b], b is in strong[a].
+    strong: Vec<Vec<u16>>,
+    /// weak[n] = nodes that must be FALSE if n is TRUE (cell + unit peers).
+    /// Symmetric: if a is in weak[b], b is in weak[a].
+    weak: Vec<Vec<u16>>,
+}
+
+#[allow(dead_code)]
+fn build_chain_graph(c: &Candidates, _peers: &PeerTable, _units: &[Unit]) -> ChainGraph {
+    let mut g = ChainGraph {
+        node_of: [[NONE_NODE; N]; CELLS],
+        nodes: Vec::new(),
+        strong: Vec::new(),
+        weak: Vec::new(),
+    };
+    // Pass 1: enumerate nodes from every candidate in c.
+    for i in 0..CELLS {
+        let m = c.masks[i];
+        if m == 0 {
+            continue;
+        }
+        for d in 1u8..=9 {
+            if m & bit(d) != 0 {
+                let n = g.nodes.len() as u16;
+                g.nodes.push(Node { cell: i as u16, digit: d });
+                g.node_of[i][(d - 1) as usize] = n;
+            }
+        }
+    }
+    g.strong.resize(g.nodes.len(), Vec::new());
+    g.weak.resize(g.nodes.len(), Vec::new());
+    g
+}
+
 #[inline]
 fn popcount(m: u16) -> u32 {
     m.count_ones()
@@ -1138,5 +1196,38 @@ mod tests {
     #[test]
     fn coloring_tier_is_t5() {
         assert_eq!(Technique::Coloring.tier(), Tier::T5Nightmare);
+    }
+
+    #[test]
+    fn chain_graph_empty_when_no_candidates() {
+        let peers = PeerTable::build(&Variant::classic());
+        let c = Candidates { masks: [0u16; CELLS] };
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        assert_eq!(g.nodes.len(), 0, "no candidates -> no nodes");
+        // Spot-check a few cells: node_of entries should all be NONE_NODE.
+        for d in 0..N {
+            assert_eq!(g.node_of[cell_index(0, 0)][d], NONE_NODE);
+        }
+    }
+
+    #[test]
+    fn chain_graph_indexes_present_candidates() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        c.masks[cell_index(0, 1)] = bit(3);
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        assert_eq!(g.nodes.len(), 3);
+        // node_of populated for the present candidates.
+        assert_ne!(g.node_of[cell_index(0, 0)][0], NONE_NODE); // digit 1
+        assert_ne!(g.node_of[cell_index(0, 0)][1], NONE_NODE); // digit 2
+        assert_ne!(g.node_of[cell_index(0, 1)][2], NONE_NODE); // digit 3
+        // Absent candidate stays NONE_NODE.
+        assert_eq!(g.node_of[cell_index(0, 0)][2], NONE_NODE); // digit 3 not in (0,0)
+        // strong/weak vectors are sized to match nodes.
+        assert_eq!(g.strong.len(), g.nodes.len());
+        assert_eq!(g.weak.len(), g.nodes.len());
     }
 }
