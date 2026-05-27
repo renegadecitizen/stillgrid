@@ -6,6 +6,7 @@
 
 use crate::board::{Board, CELLS, N};
 use crate::variant::{cell_index, Variant};
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Technique {
@@ -326,6 +327,65 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
             }
         }
     }
+
+    // Pass 4: weak links. (a) Two candidates in the same cell exclude each
+    // other (only one can be the eventual value). (b) Two cells in the same
+    // unit holding the same candidate cannot both be that value.
+    // We dedup with a per-source set to keep edge lists clean.
+    let mut seen: Vec<HashSet<u16>> = vec![HashSet::new(); g.nodes.len()];
+
+    // (a) Intra-cell weak links.
+    for i in 0..CELLS {
+        let m = c.masks[i];
+        if popcount(m) < 2 {
+            continue;
+        }
+        let mut digits: Vec<u8> = Vec::with_capacity(9);
+        for d in 1u8..=9 {
+            if m & bit(d) != 0 {
+                digits.push(d);
+            }
+        }
+        for a in 0..digits.len() {
+            for b in (a + 1)..digits.len() {
+                let na = g.node_of[i][(digits[a] - 1) as usize];
+                let nb = g.node_of[i][(digits[b] - 1) as usize];
+                if seen[na as usize].insert(nb) {
+                    g.weak[na as usize].push(nb);
+                }
+                if seen[nb as usize].insert(na) {
+                    g.weak[nb as usize].push(na);
+                }
+            }
+        }
+    }
+
+    // (b) Same-unit, same-digit weak links.
+    for u in units {
+        for d in 1u8..=9 {
+            let b = bit(d);
+            let mut bearers: Vec<u16> = Vec::with_capacity(u.cells.len());
+            for &(r, col) in &u.cells {
+                let i = r * N + col;
+                if c.masks[i] & b != 0 {
+                    bearers.push(g.node_of[i][(d - 1) as usize]);
+                }
+            }
+            for i_a in 0..bearers.len() {
+                for i_b in (i_a + 1)..bearers.len() {
+                    let na = bearers[i_a];
+                    let nb = bearers[i_b];
+                    if seen[na as usize].insert(nb) {
+                        g.weak[na as usize].push(nb);
+                    }
+                    if seen[nb as usize].insert(na) {
+                        g.weak[nb as usize].push(na);
+                    }
+                }
+            }
+        }
+    }
+
     g
 }
 
@@ -1314,5 +1374,27 @@ mod tests {
         let n_b = g.node_of[cell_index(0, 3)][5 - 1] as usize;
         assert!(g.strong[n_a].contains(&(n_b as u16)), "bilocal a -> b strong missing");
         assert!(g.strong[n_b].contains(&(n_a as u16)), "bilocal b -> a strong missing");
+    }
+
+    #[test]
+    fn chain_graph_weak_links_cover_cell_and_unit_peers() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        // Cell (0,0) has candidates {1, 2, 3} — three intra-cell weak links.
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2) | bit(3);
+        // Cell (0,5) has candidate {1} — row peer of (0,0) for digit 1.
+        c.masks[cell_index(0, 5)] = bit(1);
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let n_00_1 = g.node_of[cell_index(0, 0)][0] as usize;
+        let n_00_2 = g.node_of[cell_index(0, 0)][1] as usize;
+        let n_00_3 = g.node_of[cell_index(0, 0)][2] as usize;
+        let n_05_1 = g.node_of[cell_index(0, 5)][0] as usize;
+        // Intra-cell weak links: (0,0):1 <-> (0,0):2 and (0,0):1 <-> (0,0):3.
+        assert!(g.weak[n_00_1].contains(&(n_00_2 as u16)), "intra-cell 1<->2 missing");
+        assert!(g.weak[n_00_1].contains(&(n_00_3 as u16)), "intra-cell 1<->3 missing");
+        // Unit-peer weak link: (0,0):1 <-> (0,5):1 (same row, same digit).
+        assert!(g.weak[n_00_1].contains(&(n_05_1 as u16)), "row peer 1<->1 missing");
+        assert!(g.weak[n_05_1].contains(&(n_00_1 as u16)), "row peer reverse missing");
     }
 }
