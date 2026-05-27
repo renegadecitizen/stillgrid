@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Privacy — Stillgrid</title>
+    <meta name="description" content="Stillgrid does not require an account, set tracking cookies, or store data on servers. Game state lives on your device. Analytics is cookieless." />
+    <link rel="canonical" href="https://stillgrid.app/privacy" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="robots" content="index,follow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Privacy</h1>
+      <p class="lede">Short version: no account, no tracking cookies, no server-side data about you. Your game state lives on your device.</p>
+
+      <h2>What stays on your device</h2>
+      <p>Best times, daily-challenge streaks, the puzzle you're partway through, and your preferences are stored in your browser's <code>localStorage</code>. They never leave your device. Clearing your browser data clears them.</p>
+
+      <h2>What the server sees</h2>
+      <p>When you request a puzzle, your browser sends a normal HTTP request to <code>stillgrid.app</code>. That request reaches our hosting provider's logs (IP address, user agent, timestamp, URL) for the usual operational reasons — debugging, rate limiting, abuse prevention. We don't link those logs to anything that identifies you, because we don't have anything that identifies you.</p>
+      <p>No accounts. No emails. No password resets. No "sign in with Google." The server never learns who you are.</p>
+
+      <h2>Analytics</h2>
+      <p>We use <a href="https://plausible.io/privacy-focused-web-analytics" target="_blank" rel="noopener">Plausible</a> for product analytics. It is GDPR-compliant, doesn't set cookies, doesn't collect personal data, and doesn't track you across sites. It tells us things like "how many people played a killer puzzle today" — never "this specific person did X."</p>
+      <p>Plausible's data lives at plausible.io, not on our servers. Their <a href="https://plausible.io/data-policy" target="_blank" rel="noopener">data policy</a> covers exactly what they collect.</p>
+
+      <h2>No third-party trackers, ads, or fingerprinting</h2>
+      <p>No Google Analytics, no Meta pixel, no advertising network, no session replay, no fingerprinting. Just Plausible.</p>
+
+      <h2>Cookies</h2>
+      <p>Stillgrid does not set cookies. Plausible does not set cookies. There is no cookie banner because there are no cookies to disclose.</p>
+
+      <h2>Children</h2>
+      <p>Stillgrid is suitable for all ages. We don't knowingly collect data from anyone — children included — because we don't knowingly collect data from anyone.</p>
+
+      <h2>Changes</h2>
+      <p>If this policy changes, it will be visible on this page. The site itself doesn't have your contact info to email you.</p>
+
+      <h2>Contact</h2>
+      <p>Questions about this policy? Reach the maintainer via the <a href="https://github.com/renegadecitizen/stillgrid" target="_blank" rel="noopener">stillgrid repository on GitHub</a>.</p>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+  </body>
+</html>

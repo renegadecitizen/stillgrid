@@ -158,23 +158,28 @@ app.get("/api/daily", async (req, res) => {
   }
 });
 
-// Variant landing pages — server-rendered (well, prerendered) HTML for SEO.
-// These must be registered BEFORE the SPA fallback so /killer etc. resolve to
-// the landing pages rather than the SPA shell.
-const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku"] as const;
+// Prerendered HTML pages for SEO. Must be registered before the 404 handler
+// so /killer, /privacy, etc. resolve to their pages rather than the catch-all.
+const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "privacy"] as const;
 if (SERVE_STATIC) {
   for (const slug of LANDING_ROUTES) {
     app.get(`/${slug}`, (_req, res) => {
       res.sendFile(resolve(WEB_DIST, `${slug}.html`));
     });
   }
-}
 
-// SPA fallback: any unknown GET serves index.html so client-side routes work.
-if (SERVE_STATIC) {
-  app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api/")) return next();
+  // The SPA lives only at /. There's no client-side router, so unknown paths
+  // are real 404s — not routes to defer to the client.
+  app.get("/", (_req, res) => {
     res.sendFile(resolve(WEB_DIST, "index.html"));
+  });
+
+  app.use((req, res) => {
+    if (req.path.startsWith("/api/")) {
+      res.status(404).json({ error: "not found", path: req.path });
+      return;
+    }
+    res.status(404).sendFile(resolve(WEB_DIST, "404.html"));
   });
 }
 
