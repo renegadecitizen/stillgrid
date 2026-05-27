@@ -255,14 +255,14 @@ struct ChainGraph {
 }
 
 #[allow(dead_code)]
-fn build_chain_graph(c: &Candidates, _peers: &PeerTable, _units: &[Unit]) -> ChainGraph {
+fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> ChainGraph {
     let mut g = ChainGraph {
         node_of: [[NONE_NODE; N]; CELLS],
         nodes: Vec::new(),
         strong: Vec::new(),
         weak: Vec::new(),
     };
-    // Pass 1: enumerate nodes from every candidate in c.
+    // Pass 1: enumerate nodes from every candidate.
     for i in 0..CELLS {
         let m = c.masks[i];
         if m == 0 {
@@ -278,6 +278,58 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, _units: &[Unit]) -> Cha
     }
     g.strong.resize(g.nodes.len(), Vec::new());
     g.weak.resize(g.nodes.len(), Vec::new());
+
+    // Pass 2: bivalue cells. A cell with exactly two candidates {a, b}:
+    // the two corresponding nodes are strongly linked (one must be true).
+    for i in 0..CELLS {
+        let m = c.masks[i];
+        if popcount(m) != 2 {
+            continue;
+        }
+        let mut a: u8 = 0;
+        let mut b: u8 = 0;
+        for d in 1u8..=9 {
+            if m & bit(d) != 0 {
+                if a == 0 { a = d; } else { b = d; }
+            }
+        }
+        let na = g.node_of[i][(a - 1) as usize];
+        let nb = g.node_of[i][(b - 1) as usize];
+        g.strong[na as usize].push(nb);
+        g.strong[nb as usize].push(na);
+    }
+
+    // Pass 3: bilocal units. For each unit and each digit d, if exactly two
+    // cells in the unit have d as a candidate, those two nodes are strongly
+    // linked (one must be d).
+    for u in units {
+        for d in 1u8..=9 {
+            let b = bit(d);
+            let mut first: Option<u16> = None;
+            let mut second: Option<u16> = None;
+            let mut count = 0u32;
+            for &(r, col) in &u.cells {
+                let i = r * N + col;
+                if c.masks[i] & b != 0 {
+                    count += 1;
+                    let nid = g.node_of[i][(d - 1) as usize];
+                    if first.is_none() { first = Some(nid); }
+                    else if second.is_none() { second = Some(nid); }
+                    if count > 2 { break; }
+                }
+            }
+            if count == 2 {
+                let na = first.unwrap();
+                let nb = second.unwrap();
+                // Avoid double-adding when the same pair is bilocal across
+                // multiple units (e.g. row + box). Check before push.
+                if !g.strong[na as usize].contains(&nb) {
+                    g.strong[na as usize].push(nb);
+                    g.strong[nb as usize].push(na);
+                }
+            }
+        }
+    }
     g
 }
 
@@ -1229,5 +1281,42 @@ mod tests {
         // strong/weak vectors are sized to match nodes.
         assert_eq!(g.strong.len(), g.nodes.len());
         assert_eq!(g.weak.len(), g.nodes.len());
+    }
+
+    #[test]
+    fn chain_graph_bivalue_cell_makes_strong_link() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        // Bivalue cell at (0,0) with candidates {1, 2}.
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let n1 = g.node_of[cell_index(0, 0)][0] as usize; // digit 1
+        let n2 = g.node_of[cell_index(0, 0)][1] as usize; // digit 2
+        assert!(g.strong[n1].contains(&(n2 as u16)), "n1 -> n2 strong missing");
+        assert!(g.strong[n2].contains(&(n1 as u16)), "n2 -> n1 strong missing");
+    }
+
+    #[test]
+    fn chain_graph_bilocal_unit_makes_strong_link() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        // Row 0: only (0,0) and (0,3) have digit 5 as a candidate.
+        // Need to populate the row with non-5 elsewhere so the bilocal logic
+        // finds exactly two cells with candidate 5.
+        for col in 0..N {
+            let i = cell_index(0, col);
+            if col == 0 || col == 3 {
+                c.masks[i] = bit(5) | bit(6); // include extra so they're not naked singles
+            } else {
+                c.masks[i] = bit(6); // single, no 5
+            }
+        }
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let n_a = g.node_of[cell_index(0, 0)][5 - 1] as usize;
+        let n_b = g.node_of[cell_index(0, 3)][5 - 1] as usize;
+        assert!(g.strong[n_a].contains(&(n_b as u16)), "bilocal a -> b strong missing");
+        assert!(g.strong[n_b].contains(&(n_a as u16)), "bilocal b -> a strong missing");
     }
 }
