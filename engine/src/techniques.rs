@@ -1041,9 +1041,10 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
                         if next_color == 1 { group_a.push(m); } else { group_b.push(m); }
                         queue.push(m);
                     } else if color[m] == color[n] {
-                        // Parity contradiction → graph is not 2-colorable on
-                        // strong links alone. This component is degenerate;
-                        // skip the technique for this digit.
+                        // Parity contradiction → the strong-link subgraph isn't 2-colorable.
+                        // The candidate set is likely inconsistent at this point; bail out
+                        // of coloring for ALL digits in this call. A later try_step iteration
+                        // (after other techniques fire) may produce a clean graph next time.
                         return None;
                     }
                 }
@@ -1089,7 +1090,8 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
             // that weakly sees both an A-colored node and a B-colored node.
             // Such a candidate cannot be `d`.
             let mut trap_removed: Vec<(usize, usize, u8)> = Vec::new();
-            for (victim, _) in g.nodes.iter().enumerate() {
+            #[allow(clippy::needless_range_loop)]
+            for victim in 0..g.nodes.len() {
                 if g.nodes[victim].digit != d { continue; }
                 if color[victim] != 0 { continue; } // only victims outside the chain
                 let sees_a = group_a.iter().any(|&a| g.weak[victim].contains(&(a as u16)));
