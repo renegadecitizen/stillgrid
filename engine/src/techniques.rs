@@ -231,17 +231,14 @@ impl Candidates {
 // bivalue cells, bilocal units, and unit peer relationships. Built lazily
 // once per try_step invocation, only when T1–T4 techniques have failed.
 
-#[allow(dead_code)]
 const NONE_NODE: u16 = u16::MAX;
 
 #[derive(Clone, Copy, Debug)]
-#[allow(dead_code)]
 struct Node {
     cell: u16,
     digit: u8,
 }
 
-#[allow(dead_code)]
 struct ChainGraph {
     /// node_of[cell_index][digit-1] -> node id, or NONE_NODE if no candidate.
     node_of: [[u16; N]; CELLS],
@@ -255,7 +252,6 @@ struct ChainGraph {
     weak: Vec<Vec<u16>>,
 }
 
-#[allow(dead_code)]
 fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> ChainGraph {
     let mut g = ChainGraph {
         node_of: [[NONE_NODE; N]; CELLS],
@@ -1012,7 +1008,6 @@ fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
 // (Color wrap: two same-color nodes in the same unit. Color trap: a "victim"
 // candidate sees both colors of a chain — handled as a follow-up case below.)
 
-#[allow(dead_code)]
 fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
     // color[node] = 0 unvisited, 1 = color A, 2 = color B.
     let mut color: Vec<u8> = vec![0; g.nodes.len()];
@@ -1123,6 +1118,11 @@ fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable
         .or_else(|| find_xwing(c))
         .or_else(|| find_swordfish(c))
         .or_else(|| find_xywing(c, peers))
+        .or_else(|| {
+            // Lazy: only built when T1–T4 finders all failed.
+            let g = build_chain_graph(c, peers, units);
+            find_simple_coloring(&g)
+        })
 }
 
 fn apply(step: &Step, board: &mut Board, cands: &mut Candidates, peers: &PeerTable) {
@@ -1562,5 +1562,27 @@ mod tests {
             }
             _ => panic!("expected elimination, got {:?}", step),
         }
+    }
+
+    /// After T5 lands, the easy puzzle must still grade as T1Easy —
+    /// coloring must NOT fire when easier techniques apply.
+    #[test]
+    fn easy_does_not_promote_to_t5_with_coloring_available() {
+        let b = Board::from_str(EASY).unwrap();
+        match grade(&b) {
+            GradeOutcome::Solved { tier, .. } => assert_eq!(tier, Tier::T1Easy),
+            other => panic!("expected Solved at T1Easy, got {:?}", other),
+        }
+    }
+
+    /// Inkala remains stuck after commit 1 — coloring alone is not enough.
+    /// This test will be flipped to Solved in commit 2 (forcing chains).
+    #[test]
+    fn inkala_still_stuck_after_coloring() {
+        let b = Board::from_str(INKALA).unwrap();
+        assert!(
+            matches!(grade(&b), GradeOutcome::Stuck { .. }),
+            "Inkala should still be Stuck after coloring; chains land in commit 2"
+        );
     }
 }
