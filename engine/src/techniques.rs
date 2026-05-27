@@ -1004,6 +1004,112 @@ fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
     None
 }
 
+// --- Tier 5: simple coloring ---------------------------------------------
+//
+// For each digit independently, 2-color the strong-link subgraph (nodes are
+// (cell, digit) for this digit). If any same-color pair shares a weak link,
+// that color is provably wrong → eliminate every candidate of that color.
+// (Color wrap: two same-color nodes in the same unit. Color trap: a "victim"
+// candidate sees both colors of a chain — handled as a follow-up case below.)
+
+#[allow(dead_code)]
+fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
+    // color[node] = 0 unvisited, 1 = color A, 2 = color B.
+    let mut color: Vec<u8> = vec![0; g.nodes.len()];
+
+    for d in 1u8..=9 {
+        // Build the per-digit subgraph as we go: a node belongs to the
+        // subgraph iff it carries digit `d`.
+        // Reset coloring scratch for this digit.
+        for c in color.iter_mut() { *c = 0; }
+
+        for start in 0..g.nodes.len() {
+            if g.nodes[start].digit != d { continue; }
+            if color[start] != 0 { continue; }
+            // BFS, alternating colors at each strong link to a same-digit node.
+            let mut queue: Vec<usize> = vec![start];
+            color[start] = 1;
+            let mut group_a: Vec<usize> = vec![start];
+            let mut group_b: Vec<usize> = Vec::new();
+            while let Some(n) = queue.pop() {
+                let next_color = if color[n] == 1 { 2 } else { 1 };
+                for &m in &g.strong[n] {
+                    let m = m as usize;
+                    if g.nodes[m].digit != d { continue; }
+                    if color[m] == 0 {
+                        color[m] = next_color;
+                        if next_color == 1 { group_a.push(m); } else { group_b.push(m); }
+                        queue.push(m);
+                    } else if color[m] == color[n] {
+                        // Parity contradiction → graph is not 2-colorable on
+                        // strong links alone. This component is degenerate;
+                        // skip the technique for this digit.
+                        return None;
+                    }
+                }
+            }
+            // Color wrap: two same-color nodes share a weak link (i.e. see
+            // each other via a unit peer).
+            for &a in &group_a {
+                for &b in &group_a {
+                    if a >= b { continue; }
+                    if g.weak[a].contains(&(b as u16)) {
+                        // All A-color candidates are eliminable.
+                        let removed: Vec<(usize, usize, u8)> = group_a.iter().map(|&n| {
+                            let cell = g.nodes[n].cell as usize;
+                            (cell / N, cell % N, d)
+                        }).collect();
+                        if !removed.is_empty() {
+                            return Some(Step::Elimination {
+                                technique: Technique::Coloring,
+                                removed,
+                            });
+                        }
+                    }
+                }
+            }
+            for &a in &group_b {
+                for &b in &group_b {
+                    if a >= b { continue; }
+                    if g.weak[a].contains(&(b as u16)) {
+                        let removed: Vec<(usize, usize, u8)> = group_b.iter().map(|&n| {
+                            let cell = g.nodes[n].cell as usize;
+                            (cell / N, cell % N, d)
+                        }).collect();
+                        if !removed.is_empty() {
+                            return Some(Step::Elimination {
+                                technique: Technique::Coloring,
+                                removed,
+                            });
+                        }
+                    }
+                }
+            }
+            // Color trap: a candidate of digit `d` NOT in this component
+            // that weakly sees both an A-colored node and a B-colored node.
+            // Such a candidate cannot be `d`.
+            let mut trap_removed: Vec<(usize, usize, u8)> = Vec::new();
+            for (victim, _) in g.nodes.iter().enumerate() {
+                if g.nodes[victim].digit != d { continue; }
+                if color[victim] != 0 { continue; } // only victims outside the chain
+                let sees_a = group_a.iter().any(|&a| g.weak[victim].contains(&(a as u16)));
+                let sees_b = group_b.iter().any(|&b| g.weak[victim].contains(&(b as u16)));
+                if sees_a && sees_b {
+                    let cell = g.nodes[victim].cell as usize;
+                    trap_removed.push((cell / N, cell % N, d));
+                }
+            }
+            if !trap_removed.is_empty() {
+                return Some(Step::Elimination {
+                    technique: Technique::Coloring,
+                    removed: trap_removed,
+                });
+            }
+        }
+    }
+    None
+}
+
 // --- main loop ------------------------------------------------------------
 
 fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable) -> Option<Step> {
@@ -1396,5 +1502,19 @@ mod tests {
         // Unit-peer weak link: (0,0):1 <-> (0,5):1 (same row, same digit).
         assert!(g.weak[n_00_1].contains(&(n_05_1 as u16)), "row peer 1<->1 missing");
         assert!(g.weak[n_05_1].contains(&(n_00_1 as u16)), "row peer reverse missing");
+    }
+
+    #[test]
+    fn simple_coloring_compiles_and_runs() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        c.masks[cell_index(0, 0)] = bit(5) | bit(9);
+        c.masks[cell_index(0, 5)] = bit(5) | bit(9);
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let result = find_simple_coloring(&g);
+        if let Some(Step::Elimination { technique, .. }) = result {
+            assert_eq!(technique, Technique::Coloring);
+        }
     }
 }
