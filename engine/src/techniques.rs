@@ -286,13 +286,9 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
         if popcount(m) != 2 {
             continue;
         }
-        let mut a: u8 = 0;
-        let mut b: u8 = 0;
-        for d in 1u8..=9 {
-            if m & bit(d) != 0 {
-                if a == 0 { a = d; } else { b = d; }
-            }
-        }
+        let mut digits = (1u8..=9).filter(|&d| m & bit(d) != 0);
+        let a = digits.next().expect("popcount==2 implies first digit exists");
+        let b = digits.next().expect("popcount==2 implies second digit exists");
         let na = g.node_of[i][(a - 1) as usize];
         let nb = g.node_of[i][(b - 1) as usize];
         g.strong[na as usize].push(nb);
