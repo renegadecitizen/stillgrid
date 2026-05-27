@@ -35,6 +35,8 @@ pub enum Technique {
     SwordfishRow,
     SwordfishCol,
     XYWing,
+    // Tier 5 — chain-based
+    Coloring,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -57,6 +59,7 @@ impl Technique {
             | PointingPair => Tier::T2Medium,
             XWingRow | XWingCol => Tier::T3Hard,
             SwordfishRow | SwordfishCol | XYWing => Tier::T4Diabolical,
+            Coloring => Tier::T5Nightmare,
         }
     }
 }
@@ -1130,5 +1133,10 @@ mod tests {
             }
             _ => panic!("expected elimination"),
         }
+    }
+
+    #[test]
+    fn coloring_tier_is_t5() {
+        assert_eq!(Technique::Coloring.tier(), Tier::T5Nightmare);
     }
 }
