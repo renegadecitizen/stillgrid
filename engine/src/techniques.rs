@@ -1705,4 +1705,30 @@ mod tests {
         let result = find_aic(&g);
         assert!(result.is_none(), "empty graph should produce no AIC");
     }
+
+    /// AIC fixture: cross-digit chain whose endpoints are same-digit and
+    /// whose middle crosses a bivalue cell. Coloring (per-digit) cannot see
+    /// it; AIC can.
+    ///
+    /// Chain: (0,0):1 -S- (0,0):2 -w- (3,0):2 -S- (3,0):1.
+    /// Conclusion: (0,0):1 ∨ (3,0):1 → eliminate (6,0):1 (col 0 weak peer).
+    #[test]
+    fn aic_cross_digit_eliminates() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        c.masks[cell_index(3, 0)] = bit(1) | bit(2);
+        c.masks[cell_index(6, 0)] = bit(1) | bit(5);
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let step = find_aic(&g).expect("AIC should find a chain on this fixture");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::ForcingChain);
+                let hit = removed.iter().any(|&(r, col, v)| (r, col, v) == (6, 0, 1));
+                assert!(hit, "expected (6,0,1) eliminated, got {:?}", removed);
+            }
+            other => panic!("expected elimination, got {:?}", other),
+        }
+    }
 }
