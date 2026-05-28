@@ -1150,7 +1150,11 @@ fn aic_dfs(
     let last = *path.last().unwrap() as usize;
 
     // Valid AIC endpoint: odd edge count, last edge was STRONG.
-    if depth >= 1 && !depth.is_multiple_of(2) {
+    // (Bitwise check instead of `% 2` to avoid clippy::manual_is_multiple_of,
+    // which suggests `is_multiple_of` — a method stabilized in Rust 1.84.
+    // Our Dockerfile pins rust:1.83-slim, so the modern API would break the
+    // production build.)
+    if depth >= 1 && (depth & 1) == 1 {
         if let Some(step) = aic_check_victims(g, start, last, on_path) {
             return Some(step);
         }
@@ -1161,7 +1165,7 @@ fn aic_dfs(
     }
 
     // Choose edge type: even depth -> next must be STRONG, odd -> WEAK.
-    let next_is_strong = depth.is_multiple_of(2);
+    let next_is_strong = (depth & 1) == 0;
     let edges = if next_is_strong { &g.strong[last] } else { &g.weak[last] };
     for &next in edges {
         let next = next as usize;
