@@ -2135,4 +2135,32 @@ mod tests {
             alses.len()
         );
     }
+
+    /// Behavioral: ALS-XZ rule fires and eliminates (1,0):3.
+    ///
+    /// ALS A (row 0): (0,0)={1,2}, (0,1)={2,3}. Union {1,2,3}.
+    /// ALS B (col 0): (3,0)={1,3}, (5,0)={3,4}. Union {1,3,4}.
+    /// Common digits: {1, 3}. Z=1 is restricted (both Z-cells share col 0).
+    /// X=3 is the non-RCC common digit. Victim (1,0) sees (0,1) [box 0],
+    /// (3,0) [col 0], and (5,0) [col 0] — so its digit 3 is eliminable.
+    #[test]
+    fn als_xz_eliminates_victim() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        c.masks[cell_index(0, 1)] = bit(2) | bit(3);
+        c.masks[cell_index(3, 0)] = bit(1) | bit(3);
+        c.masks[cell_index(5, 0)] = bit(3) | bit(4);
+        c.masks[cell_index(1, 0)] = bit(3) | bit(6);
+        let units = build_units(&Variant::classic());
+        let step = find_als_xz(&c, &peers, &units).expect("ALS-XZ should fire");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::Als);
+                let hit = removed.iter().any(|&(r, col, v)| (r, col, v) == (1, 0, 3));
+                assert!(hit, "expected (1,0,3) eliminated, got {:?}", removed);
+            }
+            other => panic!("expected elimination, got {:?}", other),
+        }
+    }
 }
