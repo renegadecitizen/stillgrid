@@ -40,6 +40,7 @@ pub enum Technique {
     // Tier 5 — chain-based
     Coloring,
     ForcingChain,
+    Als,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -62,7 +63,7 @@ impl Technique {
             | PointingPair => Tier::T2Medium,
             XWingRow | XWingCol => Tier::T3Hard,
             SwordfishRow | SwordfishCol | XYWing => Tier::T4Diabolical,
-            Coloring | ForcingChain => Tier::T5Nightmare,
+            Coloring | ForcingChain | Als => Tier::T5Nightmare,
         }
     }
 }
@@ -1880,5 +1881,10 @@ mod tests {
         let units = build_units(&Variant::classic());
         let g = build_chain_graph(&c, &peers, &units);
         assert!(find_forcing_chain(&g, &c).is_none());
+    }
+
+    #[test]
+    fn als_tier_is_t5() {
+        assert_eq!(Technique::Als.tier(), Tier::T5Nightmare);
     }
 }
