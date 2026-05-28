@@ -1407,6 +1407,97 @@ fn find_alses(c: &Candidates, units: &[Unit]) -> Vec<Als> {
     alses
 }
 
+#[allow(dead_code)]
+fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step> {
+    let alses = find_alses(c, units);
+    if alses.len() < 2 {
+        return None;
+    }
+    for i in 0..alses.len() {
+        for j in (i + 1)..alses.len() {
+            let a = &alses[i];
+            let b = &alses[j];
+            // Require disjoint cells.
+            if a.cells.iter().any(|ai| b.cells.contains(ai)) {
+                continue;
+            }
+            let common = a.candidates & b.candidates;
+            if popcount(common) < 2 {
+                continue;
+            }
+            // Find RCCs.
+            let mut rcc: Option<u8> = None;
+            let mut multi_rcc = false;
+            for d in 1u8..=9 {
+                if common & bit(d) == 0 {
+                    continue;
+                }
+                let za = &a.digit_cells[(d - 1) as usize];
+                let zb = &b.digit_cells[(d - 1) as usize];
+                if za.is_empty() || zb.is_empty() {
+                    continue;
+                }
+                let mut restricted = true;
+                'pairs: for &ca in za {
+                    for &cb in zb {
+                        if !peers.peers[ca].contains(&cb) {
+                            restricted = false;
+                            break 'pairs;
+                        }
+                    }
+                }
+                if restricted {
+                    if rcc.is_some() {
+                        multi_rcc = true;
+                        break;
+                    }
+                    rcc = Some(d);
+                }
+            }
+            if multi_rcc || rcc.is_none() {
+                continue;
+            }
+            let z = rcc.unwrap();
+            // For each non-Z common digit X, scan for eliminations.
+            let mut removed: Vec<(usize, usize, u8)> = Vec::new();
+            for x in 1u8..=9 {
+                if x == z || common & bit(x) == 0 {
+                    continue;
+                }
+                let xa = &a.digit_cells[(x - 1) as usize];
+                let xb = &b.digit_cells[(x - 1) as usize];
+                if xa.is_empty() || xb.is_empty() {
+                    continue;
+                }
+                for victim in 0..CELLS {
+                    if c.masks[victim] & bit(x) == 0 {
+                        continue;
+                    }
+                    if a.cells.contains(&victim) || b.cells.contains(&victim) {
+                        continue;
+                    }
+                    let sees_all_in_a = xa.iter().all(|&cell| peers.peers[victim].contains(&cell));
+                    if !sees_all_in_a {
+                        continue;
+                    }
+                    let sees_all_in_b = xb.iter().all(|&cell| peers.peers[victim].contains(&cell));
+                    if !sees_all_in_b {
+                        continue;
+                    }
+                    let elim = (victim / N, victim % N, x);
+                    if !removed.contains(&elim) {
+                        removed.push(elim);
+                    }
+                }
+            }
+            if !removed.is_empty() {
+                return Some(Step::Elimination { technique: Technique::Als, removed });
+            }
+        }
+    }
+    None
+}
+
 fn find_forcing_chain(g: &ChainGraph, c: &Candidates) -> Option<Step> {
     find_aic(g).or_else(|| find_bivalue_forcing(g, c))
 }
@@ -2012,6 +2103,15 @@ mod tests {
         let alses = find_alses(&c, &units);
         // With only one populated cell, no unit has >=2 candidate-bearing cells.
         assert_eq!(alses.len(), 0);
+    }
+
+    /// Smoke: `find_als_xz` returns None when no ALSes exist.
+    #[test]
+    fn find_als_xz_smoke_empty() {
+        let peers = PeerTable::build(&Variant::classic());
+        let c = Candidates { masks: [0u16; CELLS] };
+        let units = build_units(&Variant::classic());
+        assert!(find_als_xz(&c, &peers, &units).is_none());
     }
 
     /// Behavioral: a 2-cell ALS with 3 candidates is enumerated.
