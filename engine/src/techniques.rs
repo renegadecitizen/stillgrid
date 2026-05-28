@@ -1950,34 +1950,44 @@ mod tests {
         }
     }
 
-    /// Inkala remains stuck after T5 commit 2 (forcing chains + simple coloring).
-    /// Empirical diagnosis: Inkala's initial candidate state yields a ChainGraph
-    /// with only ~9 strong-link edges across 254 nodes (1 bivalue cell, ~8 bilocal
-    /// units). Forcing chains have almost nothing to walk. Depth bumps to 30
-    /// don't help — the graph is structurally sparse by design of the puzzle.
-    /// The Inkala fixer is deferred to T5 commit 3 (ALS), which the spec
-    /// explicitly anticipates as a conditional follow-up when commit 2's
-    /// stuck-rate is >0% — that condition holds here.
+    /// Inkala 2012 remains stuck after the full T5 arsenal: simple coloring,
+    /// AIC, bivalue forcing chains, ALS-XZ, and ALS-XY-Wing all run on its
+    /// initial state and collectively produce ZERO eliminations.
+    ///
+    /// Empirical diagnosis (post-commit-3):
+    /// - ChainGraph: ~9 strong-link edges across 254 nodes (1 bivalue, ~8 bilocals).
+    ///   Forcing chains have almost nothing to walk; depth bumps to 30 don't help.
+    /// - ALSes: 96 enumerated (mostly size 4-5). 3282 disjoint pairs share ≥2
+    ///   common digits. Only 12 have exactly 1 RCC (ALS-XZ). The 2-RCC case
+    ///   (ALS-XY-Wing) also produces no eliminations because the large ALS sizes
+    ///   spread X-bearing cells across enough units that no single victim sees
+    ///   all of them.
+    ///
+    /// Remaining options to crack Inkala: multi-step ALS chains (3+ ALSes linked
+    /// via different RCCs), templates (per-digit brute force), or trial-and-error.
+    /// All are substantial new subsystems; deferring per spec's non-goals list
+    /// (no "Trial-and-Error dressed as a technique") and the diminishing
+    /// returns of further T5 escalation.
     #[test]
-    fn inkala_stuck_pending_als() {
+    fn inkala_stuck_known_limit() {
         let b = Board::from_str(INKALA).unwrap();
         assert!(
             matches!(grade(&b), GradeOutcome::Stuck { .. }),
-            "Inkala should still be Stuck after T5 forcing chains; ALS lands in commit 3"
+            "Inkala: T5 (coloring+AIC+bivalue+ALS-XZ+ALS-XY-Wing) doesn't crack this puzzle"
         );
     }
 
-    /// "Easter Monster" — another widely-cited hard sudoku. Like Inkala 2012,
-    /// its initial state is too sparse for forcing chains: forcing chains take
-    /// 0 steps before stalling. Marked `#[ignore]` here so the test stays as a
-    /// living marker — flip to a positive `assert_eq!(tier, T5Nightmare)` once
-    /// commit 3 (ALS) lands and Easter Monster grades.
+    /// "Easter Monster" — another widely-cited extreme sudoku. Behaves like
+    /// Inkala 2012: the full T5 arsenal (coloring, AIC, bivalue forcing,
+    /// ALS-XZ, ALS-XY-Wing) produces 0 eliminations on its initial state.
+    /// Kept as a `#[ignore]`d marker — if future T5 work (ALS chains,
+    /// templates) lands and cracks it, flip this to an active assertion.
     const EASTER_MONSTER: &str =
         "1.......2.9.4...5...6...7...5.9.3.......7.......85..4.7.....6...3...9.8...2.....1";
 
     #[test]
-    #[ignore = "stuck after T5 commit 2; enable post-ALS (commit 3)"]
-    fn easter_monster_solves_at_t5_post_als() {
+    #[ignore = "T5 arsenal through ALS-XY-Wing insufficient; revisit with ALS chains/templates"]
+    fn easter_monster_solves_at_t5() {
         let b = Board::from_str(EASTER_MONSTER).unwrap();
         match grade(&b) {
             GradeOutcome::Solved { tier, .. } => {
