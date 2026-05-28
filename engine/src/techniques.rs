@@ -2013,4 +2013,26 @@ mod tests {
         // With only one populated cell, no unit has >=2 candidate-bearing cells.
         assert_eq!(alses.len(), 0);
     }
+
+    /// Behavioral: a 2-cell ALS with 3 candidates is enumerated.
+    /// Cells (0,0)={1,2}, (0,1)={2,3} in row 0 (and also together in box 0).
+    /// Union = {1,2,3}, popcount = 3 = size + 1 → ALS.
+    #[test]
+    fn find_alses_discovers_size_2_als() {
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        c.masks[cell_index(0, 1)] = bit(2) | bit(3);
+        let units = build_units(&Variant::classic());
+        let alses = find_alses(&c, &units);
+        let target_cells = vec![cell_index(0, 0), cell_index(0, 1)];
+        let target_cands = bit(1) | bit(2) | bit(3);
+        let found =
+            alses.iter().any(|als| als.cells == target_cells && als.candidates == target_cands);
+        assert!(
+            found,
+            "expected ALS with cells={:?} cands=bit(1)|bit(2)|bit(3); got {} ALSes",
+            target_cells,
+            alses.len()
+        );
+    }
 }
