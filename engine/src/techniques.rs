@@ -1,6 +1,7 @@
 //! Human-style technique solver — variant-aware.
 //!
-//! Tier 1 (singles), Tier 2 (naked/hidden pair, pointing pair), Tier 3 (X-Wing).
+//! Tier 1 (singles), Tier 2 (naked/hidden pair, pointing pair), Tier 3 (X-Wing),
+//! Tier 4 (Swordfish, XY-Wing), Tier 5 (simple coloring, forcing chains).
 //! Variant support: classic, X-Sudoku (diagonals), Jigsaw (custom boxes),
 //! Killer (cage uniqueness — cage-sum techniques are deferred).
 
@@ -1106,6 +1107,109 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
     None
 }
 
+// --- Tier 5: alternating inference chains (AIC) -------------------------
+//
+// Walk the ChainGraph along strictly alternating strong/weak edges,
+// starting and ending on a strong link. If a chain of length 1, 3, 5,
+// ..., 11 reaches a node whose weak-link neighborhood intersects the
+// start's weak-link neighborhood, those shared weak peers cannot be
+// true: one of {start, end} is forced true, so any peer weakly seeing
+// both is forced false. Depth capped at 12 edges (chain length 11
+// nodes-on-strong) per the spec; deeper would risk exponential
+// blowup with marginal gain.
+
+#[allow(dead_code)]
+const AIC_MAX_EDGES: usize = 12;
+
+#[allow(dead_code)]
+fn find_aic(g: &ChainGraph) -> Option<Step> {
+    let mut path: Vec<u16> = Vec::with_capacity(AIC_MAX_EDGES + 1);
+    let mut on_path: Vec<bool> = vec![false; g.nodes.len()];
+    for start in 0..g.nodes.len() {
+        path.clear();
+        for v in on_path.iter_mut() { *v = false; }
+        path.push(start as u16);
+        on_path[start] = true;
+        if let Some(step) = aic_dfs(g, start, &mut path, &mut on_path) {
+            return Some(step);
+        }
+    }
+    None
+}
+
+/// DFS extending `path` with strictly alternating strong/weak edges.
+/// path.len() - 1 == current edge count.
+/// Next edge is STRONG when current edge count is even (0, 2, 4, ...),
+/// WEAK when odd (1, 3, 5, ...). At odd edge counts >= 1 we have a
+/// valid AIC endpoint (chain ended on a strong link) — check victims.
+#[allow(dead_code)]
+fn aic_dfs(
+    g: &ChainGraph,
+    start: usize,
+    path: &mut Vec<u16>,
+    on_path: &mut Vec<bool>,
+) -> Option<Step> {
+    let depth = path.len() - 1; // number of edges traversed so far
+    let last = *path.last().unwrap() as usize;
+
+    // Valid AIC endpoint: odd edge count, last edge was STRONG.
+    if depth >= 1 && !depth.is_multiple_of(2) {
+        if let Some(step) = aic_check_victims(g, start, last, on_path) {
+            return Some(step);
+        }
+    }
+
+    if depth >= AIC_MAX_EDGES {
+        return None;
+    }
+
+    // Choose edge type: even depth -> next must be STRONG, odd -> WEAK.
+    let next_is_strong = depth.is_multiple_of(2);
+    let edges = if next_is_strong { &g.strong[last] } else { &g.weak[last] };
+    for &next in edges {
+        let next = next as usize;
+        if on_path[next] { continue; }
+        on_path[next] = true;
+        path.push(next as u16);
+        if let Some(step) = aic_dfs(g, start, path, on_path) {
+            return Some(step);
+        }
+        path.pop();
+        on_path[next] = false;
+    }
+    None
+}
+
+/// Return Some(elimination) if any candidate weakly sees both `start` and
+/// `end` (and is not on the chain). `start ∨ end` is the AIC's conclusion;
+/// such a victim cannot be true.
+#[allow(dead_code)]
+fn aic_check_victims(
+    g: &ChainGraph,
+    start: usize,
+    end: usize,
+    on_path: &[bool],
+) -> Option<Step> {
+    if start == end { return None; }
+    let mut removed: Vec<(usize, usize, u8)> = Vec::new();
+    for (victim, &is_on_path) in on_path.iter().enumerate().take(g.nodes.len()) {
+        if is_on_path { continue; }
+        let sees_start = g.weak[victim].contains(&(start as u16));
+        if !sees_start { continue; }
+        let sees_end = g.weak[victim].contains(&(end as u16));
+        if !sees_end { continue; }
+        let cell = g.nodes[victim].cell as usize;
+        removed.push((cell / N, cell % N, g.nodes[victim].digit));
+    }
+    if removed.is_empty() {
+        return None;
+    }
+    Some(Step::Elimination {
+        technique: Technique::ForcingChain,
+        removed,
+    })
+}
+
 // --- main loop ------------------------------------------------------------
 
 fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable) -> Option<Step> {
@@ -1588,5 +1692,17 @@ mod tests {
     #[test]
     fn forcing_chain_tier_is_t5() {
         assert_eq!(Technique::ForcingChain.tier(), Tier::T5Nightmare);
+    }
+
+    /// Smoke: `find_aic` exists, takes a `&ChainGraph`, returns Option<Step>,
+    /// and is robust on degenerate input (empty graph) — must not panic.
+    #[test]
+    fn find_aic_smoke_empty_graph() {
+        let peers = PeerTable::build(&Variant::classic());
+        let c = Candidates { masks: [0u16; CELLS] };
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let result = find_aic(&g);
+        assert!(result.is_none(), "empty graph should produce no AIC");
     }
 }
