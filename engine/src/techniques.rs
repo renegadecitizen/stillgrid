@@ -1294,15 +1294,23 @@ fn simulate_forcing_branch(g: &ChainGraph, start_true: usize) -> Vec<bool> {
     false_set
 }
 
-// --- Tier 5: Almost Locked Sets (ALS-XZ) --------------------------------
+// --- Tier 5: Almost Locked Sets (ALS-XZ / ALS-XY-Wing) ------------------
 //
 // An ALS is N cells in a unit whose union of candidates contains exactly
 // N+1 distinct digits. The "+1" makes it "almost" locked — removing any
 // single digit collapses it into a hidden N-tuple.
 //
 // We enumerate ALSes of size 2..=5 across every unit (row, col, box, diag,
-// cage) using the existing variant-aware `build_units`. The ALS-XZ rule
-// (next function) consumes the enumerated list.
+// cage) using the existing variant-aware `build_units`. The ALS-XZ /
+// ALS-XY-Wing rule (next function) consumes the enumerated list.
+//
+// ALS-XZ: exactly 1 RCC (restricted common candidate) between two disjoint
+// ALSes. Any non-RCC common digit can be eliminated from external cells
+// that see all bearers in both ALSes.
+//
+// ALS-XY-Wing: exactly 2 RCCs. The elimination logic is identical — any
+// non-RCC common digit is still locked across the two ALSes and can be
+// eliminated from external cells that see all bearers.
 
 const ALS_MIN_SIZE: usize = 2;
 const ALS_MAX_SIZE: usize = 5;
@@ -1419,9 +1427,13 @@ fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step
             if popcount(common) < 2 {
                 continue;
             }
-            // Find RCCs.
-            let mut rcc: Option<u8> = None;
-            let mut multi_rcc = false;
+            // Find RCCs — exactly 1 (ALS-XZ) or 2 (ALS-XY-Wing) qualifies.
+            // 3+ RCCs is an over-determined case we skip (each pair of ALSes
+            // can have at most |S|+1 RCCs in theory; 3+ rarely yields more
+            // eliminations than what 2 RCCs already produce, and gating
+            // strictly keeps the search bounded).
+            let mut rccs: Vec<u8> = Vec::with_capacity(2);
+            let mut too_many = false;
             for d in 1u8..=9 {
                 if common & bit(d) == 0 {
                     continue;
@@ -1441,21 +1453,20 @@ fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step
                     }
                 }
                 if restricted {
-                    if rcc.is_some() {
-                        multi_rcc = true;
+                    if rccs.len() == 2 {
+                        too_many = true;
                         break;
                     }
-                    rcc = Some(d);
+                    rccs.push(d);
                 }
             }
-            if multi_rcc || rcc.is_none() {
+            if too_many || rccs.is_empty() {
                 continue;
             }
-            let z = rcc.unwrap();
-            // For each non-Z common digit X, scan for eliminations.
+            // For each non-RCC common digit X, scan for eliminations.
             let mut removed: Vec<(usize, usize, u8)> = Vec::new();
             for x in 1u8..=9 {
-                if x == z || common & bit(x) == 0 {
+                if rccs.contains(&x) || common & bit(x) == 0 {
                     continue;
                 }
                 let xa = &a.digit_cells[(x - 1) as usize];
@@ -2166,6 +2177,35 @@ mod tests {
                 assert_eq!(technique, Technique::Als);
                 let hit = removed.iter().any(|&(r, col, v)| (r, col, v) == (1, 0, 3));
                 assert!(hit, "expected (1,0,3) eliminated, got {:?}", removed);
+            }
+            other => panic!("expected elimination, got {:?}", other),
+        }
+    }
+
+    /// Regression: the multi-RCC refactor (1 OR 2 RCCs) does not break the
+    /// original ALS-XZ (1-RCC) elimination. Uses the same fixture as
+    /// `als_xz_eliminates_victim` — if the `rccs.contains` guard regresses,
+    /// this test catches it independently.
+    #[test]
+    fn als_xy_wing_does_not_break_xz_behavior() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        c.masks[cell_index(0, 1)] = bit(2) | bit(3);
+        c.masks[cell_index(3, 0)] = bit(1) | bit(3);
+        c.masks[cell_index(5, 0)] = bit(3) | bit(4);
+        c.masks[cell_index(1, 0)] = bit(3) | bit(6);
+        let units = build_units(&Variant::classic());
+        let step = find_als_xz(&c, &peers, &units).expect("ALS-XZ should still fire");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::Als);
+                let hit = removed.iter().any(|&(r, col, v)| (r, col, v) == (1, 0, 3));
+                assert!(
+                    hit,
+                    "expected (1,0,3) eliminated even with multi-RCC handling, got {:?}",
+                    removed
+                );
             }
             other => panic!("expected elimination, got {:?}", other),
         }
