@@ -1847,4 +1847,31 @@ mod tests {
             other => panic!("expected elimination, got {:?}", other),
         }
     }
+
+    /// Bivalue forcing fixture: both branches of (0,0)={1,2} force (5,4):5 FALSE
+    /// via independent two-hop chains, so it is a forced elimination.
+    ///
+    /// Branch A ((0,0)=1): (0,4):1 FALSE -> (0,4):5 TRUE -> col 4 weak -> (5,4):5 FALSE.
+    /// Branch B ((0,0)=2): (5,0):2 FALSE -> (5,0):5 TRUE -> row 5 weak -> (5,4):5 FALSE.
+    #[test]
+    fn bivalue_forcing_intersection_eliminates() {
+        let peers = PeerTable::build(&Variant::classic());
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        c.masks[cell_index(0, 4)] = bit(1) | bit(5);
+        c.masks[cell_index(5, 0)] = bit(2) | bit(5);
+        c.masks[cell_index(5, 4)] = bit(5) | bit(6);
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        let step = find_bivalue_forcing(&g, &c)
+            .expect("bivalue forcing should fire on this fixture");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::ForcingChain);
+                let hit = removed.iter().any(|&(r, col, v)| (r, col, v) == (5, 4, 5));
+                assert!(hit, "expected (5,4,5) eliminated, got {:?}", removed);
+            }
+            other => panic!("expected elimination, got {:?}", other),
+        }
+    }
 }
