@@ -1118,10 +1118,8 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
 // nodes-on-strong) per the spec; deeper would risk exponential
 // blowup with marginal gain.
 
-#[allow(dead_code)]
 const AIC_MAX_EDGES: usize = 12;
 
-#[allow(dead_code)]
 fn find_aic(g: &ChainGraph) -> Option<Step> {
     let mut path: Vec<u16> = Vec::with_capacity(AIC_MAX_EDGES + 1);
     let mut on_path: Vec<bool> = vec![false; g.nodes.len()];
@@ -1142,7 +1140,6 @@ fn find_aic(g: &ChainGraph) -> Option<Step> {
 /// Next edge is STRONG when current edge count is even (0, 2, 4, ...),
 /// WEAK when odd (1, 3, 5, ...). At odd edge counts >= 1 we have a
 /// valid AIC endpoint (chain ended on a strong link) — check victims.
-#[allow(dead_code)]
 fn aic_dfs(
     g: &ChainGraph,
     start: usize,
@@ -1183,7 +1180,6 @@ fn aic_dfs(
 /// Return Some(elimination) if any candidate weakly sees both `start` and
 /// `end` (and is not on the chain). `start ∨ end` is the AIC's conclusion;
 /// such a victim cannot be true.
-#[allow(dead_code)]
 fn aic_check_victims(
     g: &ChainGraph,
     start: usize,
@@ -1225,10 +1221,8 @@ fn aic_check_victims(
 //
 // Depth cap mirrors AIC's: at most 12 BFS layers per branch.
 
-#[allow(dead_code)]
 const FORCING_MAX_DEPTH: usize = 12;
 
-#[allow(dead_code)]
 fn find_bivalue_forcing(g: &ChainGraph, c: &Candidates) -> Option<Step> {
     for cell in 0..CELLS {
         let m = c.masks[cell];
@@ -1271,7 +1265,6 @@ fn find_bivalue_forcing(g: &ChainGraph, c: &Candidates) -> Option<Step> {
 /// BFS propagation from `start_true` assumed TRUE. Returns a bitmap of
 /// nodes that this branch forces FALSE. The starting node itself is
 /// recorded as TRUE, not FALSE.
-#[allow(dead_code)]
 fn simulate_forcing_branch(g: &ChainGraph, start_true: usize) -> Vec<bool> {
     let n = g.nodes.len();
     let mut true_set = vec![false; n];
@@ -1315,6 +1308,10 @@ fn simulate_forcing_branch(g: &ChainGraph, start_true: usize) -> Vec<bool> {
     false_set
 }
 
+fn find_forcing_chain(g: &ChainGraph, c: &Candidates) -> Option<Step> {
+    find_aic(g).or_else(|| find_bivalue_forcing(g, c))
+}
+
 // --- main loop ------------------------------------------------------------
 
 fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable) -> Option<Step> {
@@ -1330,6 +1327,7 @@ fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable
             // Lazy: only built when T1–T4 finders all failed.
             let g = build_chain_graph(c, peers, units);
             find_simple_coloring(&g)
+                .or_else(|| find_forcing_chain(&g, c))
         })
 }
 
@@ -1873,5 +1871,26 @@ mod tests {
             }
             other => panic!("expected elimination, got {:?}", other),
         }
+    }
+
+    /// Easy puzzles must still grade as T1Easy after forcing chains land —
+    /// chain techniques must not fire when easier techniques apply.
+    #[test]
+    fn easy_does_not_promote_to_t5_with_forcing_available() {
+        let b = Board::from_str(EASY).unwrap();
+        match grade(&b) {
+            GradeOutcome::Solved { tier, .. } => assert_eq!(tier, Tier::T1Easy),
+            other => panic!("expected Solved at T1Easy, got {:?}", other),
+        }
+    }
+
+    /// Smoke: `find_forcing_chain` is callable and returns Option<Step>.
+    #[test]
+    fn find_forcing_chain_smoke() {
+        let peers = PeerTable::build(&Variant::classic());
+        let c = Candidates { masks: [0u16; CELLS] };
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        assert!(find_forcing_chain(&g, &c).is_none());
     }
 }
