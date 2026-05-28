@@ -1,0 +1,8 @@
+# Pin the Rust toolchain to match the production Dockerfile (rust:1.83-slim).
+# Without this pin, local dev (latest stable) and CI (rust-toolchain@stable)
+# could use features that don't exist in 1.83 — and Render's build would fail.
+# is_multiple_of (stabilized in 1.84) is the cautionary tale: cargo clippy
+# on a newer rustc suggests it; Render's 1.83 then can't compile.
+[toolchain]
+channel = "1.83"
+components = ["clippy", "rustfmt"]
