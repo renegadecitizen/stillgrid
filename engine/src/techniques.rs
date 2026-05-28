@@ -38,6 +38,7 @@ pub enum Technique {
     XYWing,
     // Tier 5 — chain-based
     Coloring,
+    ForcingChain,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,7 +61,7 @@ impl Technique {
             | PointingPair => Tier::T2Medium,
             XWingRow | XWingCol => Tier::T3Hard,
             SwordfishRow | SwordfishCol | XYWing => Tier::T4Diabolical,
-            Coloring => Tier::T5Nightmare,
+            Coloring | ForcingChain => Tier::T5Nightmare,
         }
     }
 }
@@ -1582,5 +1583,10 @@ mod tests {
             matches!(grade(&b), GradeOutcome::Stuck { .. }),
             "Inkala should still be Stuck after coloring; chains land in commit 2"
         );
+    }
+
+    #[test]
+    fn forcing_chain_tier_is_t5() {
+        assert_eq!(Technique::ForcingChain.tier(), Tier::T5Nightmare);
     }
 }

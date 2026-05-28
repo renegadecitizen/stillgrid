@@ -59,6 +59,7 @@ fn technique_name(t: Technique) -> &'static str {
         Technique::SwordfishCol => "SwordfishCol",
         Technique::XYWing => "XYWing",
         Technique::Coloring => "Coloring",
+        Technique::ForcingChain => "ForcingChain",
     }
 }
 
