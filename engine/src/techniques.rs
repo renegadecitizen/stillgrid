@@ -1792,6 +1792,27 @@ mod tests {
         );
     }
 
+    /// "Easter Monster" — another widely-cited hard sudoku. Like Inkala 2012,
+    /// its initial state is too sparse for forcing chains: forcing chains take
+    /// 0 steps before stalling. Marked `#[ignore]` here so the test stays as a
+    /// living marker — flip to a positive `assert_eq!(tier, T5Nightmare)` once
+    /// commit 3 (ALS) lands and Easter Monster grades.
+    const EASTER_MONSTER: &str =
+        "1.......2.9.4...5...6...7...5.9.3.......7.......85..4.7.....6...3...9.8...2.....1";
+
+    #[test]
+    #[ignore = "stuck after T5 commit 2; enable post-ALS (commit 3)"]
+    fn easter_monster_solves_at_t5_post_als() {
+        let b = Board::from_str(EASTER_MONSTER).unwrap();
+        match grade(&b) {
+            GradeOutcome::Solved { tier, .. } => {
+                assert_eq!(tier, Tier::T5Nightmare,
+                    "Easter Monster should grade T5Nightmare, got {:?}", tier);
+            }
+            other => panic!("Easter Monster should be Solved at T5Nightmare, got {:?}", other),
+        }
+    }
+
     #[test]
     fn forcing_chain_tier_is_t5() {
         assert_eq!(Technique::ForcingChain.tier(), Tier::T5Nightmare);
