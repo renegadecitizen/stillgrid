@@ -1411,12 +1411,6 @@ mod tests {
     }
 
     #[test]
-    fn inkala_still_stuck() {
-        let b = Board::from_str(INKALA).unwrap();
-        assert!(matches!(grade(&b), GradeOutcome::Stuck { .. }));
-    }
-
-    #[test]
     fn naked_single_step() {
         let mut b = Board::empty();
         for (col, v) in [1u8, 2, 3, 4, 6, 7, 8, 9].iter().enumerate() {
@@ -1781,14 +1775,20 @@ mod tests {
         }
     }
 
-    /// Inkala remains stuck after commit 1 — coloring alone is not enough.
-    /// This test will be flipped to Solved in commit 2 (forcing chains).
+    /// Inkala remains stuck after T5 commit 2 (forcing chains + simple coloring).
+    /// Empirical diagnosis: Inkala's initial candidate state yields a ChainGraph
+    /// with only ~9 strong-link edges across 254 nodes (1 bivalue cell, ~8 bilocal
+    /// units). Forcing chains have almost nothing to walk. Depth bumps to 30
+    /// don't help — the graph is structurally sparse by design of the puzzle.
+    /// The Inkala fixer is deferred to T5 commit 3 (ALS), which the spec
+    /// explicitly anticipates as a conditional follow-up when commit 2's
+    /// stuck-rate is >0% — that condition holds here.
     #[test]
-    fn inkala_still_stuck_after_coloring() {
+    fn inkala_stuck_pending_als() {
         let b = Board::from_str(INKALA).unwrap();
         assert!(
             matches!(grade(&b), GradeOutcome::Stuck { .. }),
-            "Inkala should still be Stuck after coloring; chains land in commit 2"
+            "Inkala should still be Stuck after T5 forcing chains; ALS lands in commit 3"
         );
     }
 
