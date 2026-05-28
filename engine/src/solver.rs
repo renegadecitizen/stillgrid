@@ -66,9 +66,8 @@ fn find_empty_min_options(board: &Board, variant: &Variant) -> Option<(usize, us
             if board.get(r, c) != 0 {
                 continue;
             }
-            let opts: Vec<u8> = (1u8..=9u8)
-                .filter(|&v| variant.can_place(board, r, c, v))
-                .collect();
+            let opts: Vec<u8> =
+                (1u8..=9u8).filter(|&v| variant.can_place(board, r, c, v)).collect();
             if opts.is_empty() {
                 return Some((r, c, opts));
             }

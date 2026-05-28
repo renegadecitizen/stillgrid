@@ -95,15 +95,8 @@ impl Step {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GradeOutcome {
-    Solved {
-        solution: Board,
-        steps: Vec<Step>,
-        tier: Tier,
-    },
-    Stuck {
-        partial: Board,
-        steps: Vec<Step>,
-    },
+    Solved { solution: Board, steps: Vec<Step>, tier: Tier },
+    Stuck { partial: Board, steps: Vec<Step> },
 }
 
 impl GradeOutcome {
@@ -191,9 +184,7 @@ const ALL: u16 = 0b11_1111_1110; // bits 1..=9
 
 impl Candidates {
     fn from_board(b: &Board, peers: &PeerTable) -> Self {
-        let mut c = Candidates {
-            masks: [ALL; CELLS],
-        };
+        let mut c = Candidates { masks: [ALL; CELLS] };
         for r in 0..N {
             for col in 0..N {
                 let v = b.get(r, col);
@@ -308,9 +299,14 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
                 if c.masks[i] & b != 0 {
                     count += 1;
                     let nid = g.node_of[i][(d - 1) as usize];
-                    if first.is_none() { first = Some(nid); }
-                    else if second.is_none() { second = Some(nid); }
-                    if count > 2 { break; }
+                    if first.is_none() {
+                        first = Some(nid);
+                    } else if second.is_none() {
+                        second = Some(nid);
+                    }
+                    if count > 2 {
+                        break;
+                    }
                 }
             }
             if count == 2 {
@@ -422,16 +418,10 @@ struct Unit {
 fn build_units(variant: &Variant) -> Vec<Unit> {
     let mut units = Vec::with_capacity(N * 3 + 2 + variant.cages.len());
     for r in 0..N {
-        units.push(Unit {
-            kind: UnitKind::Row,
-            cells: (0..N).map(|c| (r, c)).collect(),
-        });
+        units.push(Unit { kind: UnitKind::Row, cells: (0..N).map(|c| (r, c)).collect() });
     }
     for c in 0..N {
-        units.push(Unit {
-            kind: UnitKind::Col,
-            cells: (0..N).map(|r| (r, c)).collect(),
-        });
+        units.push(Unit { kind: UnitKind::Col, cells: (0..N).map(|r| (r, c)).collect() });
     }
     for b in 0..9 {
         units.push(Unit {
@@ -440,14 +430,8 @@ fn build_units(variant: &Variant) -> Vec<Unit> {
         });
     }
     if variant.diagonals {
-        units.push(Unit {
-            kind: UnitKind::Diag,
-            cells: (0..N).map(|i| (i, i)).collect(),
-        });
-        units.push(Unit {
-            kind: UnitKind::Diag,
-            cells: (0..N).map(|i| (i, N - 1 - i)).collect(),
-        });
+        units.push(Unit { kind: UnitKind::Diag, cells: (0..N).map(|i| (i, i)).collect() });
+        units.push(Unit { kind: UnitKind::Diag, cells: (0..N).map(|i| (i, N - 1 - i)).collect() });
     }
     for cage in &variant.cages {
         units.push(Unit {
@@ -526,12 +510,7 @@ fn find_hidden_single_unit(
             }
         }
         if count == 1 {
-            return Some(Step::Placement {
-                technique: tech,
-                row: at.0,
-                col: at.1,
-                value: v,
-            });
+            return Some(Step::Placement { technique: tech, row: at.0, col: at.1, value: v });
         }
     }
     None
@@ -577,10 +556,7 @@ fn find_naked_pair_unit(c: &Candidates, cells: &[(usize, usize)], tech: Techniqu
                 }
             }
             if !removed.is_empty() {
-                return Some(Step::Elimination {
-                    technique: tech,
-                    removed,
-                });
+                return Some(Step::Elimination { technique: tech, removed });
             }
         }
     }
@@ -640,10 +616,7 @@ fn find_hidden_pair_unit(
                 }
             }
             if !removed.is_empty() {
-                return Some(Step::Elimination {
-                    technique: tech,
-                    removed,
-                });
+                return Some(Step::Elimination { technique: tech, removed });
             }
         }
     }
@@ -698,10 +671,7 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
                     }
                 }
                 if !removed.is_empty() {
-                    return Some(Step::Elimination {
-                        technique: Technique::PointingPair,
-                        removed,
-                    });
+                    return Some(Step::Elimination { technique: Technique::PointingPair, removed });
                 }
             }
             let cols_used: Vec<usize> = (0..N).filter(|&c| cols[c]).collect();
@@ -717,10 +687,7 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
                     }
                 }
                 if !removed.is_empty() {
-                    return Some(Step::Elimination {
-                        technique: Technique::PointingPair,
-                        removed,
-                    });
+                    return Some(Step::Elimination { technique: Technique::PointingPair, removed });
                 }
             }
         }
@@ -733,9 +700,8 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
 fn find_xwing(c: &Candidates) -> Option<Step> {
     for v in 1u8..=9 {
         let mask = bit(v);
-        let row_cols: Vec<Vec<usize>> = (0..N)
-            .map(|r| (0..N).filter(|&col| c.get(r, col) & mask != 0).collect())
-            .collect();
+        let row_cols: Vec<Vec<usize>> =
+            (0..N).map(|r| (0..N).filter(|&col| c.get(r, col) & mask != 0).collect()).collect();
         for r1 in 0..N {
             if row_cols[r1].len() != 2 {
                 continue;
@@ -757,16 +723,12 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
                     }
                 }
                 if !removed.is_empty() {
-                    return Some(Step::Elimination {
-                        technique: Technique::XWingRow,
-                        removed,
-                    });
+                    return Some(Step::Elimination { technique: Technique::XWingRow, removed });
                 }
             }
         }
-        let col_rows: Vec<Vec<usize>> = (0..N)
-            .map(|col| (0..N).filter(|&r| c.get(r, col) & mask != 0).collect())
-            .collect();
+        let col_rows: Vec<Vec<usize>> =
+            (0..N).map(|col| (0..N).filter(|&r| c.get(r, col) & mask != 0).collect()).collect();
         for c1 in 0..N {
             if col_rows[c1].len() != 2 {
                 continue;
@@ -788,10 +750,7 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
                     }
                 }
                 if !removed.is_empty() {
-                    return Some(Step::Elimination {
-                        technique: Technique::XWingCol,
-                        removed,
-                    });
+                    return Some(Step::Elimination { technique: Technique::XWingCol, removed });
                 }
             }
         }
@@ -811,9 +770,8 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
         let mask = bit(v);
 
         // Row-based
-        let row_cols: Vec<Vec<usize>> = (0..N)
-            .map(|r| (0..N).filter(|&col| c.get(r, col) & mask != 0).collect())
-            .collect();
+        let row_cols: Vec<Vec<usize>> =
+            (0..N).map(|r| (0..N).filter(|&col| c.get(r, col) & mask != 0).collect()).collect();
         let candidate_rows: Vec<usize> = (0..N)
             .filter(|&r| {
                 let n = row_cols[r].len();
@@ -857,9 +815,8 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
         }
 
         // Column-based
-        let col_rows: Vec<Vec<usize>> = (0..N)
-            .map(|col| (0..N).filter(|&r| c.get(r, col) & mask != 0).collect())
-            .collect();
+        let col_rows: Vec<Vec<usize>> =
+            (0..N).map(|col| (0..N).filter(|&r| c.get(r, col) & mask != 0).collect()).collect();
         let candidate_cols: Vec<usize> = (0..N)
             .filter(|&col| {
                 let n = col_rows[col].len();
@@ -991,10 +948,7 @@ fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
                     }
                 }
                 if !removed.is_empty() {
-                    return Some(Step::Elimination {
-                        technique: Technique::XYWing,
-                        removed,
-                    });
+                    return Some(Step::Elimination { technique: Technique::XYWing, removed });
                 }
             }
         }
@@ -1018,11 +972,17 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
         // Build the per-digit subgraph as we go: a node belongs to the
         // subgraph iff it carries digit `d`.
         // Reset coloring scratch for this digit.
-        for c in color.iter_mut() { *c = 0; }
+        for c in color.iter_mut() {
+            *c = 0;
+        }
 
         for start in 0..g.nodes.len() {
-            if g.nodes[start].digit != d { continue; }
-            if color[start] != 0 { continue; }
+            if g.nodes[start].digit != d {
+                continue;
+            }
+            if color[start] != 0 {
+                continue;
+            }
             // DFS via stack, alternating colors at each strong link to a same-digit node.
             // For 2-coloring on a bipartite graph, traversal order doesn't affect the
             // resulting color assignment — only the discovery order.
@@ -1034,10 +994,16 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
                 let next_color = if color[n] == 1 { 2 } else { 1 };
                 for &m in &g.strong[n] {
                     let m = m as usize;
-                    if g.nodes[m].digit != d { continue; }
+                    if g.nodes[m].digit != d {
+                        continue;
+                    }
                     if color[m] == 0 {
                         color[m] = next_color;
-                        if next_color == 1 { group_a.push(m); } else { group_b.push(m); }
+                        if next_color == 1 {
+                            group_a.push(m);
+                        } else {
+                            group_b.push(m);
+                        }
                         queue.push(m);
                     } else if color[m] == color[n] {
                         // Parity contradiction → the strong-link subgraph isn't 2-colorable.
@@ -1052,32 +1018,36 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
             // each other via a unit peer).
             for &a in &group_a {
                 for &b in &group_a {
-                    if a >= b { continue; }
+                    if a >= b {
+                        continue;
+                    }
                     if g.weak[a].contains(&(b as u16)) {
                         // All A-color candidates are eliminable.
-                        let removed: Vec<(usize, usize, u8)> = group_a.iter().map(|&n| {
-                            let cell = g.nodes[n].cell as usize;
-                            (cell / N, cell % N, d)
-                        }).collect();
-                        return Some(Step::Elimination {
-                            technique: Technique::Coloring,
-                            removed,
-                        });
+                        let removed: Vec<(usize, usize, u8)> = group_a
+                            .iter()
+                            .map(|&n| {
+                                let cell = g.nodes[n].cell as usize;
+                                (cell / N, cell % N, d)
+                            })
+                            .collect();
+                        return Some(Step::Elimination { technique: Technique::Coloring, removed });
                     }
                 }
             }
             for &a in &group_b {
                 for &b in &group_b {
-                    if a >= b { continue; }
+                    if a >= b {
+                        continue;
+                    }
                     if g.weak[a].contains(&(b as u16)) {
-                        let removed: Vec<(usize, usize, u8)> = group_b.iter().map(|&n| {
-                            let cell = g.nodes[n].cell as usize;
-                            (cell / N, cell % N, d)
-                        }).collect();
-                        return Some(Step::Elimination {
-                            technique: Technique::Coloring,
-                            removed,
-                        });
+                        let removed: Vec<(usize, usize, u8)> = group_b
+                            .iter()
+                            .map(|&n| {
+                                let cell = g.nodes[n].cell as usize;
+                                (cell / N, cell % N, d)
+                            })
+                            .collect();
+                        return Some(Step::Elimination { technique: Technique::Coloring, removed });
                     }
                 }
             }
@@ -1087,8 +1057,12 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
             let mut trap_removed: Vec<(usize, usize, u8)> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for victim in 0..g.nodes.len() {
-                if g.nodes[victim].digit != d { continue; }
-                if color[victim] != 0 { continue; } // only victims outside the chain
+                if g.nodes[victim].digit != d {
+                    continue;
+                }
+                if color[victim] != 0 {
+                    continue;
+                } // only victims outside the chain
                 let sees_a = group_a.iter().any(|&a| g.weak[victim].contains(&(a as u16)));
                 let sees_b = group_b.iter().any(|&b| g.weak[victim].contains(&(b as u16)));
                 if sees_a && sees_b {
@@ -1125,7 +1099,9 @@ fn find_aic(g: &ChainGraph) -> Option<Step> {
     let mut on_path: Vec<bool> = vec![false; g.nodes.len()];
     for start in 0..g.nodes.len() {
         path.clear();
-        for v in on_path.iter_mut() { *v = false; }
+        for v in on_path.iter_mut() {
+            *v = false;
+        }
         path.push(start as u16);
         on_path[start] = true;
         if let Some(step) = aic_dfs(g, start, &mut path, &mut on_path) {
@@ -1169,7 +1145,9 @@ fn aic_dfs(
     let edges = if next_is_strong { &g.strong[last] } else { &g.weak[last] };
     for &next in edges {
         let next = next as usize;
-        if on_path[next] { continue; }
+        if on_path[next] {
+            continue;
+        }
         on_path[next] = true;
         path.push(next as u16);
         if let Some(step) = aic_dfs(g, start, path, on_path) {
@@ -1184,30 +1162,30 @@ fn aic_dfs(
 /// Return Some(elimination) if any candidate weakly sees both `start` and
 /// `end` (and is not on the chain). `start ∨ end` is the AIC's conclusion;
 /// such a victim cannot be true.
-fn aic_check_victims(
-    g: &ChainGraph,
-    start: usize,
-    end: usize,
-    on_path: &[bool],
-) -> Option<Step> {
-    if start == end { return None; }
+fn aic_check_victims(g: &ChainGraph, start: usize, end: usize, on_path: &[bool]) -> Option<Step> {
+    if start == end {
+        return None;
+    }
     let mut removed: Vec<(usize, usize, u8)> = Vec::new();
     for (victim, &is_on_path) in on_path.iter().enumerate().take(g.nodes.len()) {
-        if is_on_path { continue; }
+        if is_on_path {
+            continue;
+        }
         let sees_start = g.weak[victim].contains(&(start as u16));
-        if !sees_start { continue; }
+        if !sees_start {
+            continue;
+        }
         let sees_end = g.weak[victim].contains(&(end as u16));
-        if !sees_end { continue; }
+        if !sees_end {
+            continue;
+        }
         let cell = g.nodes[victim].cell as usize;
         removed.push((cell / N, cell % N, g.nodes[victim].digit));
     }
     if removed.is_empty() {
         return None;
     }
-    Some(Step::Elimination {
-        technique: Technique::ForcingChain,
-        removed,
-    })
+    Some(Step::Elimination { technique: Technique::ForcingChain, removed })
 }
 
 // --- Tier 5: bivalue forcing chains -------------------------------------
@@ -1237,7 +1215,11 @@ fn find_bivalue_forcing(g: &ChainGraph, c: &Candidates) -> Option<Step> {
         let mut b: u8 = 0;
         for d in 1u8..=9 {
             if m & bit(d) != 0 {
-                if a == 0 { a = d; } else { b = d; }
+                if a == 0 {
+                    a = d;
+                } else {
+                    b = d;
+                }
             }
         }
         let node_a = g.node_of[cell][(a - 1) as usize];
@@ -1257,10 +1239,7 @@ fn find_bivalue_forcing(g: &ChainGraph, c: &Candidates) -> Option<Step> {
             }
         }
         if !removed.is_empty() {
-            return Some(Step::Elimination {
-                technique: Technique::ForcingChain,
-                removed,
-            });
+            return Some(Step::Elimination { technique: Technique::ForcingChain, removed });
         }
     }
     None
@@ -1277,7 +1256,9 @@ fn simulate_forcing_branch(g: &ChainGraph, start_true: usize) -> Vec<bool> {
     true_set[start_true] = true;
 
     for _layer in 0..FORCING_MAX_DEPTH {
-        if frontier.is_empty() { break; }
+        if frontier.is_empty() {
+            break;
+        }
         let mut next: Vec<usize> = Vec::new();
         for &nid in &frontier {
             if true_set[nid] {
@@ -1330,16 +1311,13 @@ fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable
         .or_else(|| {
             // Lazy: only built when T1–T4 finders all failed.
             let g = build_chain_graph(c, peers, units);
-            find_simple_coloring(&g)
-                .or_else(|| find_forcing_chain(&g, c))
+            find_simple_coloring(&g).or_else(|| find_forcing_chain(&g, c))
         })
 }
 
 fn apply(step: &Step, board: &mut Board, cands: &mut Candidates, peers: &PeerTable) {
     match step {
-        Step::Placement {
-            row, col, value, ..
-        } => {
+        Step::Placement { row, col, value, .. } => {
             board.set(*row, *col, *value);
             cands.fill(*row, *col, *value, peers);
         }
@@ -1368,11 +1346,7 @@ pub fn grade_variant(board: &Board, variant: &Variant) -> GradeOutcome {
 
     loop {
         if work.is_complete() {
-            return GradeOutcome::Solved {
-                solution: work,
-                steps,
-                tier: highest,
-            };
+            return GradeOutcome::Solved { solution: work, steps, tier: highest };
         }
         match try_step(&cands, variant, &units, &peers) {
             Some(step) => {
@@ -1384,10 +1358,7 @@ pub fn grade_variant(board: &Board, variant: &Variant) -> GradeOutcome {
                 steps.push(step);
             }
             None => {
-                return GradeOutcome::Stuck {
-                    partial: work,
-                    steps,
-                };
+                return GradeOutcome::Stuck { partial: work, steps };
             }
         }
     }
@@ -1425,9 +1396,7 @@ mod tests {
         let c = Candidates::from_board(&b, &peers);
         let s = find_naked_single(&c).expect("should find naked single");
         match s {
-            Step::Placement {
-                row, col, value, ..
-            } => assert_eq!((row, col, value), (0, 4, 5)),
+            Step::Placement { row, col, value, .. } => assert_eq!((row, col, value), (0, 4, 5)),
             _ => panic!("expected placement"),
         }
     }
@@ -1489,10 +1458,7 @@ mod tests {
                 if r == 0 && c < 3 {
                     continue;
                 }
-                cages.push(Cage {
-                    cells: vec![cell_index(r, c)],
-                    sum: 1,
-                });
+                cages.push(Cage { cells: vec![cell_index(r, c)], sum: 1 });
             }
         }
         let v = Variant::killer(cages);
@@ -1510,10 +1476,7 @@ mod tests {
                 if (r, c) == (0, 0) || (r, c) == (1, 1) || (r, c) == (2, 2) {
                     continue;
                 }
-                cages2.push(Cage {
-                    cells: vec![cell_index(r, c)],
-                    sum: 1,
-                });
+                cages2.push(Cage { cells: vec![cell_index(r, c)], sum: 1 });
             }
         }
         let v2 = Variant::killer(cages2);
@@ -1544,9 +1507,7 @@ mod tests {
         // Start from ALL candidates, then prune digit 1 outside the target
         // pattern in rows 0, 4, 8.
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates {
-            masks: [ALL; CELLS],
-        };
+        let mut c = Candidates { masks: [ALL; CELLS] };
         // Row 0: keep 1 only in cols 0,3
         for col in 0..N {
             if col != 0 && col != 3 {
@@ -1591,9 +1552,7 @@ mod tests {
     #[test]
     fn xywing_eliminates() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates {
-            masks: [ALL; CELLS],
-        };
+        let mut c = Candidates { masks: [ALL; CELLS] };
         // Force pivot (0,0) = {1,2}
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         // Force wing 1 (0,5) = {2,3}
@@ -1644,9 +1603,9 @@ mod tests {
         assert_ne!(g.node_of[cell_index(0, 0)][0], NONE_NODE); // digit 1
         assert_ne!(g.node_of[cell_index(0, 0)][1], NONE_NODE); // digit 2
         assert_ne!(g.node_of[cell_index(0, 1)][2], NONE_NODE); // digit 3
-        // Absent candidate stays NONE_NODE.
+                                                               // Absent candidate stays NONE_NODE.
         assert_eq!(g.node_of[cell_index(0, 0)][2], NONE_NODE); // digit 3 not in (0,0)
-        // strong/weak vectors are sized to match nodes.
+                                                               // strong/weak vectors are sized to match nodes.
         assert_eq!(g.strong.len(), g.nodes.len());
         assert_eq!(g.weak.len(), g.nodes.len());
     }
@@ -1810,8 +1769,12 @@ mod tests {
         let b = Board::from_str(EASTER_MONSTER).unwrap();
         match grade(&b) {
             GradeOutcome::Solved { tier, .. } => {
-                assert_eq!(tier, Tier::T5Nightmare,
-                    "Easter Monster should grade T5Nightmare, got {:?}", tier);
+                assert_eq!(
+                    tier,
+                    Tier::T5Nightmare,
+                    "Easter Monster should grade T5Nightmare, got {:?}",
+                    tier
+                );
             }
             other => panic!("Easter Monster should be Solved at T5Nightmare, got {:?}", other),
         }
@@ -1886,8 +1849,8 @@ mod tests {
         c.masks[cell_index(5, 4)] = bit(5) | bit(6);
         let units = build_units(&Variant::classic());
         let g = build_chain_graph(&c, &peers, &units);
-        let step = find_bivalue_forcing(&g, &c)
-            .expect("bivalue forcing should fire on this fixture");
+        let step =
+            find_bivalue_forcing(&g, &c).expect("bivalue forcing should fire on this fixture");
         match step {
             Step::Elimination { technique, removed } => {
                 assert_eq!(technique, Technique::ForcingChain);

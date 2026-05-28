@@ -10,9 +10,7 @@ pub struct Rng {
 
 impl Rng {
     pub fn new(seed: u64) -> Self {
-        Rng {
-            state: seed.wrapping_add(0x9E37_79B9_7F4A_7C15),
-        }
+        Rng { state: seed.wrapping_add(0x9E37_79B9_7F4A_7C15) }
     }
 
     pub fn next_u64(&mut self) -> u64 {
@@ -41,10 +39,8 @@ impl Rng {
     /// Seed from the current system time + a small mix. For non-test callers.
     pub fn from_entropy() -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos() as u64)
-            .unwrap_or(0);
+        let nanos =
+            SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(0);
         // Mix in process id for a bit more entropy across rapid restarts.
         let pid = std::process::id() as u64;
         Rng::new(nanos ^ pid.wrapping_mul(0x9E37_79B9_7F4A_7C15))

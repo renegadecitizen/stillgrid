@@ -31,10 +31,7 @@ impl Board {
     }
 
     pub fn to_string_dotted(&self) -> String {
-        self.0
-            .iter()
-            .map(|&v| if v == 0 { '.' } else { (b'0' + v) as char })
-            .collect()
+        self.0.iter().map(|&v| if v == 0 { '.' } else { (b'0' + v) as char }).collect()
     }
 
     #[inline]

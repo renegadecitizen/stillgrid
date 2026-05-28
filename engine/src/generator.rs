@@ -94,12 +94,7 @@ pub fn generate_variant(rng: &mut Rng, variant: &Variant, min_clues: usize) -> P
         }
     }
 
-    Puzzle {
-        givens,
-        solution,
-        clue_count,
-        variant: variant.clone(),
-    }
+    Puzzle { givens, solution, clue_count, variant: variant.clone() }
 }
 
 /// Backwards-compatible: classic generator.
@@ -133,9 +128,8 @@ fn try_jigsaw_partition(rng: &mut Rng) -> Option<[u8; CELLS]> {
     }
 
     // BFS frontier per region.
-    let mut frontiers: Vec<Vec<usize>> = (0..9)
-        .map(|r| neighbours(seeds[r]).into_iter().collect())
-        .collect();
+    let mut frontiers: Vec<Vec<usize>> =
+        (0..9).map(|r| neighbours(seeds[r]).into_iter().collect()).collect();
 
     let mut placed = 9;
     while placed < CELLS {
@@ -204,12 +198,7 @@ pub fn generate_killer(rng: &mut Rng) -> Puzzle {
     let cages = partition_into_cages(rng, &solution);
     let variant = Variant::killer(cages);
 
-    Puzzle {
-        givens: Board::empty(),
-        solution,
-        clue_count: 0,
-        variant,
-    }
+    Puzzle { givens: Board::empty(), solution, clue_count: 0, variant }
 }
 
 fn partition_into_cages(rng: &mut Rng, solution: &Board) -> Vec<Cage> {

@@ -21,9 +21,7 @@ fn read_input() -> Result<String, String> {
         return Ok(s);
     }
     let mut buf = String::new();
-    io::stdin()
-        .read_to_string(&mut buf)
-        .map_err(|e| format!("stdin read failed: {e}"))?;
+    io::stdin().read_to_string(&mut buf).map_err(|e| format!("stdin read failed: {e}"))?;
     Ok(buf)
 }
 
@@ -32,10 +30,9 @@ fn run() -> Result<String, String> {
     let board = Board::from_str(&raw)?;
     let outcome = solve(&board);
     Ok(match outcome {
-        SolveOutcome::Unique(s) => format!(
-            r#"{{"outcome":"unique","solution":"{}"}}"#,
-            s.to_string_dotted()
-        ),
+        SolveOutcome::Unique(s) => {
+            format!(r#"{{"outcome":"unique","solution":"{}"}}"#, s.to_string_dotted())
+        }
         SolveOutcome::Multiple => r#"{"outcome":"multiple"}"#.into(),
         SolveOutcome::Unsolvable => r#"{"outcome":"unsolvable"}"#.into(),
     })

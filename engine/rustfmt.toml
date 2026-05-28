@@ -1,0 +1,9 @@
+# "Max" biases rustfmt's heuristics toward keeping struct init, function
+# calls, and enum variants on one line when width permits. Net effect on the
+# engine: ~90 line reduction vs default.
+#
+# Note: this does NOT preserve single-line `if X { Y; }` blocks — that requires
+# the nightly-only `single_line_if_else_max_width` option. On stable rustfmt
+# (which we pin via rust-toolchain.toml to match the Docker base), those will
+# always expand to multi-line.
+use_small_heuristics = "Max"

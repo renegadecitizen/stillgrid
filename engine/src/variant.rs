@@ -83,13 +83,7 @@ impl Variant {
                 counts[b as usize] += 1;
             }
         }
-        Variant {
-            kind: VariantKind::Classic,
-            box_of,
-            boxes,
-            diagonals: false,
-            cages: Vec::new(),
-        }
+        Variant { kind: VariantKind::Classic, box_of, boxes, diagonals: false, cages: Vec::new() }
     }
 
     /// Classic rules plus both diagonals.
@@ -336,12 +330,7 @@ mod tests {
     fn killer_cage_uniqueness_and_sum() {
         // Make 81 single-cell cages, each with sum being whatever digit must go there.
         // Use a degenerate variant just to test plumbing.
-        let cages: Vec<Cage> = (0..81)
-            .map(|i| Cage {
-                cells: vec![i],
-                sum: 5,
-            })
-            .collect();
+        let cages: Vec<Cage> = (0..81).map(|i| Cage { cells: vec![i], sum: 5 }).collect();
         let v = Variant::killer(cages);
         let b = Board::empty();
         // Any non-5 fails the sum guard.

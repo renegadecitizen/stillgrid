@@ -59,12 +59,7 @@ fn parse_args() -> Result<Args, String> {
             other => return Err(format!("unknown arg: {other}")),
         }
     }
-    Ok(Args {
-        seed,
-        min_clues,
-        count,
-        variant,
-    })
+    Ok(Args { seed, min_clues, count, variant })
 }
 
 fn render_puzzle_json(p: &stillgrid_engine::Puzzle) -> String {

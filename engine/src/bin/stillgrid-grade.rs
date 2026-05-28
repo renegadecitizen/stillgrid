@@ -18,9 +18,7 @@ fn read_input() -> Result<String, String> {
         return Ok(s);
     }
     let mut buf = String::new();
-    io::stdin()
-        .read_to_string(&mut buf)
-        .map_err(|e| format!("stdin read failed: {e}"))?;
+    io::stdin().read_to_string(&mut buf).map_err(|e| format!("stdin read failed: {e}"))?;
     Ok(buf)
 }
 
@@ -66,10 +64,7 @@ fn technique_name(t: Technique) -> &'static str {
 fn format_counts(counts: &HashMap<&'static str, u32>) -> String {
     let mut entries: Vec<_> = counts.iter().collect();
     entries.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
-    let inner: Vec<String> = entries
-        .iter()
-        .map(|(k, v)| format!(r#""{k}":{v}"#))
-        .collect();
+    let inner: Vec<String> = entries.iter().map(|(k, v)| format!(r#""{k}":{v}"#)).collect();
     format!("{{{}}}", inner.join(","))
 }
 
@@ -91,10 +86,7 @@ fn parse_input(raw: &str) -> Result<Input, String> {
         return Err("empty input".into());
     }
     if !trimmed.starts_with('{') {
-        return Ok(Input {
-            givens: trimmed.to_string(),
-            ..Default::default()
-        });
+        return Ok(Input { givens: trimmed.to_string(), ..Default::default() });
     }
     let v = parse_value(trimmed)?;
     let obj = match v {
@@ -208,10 +200,7 @@ struct JsonParser<'a> {
 
 impl<'a> JsonParser<'a> {
     fn new(s: &'a str) -> Self {
-        JsonParser {
-            src: s.as_bytes(),
-            pos: 0,
-        }
+        JsonParser { src: s.as_bytes(), pos: 0 }
     }
     fn eof(&self) -> bool {
         self.pos >= self.src.len()
@@ -360,9 +349,7 @@ impl<'a> JsonParser<'a> {
         }
         let s = std::str::from_utf8(&self.src[start..self.pos])
             .map_err(|_| "invalid utf8 in number".to_string())?;
-        let n: f64 = s
-            .parse()
-            .map_err(|e: std::num::ParseFloatError| e.to_string())?;
+        let n: f64 = s.parse().map_err(|e: std::num::ParseFloatError| e.to_string())?;
         Ok(JsonValue::Number(n))
     }
 }
