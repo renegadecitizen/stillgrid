@@ -1210,6 +1210,111 @@ fn aic_check_victims(
     })
 }
 
+// --- Tier 5: bivalue forcing chains -------------------------------------
+//
+// For each bivalue cell {a, b}, simulate branch A (assume a TRUE) and
+// branch B (assume b TRUE) independently through the ChainGraph. Any
+// candidate that is forced FALSE in BOTH branches is a confirmed
+// elimination: the cell must be a or b, so one branch holds.
+//
+// Propagation rule:
+//   * Setting node n to TRUE flips every weak-neighbor of n to FALSE.
+//   * Setting node n to FALSE flips every strong-neighbor of n to TRUE
+//     (because strong link == "exactly one of the two is TRUE" in our
+//     construction: bivalue cell or bilocal unit).
+//
+// Depth cap mirrors AIC's: at most 12 BFS layers per branch.
+
+#[allow(dead_code)]
+const FORCING_MAX_DEPTH: usize = 12;
+
+#[allow(dead_code)]
+fn find_bivalue_forcing(g: &ChainGraph, c: &Candidates) -> Option<Step> {
+    for cell in 0..CELLS {
+        let m = c.masks[cell];
+        if popcount(m) != 2 {
+            continue;
+        }
+        let mut a: u8 = 0;
+        let mut b: u8 = 0;
+        for d in 1u8..=9 {
+            if m & bit(d) != 0 {
+                if a == 0 { a = d; } else { b = d; }
+            }
+        }
+        let node_a = g.node_of[cell][(a - 1) as usize];
+        let node_b = g.node_of[cell][(b - 1) as usize];
+        if node_a == NONE_NODE || node_b == NONE_NODE {
+            continue;
+        }
+
+        let false_a = simulate_forcing_branch(g, node_a as usize);
+        let false_b = simulate_forcing_branch(g, node_b as usize);
+
+        let mut removed: Vec<(usize, usize, u8)> = Vec::new();
+        for (n, (&fa, &fb)) in false_a.iter().zip(false_b.iter()).enumerate() {
+            if fa && fb {
+                let cell_n = g.nodes[n].cell as usize;
+                removed.push((cell_n / N, cell_n % N, g.nodes[n].digit));
+            }
+        }
+        if !removed.is_empty() {
+            return Some(Step::Elimination {
+                technique: Technique::ForcingChain,
+                removed,
+            });
+        }
+    }
+    None
+}
+
+/// BFS propagation from `start_true` assumed TRUE. Returns a bitmap of
+/// nodes that this branch forces FALSE. The starting node itself is
+/// recorded as TRUE, not FALSE.
+#[allow(dead_code)]
+fn simulate_forcing_branch(g: &ChainGraph, start_true: usize) -> Vec<bool> {
+    let n = g.nodes.len();
+    let mut true_set = vec![false; n];
+    let mut false_set = vec![false; n];
+    let mut frontier: Vec<usize> = vec![start_true];
+    true_set[start_true] = true;
+
+    for _layer in 0..FORCING_MAX_DEPTH {
+        if frontier.is_empty() { break; }
+        let mut next: Vec<usize> = Vec::new();
+        for &nid in &frontier {
+            if true_set[nid] {
+                // TRUE -> weak neighbors become FALSE.
+                for &peer in &g.weak[nid] {
+                    let p = peer as usize;
+                    if !true_set[p] && !false_set[p] {
+                        false_set[p] = true;
+                        next.push(p);
+                    }
+                    // Note: contradiction (true_set[p] true here) is
+                    // possible if the starting assumption is impossible.
+                    // We let that branch silently report its eliminations;
+                    // the intersection with the other branch is what
+                    // matters for the forcing inference. A future
+                    // refinement could detect contradictions and produce
+                    // a direct placement.
+                }
+            } else if false_set[nid] {
+                // FALSE -> strong neighbors become TRUE.
+                for &peer in &g.strong[nid] {
+                    let p = peer as usize;
+                    if !true_set[p] && !false_set[p] {
+                        true_set[p] = true;
+                        next.push(p);
+                    }
+                }
+            }
+        }
+        frontier = next;
+    }
+    false_set
+}
+
 // --- main loop ------------------------------------------------------------
 
 fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable) -> Option<Step> {
@@ -1704,6 +1809,17 @@ mod tests {
         let g = build_chain_graph(&c, &peers, &units);
         let result = find_aic(&g);
         assert!(result.is_none(), "empty graph should produce no AIC");
+    }
+
+    /// Smoke: `find_bivalue_forcing` exists, runs on empty candidates,
+    /// returns None, does not panic.
+    #[test]
+    fn find_bivalue_forcing_smoke_empty() {
+        let peers = PeerTable::build(&Variant::classic());
+        let c = Candidates { masks: [0u16; CELLS] };
+        let units = build_units(&Variant::classic());
+        let g = build_chain_graph(&c, &peers, &units);
+        assert!(find_bivalue_forcing(&g, &c).is_none());
     }
 
     /// AIC fixture: cross-digit chain whose endpoints are same-digit and
