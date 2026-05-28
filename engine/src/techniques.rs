@@ -1294,6 +1294,119 @@ fn simulate_forcing_branch(g: &ChainGraph, start_true: usize) -> Vec<bool> {
     false_set
 }
 
+// --- Tier 5: Almost Locked Sets (ALS-XZ) --------------------------------
+//
+// An ALS is N cells in a unit whose union of candidates contains exactly
+// N+1 distinct digits. The "+1" makes it "almost" locked — removing any
+// single digit collapses it into a hidden N-tuple.
+//
+// We enumerate ALSes of size 2..=5 across every unit (row, col, box, diag,
+// cage) using the existing variant-aware `build_units`. The ALS-XZ rule
+// (next function) consumes the enumerated list.
+
+#[allow(dead_code)]
+const ALS_MIN_SIZE: usize = 2;
+#[allow(dead_code)]
+const ALS_MAX_SIZE: usize = 5;
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+struct Als {
+    /// Cell indices (0..CELLS), sorted ascending. All cells live in the
+    /// same unit (the one that produced this ALS).
+    cells: Vec<usize>,
+    /// Bitmask of candidate digits across all cells (always popcount == cells.len() + 1).
+    candidates: u16,
+    /// digit_cells[d-1] = cells in this ALS that carry digit d. Empty if d
+    /// is not in this ALS's candidate union.
+    digit_cells: [Vec<usize>; 9],
+}
+
+/// Iterate every size-`k` subset of `pool` (k <= pool.len()) and call `f`
+/// with each subset (as borrowed indices into `pool`). Standard "next
+/// combination" iteration — no allocation per subset beyond the index Vec.
+#[allow(dead_code)]
+fn for_each_combination<F: FnMut(&[usize])>(pool: &[usize], k: usize, mut f: F) {
+    let n = pool.len();
+    if k == 0 || k > n {
+        return;
+    }
+    let mut idx: Vec<usize> = (0..k).collect();
+    let mut buf: Vec<usize> = vec![0; k];
+    loop {
+        for (j, &i) in idx.iter().enumerate() {
+            buf[j] = pool[i];
+        }
+        f(&buf);
+        // Advance to next combination, lex order.
+        let mut i = k;
+        loop {
+            if i == 0 {
+                return;
+            }
+            i -= 1;
+            if idx[i] < n - (k - i) {
+                idx[i] += 1;
+                for j in (i + 1)..k {
+                    idx[j] = idx[j - 1] + 1;
+                }
+                break;
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn find_alses(c: &Candidates, units: &[Unit]) -> Vec<Als> {
+    let mut alses: Vec<Als> = Vec::new();
+    let mut active_cells: Vec<usize> = Vec::with_capacity(9);
+    for u in units {
+        active_cells.clear();
+        for &(r, col) in &u.cells {
+            let i = r * N + col;
+            if c.masks[i] != 0 {
+                active_cells.push(i);
+            }
+        }
+        if active_cells.len() < ALS_MIN_SIZE {
+            continue;
+        }
+        let max_size = ALS_MAX_SIZE.min(active_cells.len());
+        for size in ALS_MIN_SIZE..=max_size {
+            for_each_combination(&active_cells, size, |subset| {
+                let mut union: u16 = 0;
+                for &i in subset {
+                    union |= c.masks[i];
+                }
+                if popcount(union) as usize != size + 1 {
+                    return;
+                }
+                let mut digit_cells: [Vec<usize>; 9] = [
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ];
+                for &i in subset {
+                    let m = c.masks[i];
+                    for d in 1u8..=9 {
+                        if m & bit(d) != 0 {
+                            digit_cells[(d - 1) as usize].push(i);
+                        }
+                    }
+                }
+                alses.push(Als { cells: subset.to_vec(), candidates: union, digit_cells });
+            });
+        }
+    }
+    alses
+}
+
 fn find_forcing_chain(g: &ChainGraph, c: &Candidates) -> Option<Step> {
     find_aic(g).or_else(|| find_bivalue_forcing(g, c))
 }
@@ -1886,5 +1999,18 @@ mod tests {
     #[test]
     fn als_tier_is_t5() {
         assert_eq!(Technique::Als.tier(), Tier::T5Nightmare);
+    }
+
+    /// Smoke: `find_alses` runs on empty candidates and returns an empty Vec.
+    #[test]
+    fn find_alses_smoke_empty() {
+        let mut c = Candidates { masks: [0u16; CELLS] };
+        // Trigger any safety branch involving non-zero masks but not enough
+        // cells per unit to form an ALS.
+        c.masks[cell_index(0, 0)] = bit(1) | bit(2);
+        let units = build_units(&Variant::classic());
+        let alses = find_alses(&c, &units);
+        // With only one populated cell, no unit has >=2 candidate-bearing cells.
+        assert_eq!(alses.len(), 0);
     }
 }
