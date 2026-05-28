@@ -1304,12 +1304,9 @@ fn simulate_forcing_branch(g: &ChainGraph, start_true: usize) -> Vec<bool> {
 // cage) using the existing variant-aware `build_units`. The ALS-XZ rule
 // (next function) consumes the enumerated list.
 
-#[allow(dead_code)]
 const ALS_MIN_SIZE: usize = 2;
-#[allow(dead_code)]
 const ALS_MAX_SIZE: usize = 5;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Als {
     /// Cell indices (0..CELLS), sorted ascending. All cells live in the
@@ -1325,7 +1322,6 @@ struct Als {
 /// Iterate every size-`k` subset of `pool` (k <= pool.len()) and call `f`
 /// with each subset (as borrowed indices into `pool`). Standard "next
 /// combination" iteration — no allocation per subset beyond the index Vec.
-#[allow(dead_code)]
 fn for_each_combination<F: FnMut(&[usize])>(pool: &[usize], k: usize, mut f: F) {
     let n = pool.len();
     if k == 0 || k > n {
@@ -1356,7 +1352,6 @@ fn for_each_combination<F: FnMut(&[usize])>(pool: &[usize], k: usize, mut f: F) 
     }
 }
 
-#[allow(dead_code)]
 fn find_alses(c: &Candidates, units: &[Unit]) -> Vec<Als> {
     let mut alses: Vec<Als> = Vec::new();
     let mut active_cells: Vec<usize> = Vec::with_capacity(9);
@@ -1407,7 +1402,6 @@ fn find_alses(c: &Candidates, units: &[Unit]) -> Vec<Als> {
     alses
 }
 
-#[allow(dead_code)]
 fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step> {
     let alses = find_alses(c, units);
     if alses.len() < 2 {
@@ -1516,7 +1510,9 @@ fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable
         .or_else(|| {
             // Lazy: only built when T1–T4 finders all failed.
             let g = build_chain_graph(c, peers, units);
-            find_simple_coloring(&g).or_else(|| find_forcing_chain(&g, c))
+            find_simple_coloring(&g)
+                .or_else(|| find_forcing_chain(&g, c))
+                .or_else(|| find_als_xz(c, peers, units))
         })
 }
 
@@ -2134,6 +2130,17 @@ mod tests {
             target_cells,
             alses.len()
         );
+    }
+
+    /// Easy puzzles must still grade T1Easy after ALS lands — ALS must not
+    /// fire when cheaper techniques apply.
+    #[test]
+    fn easy_does_not_promote_to_t5_with_als_available() {
+        let b = Board::from_str(EASY).unwrap();
+        match grade(&b) {
+            GradeOutcome::Solved { tier, .. } => assert_eq!(tier, Tier::T1Easy),
+            other => panic!("expected Solved at T1Easy, got {:?}", other),
+        }
     }
 
     /// Behavioral: ALS-XZ rule fires and eliminates (1,0):3.
