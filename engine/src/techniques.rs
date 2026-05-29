@@ -2117,6 +2117,131 @@ mod tests {
         }
     }
 
+    /// Empirical record of why we stopped escalating T5 for the two flagship
+    /// "impossible" puzzles. A generalized length-3 ALS chain (the obvious next
+    /// step past the shipped ALS-XZ / ALS-XY-Wing) finds ZERO sound eliminations
+    /// on the initial candidate state of either Inkala or Easter Monster, so
+    /// building a production ALS-chain subsystem would not crack them — it would
+    /// be dead code against these targets. (Both puzzles need patterns outside
+    /// the ALS family — SK-Loop / Exocet for Easter Monster, deep dynamic
+    /// forcing nets ≈ trial-and-error for Inkala — and T&E-as-technique is an
+    /// explicit spec non-goal.) Asserts the negative so that if a future change
+    /// (larger ALSes, cross-unit ALSes, new link types) ever makes a chain fire
+    /// here, this fails loudly and prompts a revisit.
+    #[test]
+    fn als_chains_do_not_crack_flagship_puzzles() {
+        fn restricted_common(a: &Als, b: &Als, d: u8, peers: &PeerTable) -> bool {
+            let za = &a.digit_cells[(d - 1) as usize];
+            let zb = &b.digit_cells[(d - 1) as usize];
+            if za.is_empty() || zb.is_empty() {
+                return false;
+            }
+            for &ca in za {
+                for &cb in zb {
+                    if !peers.peers[ca].contains(&cb) {
+                        return false;
+                    }
+                }
+            }
+            true
+        }
+        fn disjoint(a: &Als, b: &Als) -> bool {
+            !a.cells.iter().any(|x| b.cells.contains(x))
+        }
+        // All restricted-common digits between two ALSes.
+        fn rccs(a: &Als, b: &Als, peers: &PeerTable) -> Vec<u8> {
+            let common = a.candidates & b.candidates;
+            (1u8..=9)
+                .filter(|&d| common & bit(d) != 0 && restricted_common(a, b, d, peers))
+                .collect()
+        }
+        fn probe(name: &str, src: &str) {
+            let b = Board::from_str(src).unwrap();
+            let peers = PeerTable::build(&Variant::classic());
+            let units = build_units(&Variant::classic());
+            let c = Candidates::from_board(&b, &peers);
+            let alses = find_alses(&c, &units);
+            // Baseline length-2 (ALS-XZ / XY-Wing) is already in the arsenal.
+            let xz = find_als_xz(&c, &peers, &units).is_some();
+            let n = alses.len();
+            let mut chain3_elims = 0usize;
+            'outer: for i in 0..n {
+                for j in 0..n {
+                    if j == i || !disjoint(&alses[i], &alses[j]) {
+                        continue;
+                    }
+                    let r_ij = rccs(&alses[i], &alses[j], &peers);
+                    if r_ij.is_empty() {
+                        continue;
+                    }
+                    for k in 0..n {
+                        if k == i || k == j {
+                            continue;
+                        }
+                        let (a, mid, ck) = (&alses[i], &alses[j], &alses[k]);
+                        if !disjoint(mid, ck) || !disjoint(a, ck) {
+                            continue;
+                        }
+                        let r_jk = rccs(mid, ck, &peers);
+                        if r_jk.is_empty() {
+                            continue;
+                        }
+                        for &z1 in &r_ij {
+                            for &z2 in &r_jk {
+                                if z1 == z2 {
+                                    continue; // adjacent RCCs must differ
+                                }
+                                let term = a.candidates & ck.candidates;
+                                for x in 1u8..=9 {
+                                    if x == z1 || x == z2 || term & bit(x) == 0 {
+                                        continue;
+                                    }
+                                    let xa = &a.digit_cells[(x - 1) as usize];
+                                    let xc = &ck.digit_cells[(x - 1) as usize];
+                                    if xa.is_empty() || xc.is_empty() {
+                                        continue;
+                                    }
+                                    for victim in 0..CELLS {
+                                        if c.masks[victim] & bit(x) == 0 {
+                                            continue;
+                                        }
+                                        if a.cells.contains(&victim)
+                                            || mid.cells.contains(&victim)
+                                            || ck.cells.contains(&victim)
+                                        {
+                                            continue;
+                                        }
+                                        let sees_a =
+                                            xa.iter().all(|&cl| peers.peers[victim].contains(&cl));
+                                        let sees_c =
+                                            xc.iter().all(|&cl| peers.peers[victim].contains(&cl));
+                                        if sees_a && sees_c {
+                                            chain3_elims += 1;
+                                            if chain3_elims >= 3 {
+                                                break 'outer;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            assert!(
+                !xz,
+                "{name}: ALS-XZ unexpectedly fires on initial state — revisit T5 escalation"
+            );
+            assert_eq!(
+                chain3_elims, 0,
+                "{name}: a length-3 ALS chain now finds {chain3_elims} elimination(s) \
+                 (alses={n}) — ALS chains may now be worth shipping; revisit T5"
+            );
+        }
+        probe("INKALA", INKALA);
+        probe("EASTER_MONSTER", EASTER_MONSTER);
+    }
+
     #[test]
     fn forcing_chain_tier_is_t5() {
         assert_eq!(Technique::ForcingChain.tier(), Tier::T5Nightmare);
