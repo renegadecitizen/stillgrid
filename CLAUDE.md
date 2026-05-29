@@ -96,6 +96,12 @@ Priority order, roughly:
 6. **Mobile polish** — tool/digit button rows wrap into 3–4 rows on iPhone widths. ~1–2h.
 7. ~~**Game schema.org data + open graph images**~~ — **DONE.** Per-variant OG/Twitter cards (`og-{classic,xsudoku,jigsaw,killer}.png` + `og-image.png` home, all 1200×630, rendered from the `/tmp/og-card.html` template with real Fraunces/Inter). Each landing page now points `og:image`/`twitter:image` at its own card with `og:image:alt`, and its `Game` JSON-LD is enriched with `image`, `inLanguage`, `isAccessibleForFree`, and a free `Offer`. Home `WebSite` schema gained `image` + `inLanguage`.
 8. **Real SSR (Next.js or Remix)** — only if SEO ROI ever justifies a rewrite. Deep-linking + dynamic per-puzzle pages. Multi-day.
+9. **AI answer-engine optimization (GEO/AEO)** — be the citable source when ChatGPT / Claude / Perplexity / Google AI Overviews answer "where can I play killer sudoku" and similar. Same fundamentals as SEO (clean prerendered HTML + schema.org, which we already ship) plus a few AI-specific moves:
+   - **`/llms.txt`** (root, prerendered, served as `text/plain` like robots.txt) — a markdown index: one-paragraph site summary + the four variant pages each with a one-line description. The emerging convention LLM crawlers and agents look for.
+   - **Named crawler allows in `robots.txt`** — explicitly `Allow` GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, anthropic-ai, PerplexityBot, Google-Extended. Currently covered by `User-agent: *` but naming them signals intent and future-proofs. We *want* citations, so allow (not disallow).
+   - **Self-contained, liftable answers** — each landing page already states the rules; add a short "What is X / how to play X" definitional block per variant phrased so an engine can quote it verbatim, plus a per-variant FAQ marked up with `FAQPage` JSON-LD.
+   - **`HowTo` structured data** for the rules lists so the steps are machine-readable.
+   - Honest caveat: there's no magic dial — AI engines reward the same clean, crawlable, structured content as classic SEO. The SPA at `/` stays JS-only; the prerendered landing pages (`/classic`, `/killer`, `/jigsaw`, `/xsudoku`) remain the AI-visible surface, so all of the above targets those files + `web/public/`. ~half day.
 
 ## Known issues
 
