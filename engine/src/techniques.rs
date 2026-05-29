@@ -30,6 +30,7 @@ pub enum Technique {
     HiddenPairDiag,
     HiddenPairCage,
     PointingPair,
+    CageCombo,
     // Tier 3 — candidate elimination
     XWingRow,
     XWingCol,
@@ -60,7 +61,7 @@ impl Technique {
             | HiddenSingleDiag | HiddenSingleCage => Tier::T1Easy,
             NakedPairRow | NakedPairCol | NakedPairBox | NakedPairDiag | NakedPairCage
             | HiddenPairRow | HiddenPairCol | HiddenPairBox | HiddenPairDiag | HiddenPairCage
-            | PointingPair => Tier::T2Medium,
+            | PointingPair | CageCombo => Tier::T2Medium,
             XWingRow | XWingCol => Tier::T3Hard,
             SwordfishRow | SwordfishCol | XYWing => Tier::T4Diabolical,
             Coloring | ForcingChain | Als => Tier::T5Nightmare,
@@ -290,6 +291,12 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
     // cells in the unit have d as a candidate, those two nodes are strongly
     // linked (one must be d).
     for u in units {
+        // Cages aren't all-9-digit units: a digit need not appear in a cage, so
+        // "exactly two cage cells bear d ⇒ one must be d" is unsound. Skip cages
+        // for strong links (their weak links in pass 4 stay valid via distinctness).
+        if u.kind == UnitKind::Cage {
+            continue;
+        }
         for d in 1u8..=9 {
             let b = bit(d);
             let mut first: Option<u16> = None;
@@ -519,6 +526,12 @@ fn find_hidden_single_unit(
 
 fn find_hidden_single(c: &Candidates, units: &[Unit]) -> Option<Step> {
     for u in units {
+        // Cages are NOT "must contain all 9 digits" units — a cage of size k<9
+        // need not contain digit v at all, so "v fits only one cage cell" does
+        // NOT imply v goes there. Hidden-single is unsound for cages.
+        if u.kind == UnitKind::Cage {
+            continue;
+        }
         if let Some(s) = find_hidden_single_unit(c, &u.cells, hidden_single_tech(u.kind)) {
             return Some(s);
         }
@@ -626,6 +639,11 @@ fn find_hidden_pair_unit(
 
 fn find_hidden_pair(c: &Candidates, units: &[Unit]) -> Option<Step> {
     for u in units {
+        // Same reason as hidden-single: a cage need not contain digits v1/v2 at
+        // all, so "v1,v2 fit only these two cage cells" is unsound for cages.
+        if u.kind == UnitKind::Cage {
+            continue;
+        }
         if let Some(s) = find_hidden_pair_unit(c, &u.cells, hidden_pair_tech(u.kind)) {
             return Some(s);
         }
@@ -691,6 +709,96 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
                     return Some(Step::Elimination { technique: Technique::PointingPair, removed });
                 }
             }
+        }
+    }
+    None
+}
+
+// --- Tier 2: Killer cage-sum combinations --------------------------------
+//
+// For each cage we know its target sum and (via uniqueness) that its digits
+// are distinct. A candidate digit `d` is viable in an open cage cell only if
+// SOME assignment of distinct digits to the cage's remaining open cells —
+// each within that cell's current candidates, with this cell set to `d` —
+// reaches the remaining target sum. Any digit failing that test is removed.
+//
+// This is the bootstrap technique for pure-cage Killer puzzles: with no
+// givens, no single/pair fires until cage sums prune the all-candidates
+// starting state. Sound by construction — the real solution is itself a
+// valid assignment, so its digits are never eliminated.
+
+/// Can we pick distinct digits (one per mask, none in `used`) drawn from each
+/// mask in `masks`, summing exactly to `target`? Backtracking; cage open-cell
+/// counts are tiny (<= 4 from the generator), so this stays cheap.
+fn cage_can_fill(masks: &[u16], target: i64, used: u16) -> bool {
+    match masks.split_first() {
+        None => target == 0,
+        Some((&head, rest)) => {
+            let mut bits = head & !used;
+            // Minimal/maximal remaining sums prune impossible branches early.
+            while bits != 0 {
+                let d = bits.trailing_zeros() as u8;
+                bits &= bits - 1;
+                let nt = target - d as i64;
+                if nt < 0 {
+                    break; // digits only grow from here (low bit first)
+                }
+                if cage_can_fill(rest, nt, used | bit(d)) {
+                    return true;
+                }
+            }
+            false
+        }
+    }
+}
+
+fn find_cage_sum(c: &Candidates, board: &Board, variant: &Variant) -> Option<Step> {
+    for cage in &variant.cages {
+        let mut open: Vec<usize> = Vec::with_capacity(cage.cells.len());
+        let mut placed_sum: u32 = 0;
+        for &i in &cage.cells {
+            let v = board.get(i / N, i % N);
+            if v != 0 {
+                placed_sum += v as u32;
+            } else {
+                open.push(i);
+            }
+        }
+        if open.is_empty() {
+            continue;
+        }
+        let remaining = cage.sum as i64 - placed_sum as i64;
+        if remaining <= 0 {
+            continue;
+        }
+        let open_masks: Vec<u16> = open.iter().map(|&i| c.masks[i]).collect();
+        let mut removed: Vec<(usize, usize, u8)> = Vec::new();
+        for (slot, &cell) in open.iter().enumerate() {
+            let cand = open_masks[slot];
+            // Other open cells' masks (this slot excluded), for the feasibility probe.
+            let others: Vec<u16> =
+                open_masks.iter().enumerate().filter(|&(j, _)| j != slot).map(|(_, &m)| m).collect();
+            let mut allowed: u16 = 0;
+            let mut bits = cand;
+            while bits != 0 {
+                let d = bits.trailing_zeros() as u8;
+                bits &= bits - 1;
+                if cage_can_fill(&others, remaining - d as i64, bit(d)) {
+                    allowed |= bit(d);
+                }
+            }
+            let drop = cand & !allowed;
+            if drop != 0 {
+                let (r, col) = (cell / N, cell % N);
+                for d in 1u8..=9 {
+                    if drop & bit(d) != 0 {
+                        removed.push((r, col, d));
+                    }
+                }
+            }
+        }
+        if !removed.is_empty() {
+            return Some(Step::Elimination { technique: Technique::CageCombo, removed });
         }
     }
     None
@@ -1509,9 +1617,16 @@ fn find_forcing_chain(g: &ChainGraph, c: &Candidates) -> Option<Step> {
 
 // --- main loop ------------------------------------------------------------
 
-fn try_step(c: &Candidates, variant: &Variant, units: &[Unit], peers: &PeerTable) -> Option<Step> {
+fn try_step(
+    c: &Candidates,
+    board: &Board,
+    variant: &Variant,
+    units: &[Unit],
+    peers: &PeerTable,
+) -> Option<Step> {
     find_naked_single(c)
         .or_else(|| find_hidden_single(c, units))
+        .or_else(|| find_cage_sum(c, board, variant))
         .or_else(|| find_naked_pair(c, units))
         .or_else(|| find_hidden_pair(c, units))
         .or_else(|| find_pointing_pair(c, variant))
@@ -1560,7 +1675,7 @@ pub fn grade_variant(board: &Board, variant: &Variant) -> GradeOutcome {
         if work.is_complete() {
             return GradeOutcome::Solved { solution: work, steps, tier: highest };
         }
-        match try_step(&cands, variant, &units, &peers) {
+        match try_step(&cands, &work, variant, &units, &peers) {
             Some(step) => {
                 let t = step.technique().tier();
                 if t > highest {
@@ -2219,5 +2334,110 @@ mod tests {
             }
             other => panic!("expected elimination, got {:?}", other),
         }
+    }
+
+    /// Cage-sum combination: a 2-cell cage summing to 4 can only hold {1,3}
+    /// (2+2 is barred by cage uniqueness), so every other candidate is removed
+    /// from both cells.
+    #[test]
+    fn cage_sum_restricts_two_cell_cage() {
+        let mut cages = vec![Cage { cells: vec![cell_index(0, 0), cell_index(0, 1)], sum: 4 }];
+        // Pad to full coverage so Variant::killer's invariant holds. These
+        // singletons are never reached: find_cage_sum returns at the first
+        // cage that yields eliminations (our 2-cell cage).
+        for i in 2..CELLS {
+            cages.push(Cage { cells: vec![i], sum: 5 });
+        }
+        let variant = Variant::killer(cages);
+        let board = Board::empty();
+        let c = Candidates { masks: [ALL; CELLS] };
+        let step = find_cage_sum(&c, &board, &variant).expect("cage-sum should fire");
+        match step {
+            Step::Elimination { technique, removed } => {
+                assert_eq!(technique, Technique::CageCombo);
+                // 2 and 4..9 gone from (0,0); 1 and 3 stay.
+                assert!(removed.contains(&(0, 0, 2)), "expected (0,0,2) removed; got {:?}", removed);
+                assert!(removed.contains(&(0, 1, 5)), "expected (0,1,5) removed; got {:?}", removed);
+                assert!(!removed.contains(&(0, 0, 1)), "1 must remain in (0,0)");
+                assert!(!removed.contains(&(0, 0, 3)), "3 must remain in (0,0)");
+            }
+            other => panic!("expected elimination, got {:?}", other),
+        }
+    }
+
+    /// CageCombo grades at T2Medium.
+    #[test]
+    fn cage_combo_tier_is_t2() {
+        assert_eq!(Technique::CageCombo.tier(), Tier::T2Medium);
+    }
+
+    /// Every technique must be *sound* on Killer: never place a wrong digit and
+    /// never eliminate a digit the true solution uses. Cages are not "all-9"
+    /// units, so hidden-single / hidden-pair / bilocal-strong-link inferences are
+    /// invalid for them — this guards against regressing those skips.
+    #[test]
+    fn killer_techniques_are_sound() {
+        use crate::generator::generate_killer;
+        use crate::Rng;
+        for seed in 0..60u64 {
+            let mut rng = Rng::new(seed);
+            let p = generate_killer(&mut rng);
+            // generate_killer now guarantees a unique solution, so p.solution is
+            // the only valid grid — any deviation by a technique is unsound.
+            let peers = PeerTable::build(&p.variant);
+            let units = build_units(&p.variant);
+            let mut work = p.givens;
+            let mut cands = Candidates::from_board(&work, &peers);
+            for _ in 0..1000 {
+                if work.is_complete() {
+                    break;
+                }
+                let Some(step) = try_step(&cands, &work, &p.variant, &units, &peers) else {
+                    break;
+                };
+                match &step {
+                    Step::Elimination { technique, removed } => {
+                        for &(r, col, d) in removed {
+                            assert_ne!(
+                                p.solution.get(r, col),
+                                d,
+                                "seed {seed}: {technique:?} unsoundly removed {d} at ({r},{col})"
+                            );
+                        }
+                    }
+                    Step::Placement { row, col, value, technique } => {
+                        assert_eq!(
+                            p.solution.get(*row, *col),
+                            *value,
+                            "seed {seed}: {technique:?} unsoundly placed {value} at ({row},{col})"
+                        );
+                    }
+                }
+                apply(&step, &mut work, &mut cands, &peers);
+            }
+        }
+    }
+
+    /// Acceptance for roadmap item #2: the Killer puzzles the app actually ships
+    /// must grade as Solved (not Stuck) and to the correct solution. Previously
+    /// pure-cage killers were both ambiguous (multiple solutions) and ungradeable.
+    #[test]
+    fn killer_pure_cage_grades_solved() {
+        use crate::generator::generate_killer;
+        use crate::Rng;
+        let mut solved = 0;
+        let mut stuck = 0;
+        for seed in 0..30u64 {
+            let mut rng = Rng::new(seed);
+            let p = generate_killer(&mut rng);
+            match grade_variant(&p.givens, &p.variant) {
+                GradeOutcome::Solved { solution, .. } => {
+                    assert_eq!(solution, p.solution, "seed {seed}: wrong solution");
+                    solved += 1;
+                }
+                GradeOutcome::Stuck { .. } => stuck += 1,
+            }
+        }
+        assert_eq!(stuck, 0, "{stuck}/30 killer puzzles still stuck (solved {solved})");
     }
 }

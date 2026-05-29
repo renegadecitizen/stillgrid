@@ -34,8 +34,9 @@ Open http://localhost:5173. Vite proxies `/api` → `:3001`.
 - `engine/src/solver.rs` — backtracking SAT solver (`solve`, `solve_variant`). Detects unique vs multiple solutions.
 - `engine/src/generator.rs` — generates puzzles per variant (`generate`, `generate_for`, `generate_killer`, `generate_variant`).
 - `engine/src/techniques.rs` — **variant-aware human-style solver/grader.** Tiers:
-  - T1: Naked/Hidden Single (row, col, box, diag, cage)
-  - T2: Naked/Hidden Pair (all unit kinds), Pointing Pair
+  - T1: Naked Single; Hidden Single (row, col, box, diag — **not cages**, see below)
+  - T2: Naked Pair (all unit kinds incl. cages), Hidden Pair (row/col/box/diag — not cages), Pointing Pair, **CageCombo** (Killer cage-sum combination pruning)
+  - **Cage soundness invariant:** a cage has <9 cells and need not contain any given digit, so it is NOT an "all-9-digit" unit. Hidden-single, hidden-pair, and bilocal *strong* links (in the chain graph) must skip cages — those inferences are unsound for cages. Naked pairs and same-unit *weak* links stay valid for cages via cell-distinctness. Cage sum logic lives in `find_cage_sum` / `cage_can_fill`.
   - T3: X-Wing (row + col)
   - T4: Swordfish (row + col), XY-Wing (peer-based, variant-aware)
   - **Not yet:** T5 chain-based techniques (forcing chains, ALS, coloring). Inkala's "World's Hardest Sudoku" still grades as `stuck`.
@@ -88,7 +89,7 @@ To add a new event:
 Priority order, roughly:
 
 1. **T5 chain-based techniques** (forcing chains, simple coloring, ALS) — closes the remaining "stuck" gap on truly hard puzzles. Inkala-class. Half to full day.
-2. **Cage-sum techniques for Killer** (45-rule, innies/outies) — without these, pure-cage killer puzzles (no givens) grade as `stuck` even though they're solvable. Half day.
+2. ~~**Cage-sum techniques for Killer**~~ — **DONE.** `CageCombo` (per-cell digit-feasibility over cage-sum combinations) plus a uniqueness/grader-solvable carve in `generate_killer` (killers now ship with 0–5 givens instead of always 0). Also fixed three cage-soundness bugs (hidden-single/hidden-pair/bilocal-strong-link wrongly treating cages as all-9 units). Explicit 45-rule innies/outies not needed — every generated killer now grades Solved. Mobile polish (was item 6) also DONE & shipped.
 3. **Mini 6×6 variant** — needs the engine's `N=9` const generalized, or a parallel 6×6 module. 2–3 days proper, ~1 day quick-and-dirty. User excited about this but cost is real.
 4. **PWA / offline** — service worker + manifest + home-screen icon. The whole game runs client-side after first load, so this is mostly plumbing. Half day.
 5. **Postgres puzzle pool** — pre-generated puzzles by (variant, tier) so requests are O(1) instead of spawning the generator. Necessary for scale, optional for current load.
@@ -98,8 +99,6 @@ Priority order, roughly:
 
 ## Known issues
 
-- Pure-cage Killer puzzles grade as `stuck` (item 2 above — cage-sum techniques missing).
-- iPhone width: tool + digit button rows wrap messy (item 6).
 - The chorus GitHub OAuth doesn't surface `GITHUB_TOKEN` to bash in the dev container. Pushes from container require a fine-grained PAT. From your Mac, use `git config --global credential.helper osxkeychain` and you'll be prompted once.
 
 ## Useful commands
