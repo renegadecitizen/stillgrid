@@ -1653,7 +1653,28 @@ function RoadmapCard() {
   );
 }
 
+// Feedletter feedback widget. widget.js binds to #feedletter-widget-button and
+// reads the global feedletterFormId. We inject it after mount (so the button
+// exists) and guard against StrictMode's double-invoke via the script id.
+// PROD-only, mirroring analytics + the service worker: keeps localhost dev
+// submissions out of the real Feedletter inbox.
+const FEEDLETTER_FORM_ID = "8a74122c-7f70-4291-99b1-b7a5847741cd";
+
+function useFeedletterWidget() {
+  useEffect(() => {
+    if (!import.meta.env.PROD) return;
+    (window as unknown as { feedletterFormId?: string }).feedletterFormId = FEEDLETTER_FORM_ID;
+    if (document.getElementById("feedletter-widget-script")) return;
+    const s = document.createElement("script");
+    s.id = "feedletter-widget-script";
+    s.src = "https://feedletter.co/embed/widget.js";
+    s.defer = true;
+    document.body.appendChild(s);
+  }, []);
+}
+
 function Footer({ isDemo }: { isDemo: boolean }) {
+  useFeedletterWidget();
   return (
     <footer className="border-t mt-8" style={{ borderColor: "var(--color-divider)" }}>
       <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-mute)" }}>
@@ -1662,6 +1683,11 @@ function Footer({ isDemo }: { isDemo: boolean }) {
           {isDemo && <span className="italic">Demo build · pool of pre-baked puzzles</span>}
           <a href="#" className="hover:underline">About</a>
           <a href="#" className="hover:underline">Contact</a>
+          {import.meta.env.PROD && (
+            <button id="feedletter-widget-button" className="hover:underline cursor-pointer">
+              Feedback
+            </button>
+          )}
         </div>
       </div>
     </footer>

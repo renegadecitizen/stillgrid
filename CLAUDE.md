@@ -102,6 +102,7 @@ Priority order, roughly:
    - **Self-contained, liftable answers** — each landing page already states the rules; add a short "What is X / how to play X" definitional block per variant phrased so an engine can quote it verbatim, plus a per-variant FAQ marked up with `FAQPage` JSON-LD.
    - **`HowTo` structured data** for the rules lists so the steps are machine-readable.
    - Honest caveat: there's no magic dial — AI engines reward the same clean, crawlable, structured content as classic SEO. The SPA at `/` stays JS-only; the prerendered landing pages (`/classic`, `/killer`, `/jigsaw`, `/xsudoku`) remain the AI-visible surface, so all of the above targets those files + `web/public/`. ~half day.
+10. **"Learn sudoku" page (`/learn`)** — a real teaching page wired to the topbar "Learn" link (currently `href="#"`). Prerendered HTML in `web/public/learn.html` following the same pattern as the variant landing pages (own title/meta/canonical/OG + `landing.css`, registered in `LANDING_ROUTES` in `server/src/index.ts`). Content: how to play, then a walkthrough of the technique ladder the grader actually uses (naked/hidden singles → pairs/pointing → X-Wing → Swordfish/XY-Wing → chains), which doubles as a unique-content SEO/GEO asset and explains our technique-graded difficulty. Mark up with `HowTo` / `FAQPage` JSON-LD (overlaps with #9). Link it from the variant pages' "Try a variant" rows too. ~half day.
 
 ## Known issues
 
