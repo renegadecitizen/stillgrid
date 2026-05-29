@@ -91,10 +91,10 @@ Priority order, roughly:
 1. **T5 chain-based techniques** (forcing chains, simple coloring, ALS) — closes the remaining "stuck" gap on truly hard puzzles. Inkala-class. Half to full day.
 2. ~~**Cage-sum techniques for Killer**~~ — **DONE.** `CageCombo` (per-cell digit-feasibility over cage-sum combinations) plus a uniqueness/grader-solvable carve in `generate_killer` (killers now ship with 0–5 givens instead of always 0). Also fixed three cage-soundness bugs (hidden-single/hidden-pair/bilocal-strong-link wrongly treating cages as all-9 units). Explicit 45-rule innies/outies not needed — every generated killer now grades Solved. Mobile polish (was item 6) also DONE & shipped.
 3. **Mini 6×6 variant** — needs the engine's `N=9` const generalized, or a parallel 6×6 module. 2–3 days proper, ~1 day quick-and-dirty. User excited about this but cost is real.
-4. **PWA / offline** — service worker + manifest + home-screen icon. The whole game runs client-side after first load, so this is mostly plumbing. Half day.
+4. ~~**PWA / offline**~~ — **DONE.** `web/public/manifest.webmanifest` + hand-written `web/public/sw.js` (network-first navigations w/ offline app-shell fallback, stale-while-revalidate assets, network-only `/api`) + brand-mark PNG icons, registered from `main.tsx` in prod only. Also fixed the static-cache headers (sw.js no-store, manifest no-cache, sitemap/robots 1h).
 5. **Postgres puzzle pool** — pre-generated puzzles by (variant, tier) so requests are O(1) instead of spawning the generator. Necessary for scale, optional for current load.
 6. **Mobile polish** — tool/digit button rows wrap into 3–4 rows on iPhone widths. ~1–2h.
-7. **Game schema.org data + open graph images** — push beyond the basic landing page SEO. Custom OG image per variant. ~half day.
+7. ~~**Game schema.org data + open graph images**~~ — **DONE.** Per-variant OG/Twitter cards (`og-{classic,xsudoku,jigsaw,killer}.png` + `og-image.png` home, all 1200×630, rendered from the `/tmp/og-card.html` template with real Fraunces/Inter). Each landing page now points `og:image`/`twitter:image` at its own card with `og:image:alt`, and its `Game` JSON-LD is enriched with `image`, `inLanguage`, `isAccessibleForFree`, and a free `Offer`. Home `WebSite` schema gained `image` + `inLanguage`.
 8. **Real SSR (Next.js or Remix)** — only if SEO ROI ever justifies a rewrite. Deep-linking + dynamic per-puzzle pages. Multi-day.
 
 ## Known issues
