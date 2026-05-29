@@ -200,7 +200,7 @@ export function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Topbar />
-      <main className="flex-1 w-full max-w-6xl mx-auto px-6 pt-10 pb-20">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-20">
         <Hero />
 
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -773,7 +773,7 @@ function PlayCard({
 
   return (
     <div
-      className="rounded-2xl p-6 sm:p-8 mt-6"
+      className="rounded-2xl p-4 sm:p-8 mt-6"
       style={{ background: "var(--color-card)", boxShadow: "var(--shadow-paper)", borderTop: `3px solid ${variantAccent}` }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-5">
@@ -1057,13 +1057,15 @@ function NumberPad({
   const BTN_H = 44; // px — matches the digit buttons exactly
 
   return (
-    <div className={`mt-6 flex flex-col items-center ${ROW_GAP}`}>
-      {/* tool row: Notes (prominent toggle) · Auto-fill · Clear notes · Undo · Redo */}
-      <div className={`flex items-center justify-center flex-wrap ${ROW_GAP}`}>
+    <div className={`mt-6 flex flex-col items-center ${ROW_GAP} w-full`}>
+      {/* tool row: Notes (prominent toggle) · Auto-fill · Clear notes · Undo · Redo.
+          Mobile: Notes spans full width, the four utilities sit in a 4-up icon
+          grid below it. Desktop: everything collapses into one centered row. */}
+      <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-center sm:flex-wrap w-full mx-auto ${ROW_GAP}`}>
         <button
           onClick={onToggleNotes}
           title="Toggle notes mode (N). When on, 1-9 writes small candidate digits instead of placing a value."
-          className="inline-flex items-center gap-2 px-4 rounded-lg text-sm transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-2 sm:px-4 rounded-lg text-sm transition-colors w-full sm:w-auto"
           style={{
             height: BTN_H,
             background: notesMode ? accent : "var(--color-paper)",
@@ -1086,33 +1088,34 @@ function NumberPad({
           </span>
         </button>
 
-        <ToolButton h={BTN_H} accent={accent} onClick={onAutoPencil} title="Fill every empty cell with valid candidates">
-          <SparkleIcon />
-          <span>Auto-fill</span>
-        </ToolButton>
-        <ToolButton h={BTN_H} accent={accent} onClick={onClearAllNotes} title="Erase all notes from every cell (values stay)">
-          <EraserIcon />
-          <span>Clear notes</span>
-        </ToolButton>
-        <ToolButton h={BTN_H} accent={accent} onClick={onUndo} disabled={!canUndo} title="Undo last move (⌘Z)">
-          <UndoIcon />
-          <span>Undo</span>
-        </ToolButton>
-        <ToolButton h={BTN_H} accent={accent} onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)">
-          <RedoIcon />
-          <span>Redo</span>
-        </ToolButton>
+        <div className={`grid grid-cols-4 sm:contents ${ROW_GAP}`}>
+          <ToolButton h={BTN_H} accent={accent} onClick={onAutoPencil} title="Fill every empty cell with valid candidates">
+            <SparkleIcon />
+            <span className="hidden sm:inline">Auto-fill</span>
+          </ToolButton>
+          <ToolButton h={BTN_H} accent={accent} onClick={onClearAllNotes} title="Erase all notes from every cell (values stay)">
+            <EraserIcon />
+            <span className="hidden sm:inline">Clear notes</span>
+          </ToolButton>
+          <ToolButton h={BTN_H} accent={accent} onClick={onUndo} disabled={!canUndo} title="Undo last move (⌘Z)">
+            <UndoIcon />
+            <span className="hidden sm:inline">Undo</span>
+          </ToolButton>
+          <ToolButton h={BTN_H} accent={accent} onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+            <RedoIcon />
+            <span className="hidden sm:inline">Redo</span>
+          </ToolButton>
+        </div>
       </div>
 
       {/* digit row */}
-      <div className={`flex justify-center flex-wrap ${ROW_GAP}`}>
+      <div className={`grid grid-cols-5 sm:grid-cols-10 w-full sm:max-w-[512px] mx-auto ${ROW_GAP}`}>
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
           <button
             key={d}
             onClick={() => onDigit(d)}
-            className="rounded-md text-lg transition-colors"
+            className="rounded-md text-lg transition-colors w-full"
             style={{
-              width: BTN_H,
               height: BTN_H,
               background: notesMode ? "var(--color-card)" : "var(--color-paper)",
               border: notesMode ? `1px dashed ${accent}` : "1px solid var(--color-divider)",
@@ -1135,9 +1138,8 @@ function NumberPad({
         <button
           onClick={onClear}
           title="Clear the selected cell (Backspace)"
-          className="rounded-md text-sm transition-colors flex items-center justify-center"
+          className="rounded-md text-sm transition-colors flex items-center justify-center w-full"
           style={{
-            width: BTN_H,
             height: BTN_H,
             background: "var(--color-paper)",
             color: "var(--color-ink-soft)",
@@ -1179,7 +1181,7 @@ function ToolButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="inline-flex items-center gap-1.5 px-3 rounded-lg text-sm transition-colors"
+      className="inline-flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-lg text-sm transition-colors w-full sm:w-auto"
       style={{
         height: h,
         background: active ? accent : "var(--color-paper)",
