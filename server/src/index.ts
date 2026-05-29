@@ -28,8 +28,16 @@ if (SERVE_STATIC) {
       // Hashed JS/CSS bundles are immutable; long cache.
       maxAge: "1y",
       setHeaders: (res, path) => {
-        if (path.endsWith("index.html")) {
+        // Must always re-fetch: the SPA entry and the service worker (a stale SW
+        // would pin old assets forever).
+        if (path.endsWith("index.html") || path.endsWith("sw.js")) {
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        } else if (path.endsWith(".webmanifest")) {
+          res.setHeader("Cache-Control", "no-cache");
+        } else if (path.endsWith(".xml") || path.endsWith(".txt")) {
+          // sitemap.xml / robots.txt: short cache so edits reach crawlers within
+          // the hour instead of being pinned for a year.
+          res.setHeader("Cache-Control", "public, max-age=3600");
         }
       },
     }),

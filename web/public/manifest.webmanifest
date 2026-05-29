@@ -1,0 +1,18 @@
+{
+  "name": "Stillgrid — Sudoku, the quiet way",
+  "short_name": "Stillgrid",
+  "description": "A calm place to play classic and variant Sudoku: X-Sudoku, Jigsaw, Killer. Technique-graded difficulty and a daily challenge.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF7F2",
+  "theme_color": "#FAF7F2",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}
