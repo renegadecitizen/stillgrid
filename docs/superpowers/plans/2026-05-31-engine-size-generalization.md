@@ -672,20 +672,49 @@ fn bin(name: &str) -> String {
     format!("{}/../target/release/{}", env!("CARGO_MANIFEST_DIR"), name)
 }
 
+// Pull a JSON string field's value out of the generator's one-line output
+// (no JSON dep in the test): finds `"field":"<value>"`.
+fn json_str_field<'a>(s: &'a str, field: &str) -> &'a str {
+    let needle = format!("\"{field}\":\"");
+    s.split(&needle).nth(1).expect("field present").split('"').next().unwrap()
+}
+
 #[test]
-fn generate_grade_6x6_via_cli() {
-    // generate a 6x6 classic, then grade it back — both via JSON stdin/argv.
+fn generate_6x6_via_cli_is_36_chars() {
     let out = Command::new(bin("stillgrid-generate"))
-        .args(["--variant", "classic", "--size", "6"])
+        .args(["--variant", "classic", "--size", "6", "--seed", "1"])
         .output()
         .expect("run generate");
     assert!(out.status.success(), "generate failed: {}", String::from_utf8_lossy(&out.stderr));
-    let givens = String::from_utf8(out.stdout).unwrap();
-    assert_eq!(givens.trim().chars().filter(|c| !c.is_whitespace()).count(), 36);
+    let s = String::from_utf8(out.stdout).unwrap();
+    // solution is always fully filled → exactly 36 cells for a 6×6.
+    assert_eq!(json_str_field(&s, "solution").chars().count(), 36, "stdout: {s}");
+    assert_eq!(json_str_field(&s, "givens").chars().count(), 36, "stdout: {s}");
+}
+
+#[test]
+fn solve_6x6_via_stdin() {
+    use std::io::Write;
+    // A 6×6 with the diagonal blanked — unique completion.
+    let givens = {
+        let full = "123456456123231564564231312645645312";
+        let mut v: Vec<char> = full.chars().collect();
+        for i in 0..6 { v[i * 6 + i] = '.'; }
+        v.into_iter().collect::<String>()
+    };
+    let mut child = std::process::Command::new(bin("stillgrid-solve"))
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn solve");
+    child.stdin.take().unwrap().write_all(givens.as_bytes()).unwrap();
+    let out = child.wait_with_output().unwrap();
+    let s = String::from_utf8(out.stdout).unwrap();
+    assert!(s.contains("\"outcome\":\"unique\""), "expected unique, got: {s}");
 }
 ```
 
-(Adjust arg names to match the existing CLI flag style — inspect each bin's `main` first; the assertion that matters is a 36-char 6×6 board round-trips through the binaries.)
+(Inspect each bin's `main` first; the assertions that matter: a 6×6 round-trips through generate and solve at the right length/outcome.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -706,11 +735,14 @@ For each binary `main`:
 Run: `cd engine && cargo build --release && cargo test --release --test cli_sizes 2>&1 | tail -20`
 Expected: PASS.
 
-Manual smoke (record output in the commit message):
+Manual smoke (record output in the commit message). 16×16 is deferred, so smoke the **surfaced** sizes (6 and 9):
 ```bash
-engine/target/release/stillgrid-generate --variant classic --size 16 | tr -d '\n' | wc -c   # 256
-echo '{"givens":"<36-char 6x6>","variant":"classic","size":6}' | engine/target/release/stillgrid-grade | jq .tier
+engine/target/release/stillgrid-generate --variant classic --size 6 --seed 1   # JSON w/ 36-char givens+solution
+engine/target/release/stillgrid-generate --variant jigsaw  --size 6 --seed 1   # box_of must have 36 entries, not 256
+# grade infers n from givens length (no --size needed):
+echo '<36-char 6x6 givens>' | engine/target/release/stillgrid-grade | jq '.tier_label'
 ```
+(16×16 classic generate is fast via the clue floor, but grading 16×16 is slow and unsurfaced — don't smoke it.)
 
 - [ ] **Step 5: Commit**
 
