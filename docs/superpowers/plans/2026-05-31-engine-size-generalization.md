@@ -444,21 +444,32 @@ git commit -m "engine: Variant carries n/box_h/box_w; Vec boxes; box_dims"
 Add to the `tests` module in `engine/src/solver.rs`:
 
 ```rust
-const SIX: &str = "1.3.5..5.1.3.3.5.45.4.3.3.2.4..4.3.2"; // 36 chars, a 6x6 classic
+// A known-valid 6×6 classic solution (2×3 boxes), rows concatenated.
+const SOLVED6: &str = "123456456123231564564231312645645312";
+
 #[test]
 fn solves_6x6_uniquely() {
-    let b = Board::from_str(SIX).unwrap();
-    match solve_variant(&b, &Variant::classic_n(6)) {
-        SolveOutcome::Unique(s) => {
-            assert!(Variant::classic_n(6).is_solution_consistent(&s));
-            assert!(s.is_complete());
-        }
+    let v = Variant::classic_n(6);
+    // Blank the main diagonal: each blanked cell is the only empty in its row,
+    // so the completion is forced and unique — equals SOLVED6.
+    let mut b = Board::from_str(SOLVED6).unwrap();
+    for i in 0..6 {
+        b.set(i, i, 0);
+    }
+    match solve_variant(&b, &v) {
+        SolveOutcome::Unique(s) => assert_eq!(s.to_string_dotted(), SOLVED6),
         other => panic!("expected unique, got {:?}", other),
     }
 }
+
+#[test]
+fn empty_6x6_has_multiple() {
+    let v = Variant::classic_n(6);
+    assert_eq!(solve_variant(&Board::empty_n(6), &v), SolveOutcome::Multiple);
+}
 ```
 
-(If `SIX` turns out non-unique when authored, regenerate a unique 6×6 with the generator from Task 5 and inline its givens here — the assertion that matters is `Unique` + consistent.)
+(`SOLVED6` is a verified-valid 6×6: rows `123456 / 456123 / 231564 / 564231 / 312645 / 645312` — all rows, cols, and 2×3 boxes hold 1..=6 exactly once. Blanking the diagonal leaves exactly one empty per row, guaranteeing a unique completion without needing the generator.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -476,7 +487,7 @@ In `engine/src/solver.rs`:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd engine && cargo test --release solver:: 2>&1 | tail -20`
-Expected: PASS — `solves_6x6_uniquely` plus existing `solves_easy`, `detects_multiple_solutions`, `detects_unsolvable`.
+Expected: PASS — `solves_6x6_uniquely`, `empty_6x6_has_multiple`, plus existing `solves_easy`, `detects_multiple_solutions`, `detects_unsolvable`.
 
 - [ ] **Step 5: Commit**
 
