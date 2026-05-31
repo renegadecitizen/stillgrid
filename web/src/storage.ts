@@ -1,19 +1,21 @@
 /**
- * Per-(variant × tier) personal-best storage.
+ * Per-(variant × size × tier) personal-best storage.
  *
- * Schema (lives at localStorage key "stillgrid:bests:v1"):
+ * Schema (lives at localStorage key "stillgrid:bests:v2"):
  *
  *   {
- *     "classic-easy":   { bestScore, bestTimeSec, bestMistakes, solves, lastSolvedAt },
- *     "classic-medium": ...,
- *     "killer-any":     ...,
+ *     "classic-9-easy":   { bestScore, bestTimeSec, bestMistakes, solves, lastSolvedAt },
+ *     "classic-6-easy":   ...,
+ *     "killer-9-any":     ...,
  *     ...
  *   }
  *
- * Bumps to schema → bump the storage key.
+ * v1 keys were "variant-tier" (e.g. "classic-easy"); migration reads them as
+ * size=9 entries. Bumps to schema → bump the storage key.
  */
 
-const KEY = "stillgrid:bests:v1";
+const KEY = "stillgrid:bests:v2";
+const LEGACY_KEY = "stillgrid:bests:v1";
 
 export interface Best {
   bestScore: number;
@@ -25,14 +27,15 @@ export interface Best {
 
 export type Run = {
   variant: string;
+  size: number;
   tierLabel: string | null;
   timeSec: number;
   mistakes: number;
   score: number;
 };
 
-function key(variant: string, tier: string | null): string {
-  return `${variant}-${tier ?? "any"}`;
+function key(variant: string, size: number, tier: string | null): string {
+  return `${variant}-${size}-${tier ?? "any"}`;
 }
 
 function loadAll(): Record<string, Best> {
@@ -56,9 +59,35 @@ function saveAll(data: Record<string, Best>): void {
   }
 }
 
-export function getBest(variant: string, tier: string | null): Best | null {
+// Idempotent: only runs when v2 store is absent and a v1 blob exists.
+// v1 keys look like "classic-easy" or "killer-any" — split on last "-".
+function migrateBestsV1IfNeeded(): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (window.localStorage.getItem(KEY) !== null) return;
+    const raw = window.localStorage.getItem(LEGACY_KEY);
+    if (!raw) return;
+    const v1 = JSON.parse(raw);
+    if (!v1 || typeof v1 !== "object") return;
+    const v2: Record<string, Best> = {};
+    for (const legacyKey of Object.keys(v1)) {
+      const lastDash = legacyKey.lastIndexOf("-");
+      if (lastDash < 0) continue;
+      const variant = legacyKey.slice(0, lastDash);
+      const tier = legacyKey.slice(lastDash + 1);
+      const newKey = `${variant}-9-${tier}`;
+      v2[newKey] = v1[legacyKey];
+    }
+    saveAll(v2);
+  } catch {
+    /* migration is best-effort */
+  }
+}
+
+export function getBest(variant: string, size: number, tier: string | null): Best | null {
+  migrateBestsV1IfNeeded();
   const all = loadAll();
-  return all[key(variant, tier)] ?? null;
+  return all[key(variant, size, tier)] ?? null;
 }
 
 export interface RecordOutcome {
@@ -69,8 +98,9 @@ export interface RecordOutcome {
 }
 
 export function recordRun(run: Run): RecordOutcome {
+  migrateBestsV1IfNeeded();
   const all = loadAll();
-  const k = key(run.variant, run.tierLabel);
+  const k = key(run.variant, run.size, run.tierLabel);
   const prev = all[k];
 
   const beatScore = !prev || run.score > prev.bestScore;
