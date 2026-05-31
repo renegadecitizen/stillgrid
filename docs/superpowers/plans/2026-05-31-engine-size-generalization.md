@@ -721,105 +721,75 @@ git commit -m "engine(cli): --size flag + JSON size field; default 9"
 
 ---
 
-## Task 7: Cross-size integration tests (all variants × {6,9,16})
+## Task 7: Cross-size integration tests (all variants × {6, 9})
+
+**SCOPE CHANGE (2026-05-31):** 16×16 is **deferred** (see Task 8 / spec Risk #1 — the no-propagation solver can't generate/grade 16×16 per-request). This matrix covers **{6, 9} only**, across all 4 variants. The engine remains 16×16-capable; it's simply not exercised here.
 
 **Files:**
 - Create: `engine/tests/size_matrix.rs`
 
 - [ ] **Step 1: Write the integration test**
 
+`Puzzle` already carries its own `variant` (and `givens` is a `Board`, not a string), so use `p.variant` directly — this covers jigsaw/killer structure with no reconstruction.
+
 ```rust
 use stillgrid_engine::{
-    generate_for_n, grade_variant, solve_variant, Board, GradeOutcome, SolveOutcome, Variant,
-    VariantKind, Rng,
+    generate_for_n, grade_variant, solve_variant, GradeOutcome, SolveOutcome, VariantKind, Rng,
 };
 
-fn variant_for(kind: VariantKind, n: usize, givens: &str) -> Variant {
-    // For classic/x; jigsaw/killer carry their structure from the generated puzzle.
-    match kind {
-        VariantKind::Classic => Variant::classic_n(n),
-        VariantKind::XSudoku => Variant::xsudoku_n(n),
-        _ => unreachable!("structured variants reconstructed from Puzzle in test body"),
-    }
-}
-
 #[test]
-fn classic_and_x_solve_grade_all_sizes() {
+fn all_variants_solve_grade_6_and_9() {
     let mut rng = Rng::new(99);
-    for &n in &[6usize, 9, 16] {
-        for kind in [VariantKind::Classic, VariantKind::XSudoku] {
+    for &n in &[6usize, 9] {
+        for kind in [
+            VariantKind::Classic,
+            VariantKind::XSudoku,
+            VariantKind::Jigsaw,
+            VariantKind::Killer,
+        ] {
             let p = generate_for_n(&mut rng, n, kind, 0);
-            let b = Board::from_str(&p.givens).unwrap();
-            let v = variant_for(kind, n, &p.givens);
-            assert!(matches!(solve_variant(&b, &v), SolveOutcome::Unique(_)),
-                "n={n} kind={kind:?} not unique");
-            assert!(matches!(grade_variant(&b, &v), GradeOutcome::Solved { .. }),
-                "n={n} kind={kind:?} not solved by grader");
+            let b = p.givens; // Board is Copy
+            let v = p.variant.clone();
+            assert_eq!(b.n(), n, "n={n} kind={kind:?} wrong size");
+            assert!(
+                matches!(solve_variant(&b, &v), SolveOutcome::Unique(_)),
+                "n={n} kind={kind:?} not unique"
+            );
+            assert!(
+                matches!(grade_variant(&b, &v), GradeOutcome::Solved { .. }),
+                "n={n} kind={kind:?} not solved by grader"
+            );
         }
     }
 }
 ```
 
-For jigsaw + killer, reconstruct the `Variant` from the `Puzzle` (the generator returns the partition/cages on `Puzzle` — inspect `generator::Puzzle` fields and use them; if the partition/cages aren't currently on `Puzzle`, add them or expose a `Puzzle::variant()` accessor as part of this task). Add an analogous test `jigsaw_and_killer_solve_grade_all_sizes`.
+(Confirm `Puzzle`'s fields by reading `generator::Puzzle` first — adapt field names if they differ from `givens`/`variant`. If `p.variant` isn't public, expose it or use the `_n` builder for classic/x and reconstruct jigsaw/killer from whatever the `Puzzle` does expose.)
 
 - [ ] **Step 2: Run + verify**
 
 Run: `cd engine && cargo test --release --test size_matrix 2>&1 | tail -30`
-Expected: PASS for all size×variant combos. 16×16 killer is the slowest — if it times out, see Task 8 before relaxing the assertion.
+Expected: PASS for all 4 variants at n=6 and n=9.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add engine/tests/size_matrix.rs engine/src/generator.rs engine/src/lib.rs
-git commit -m "engine: cross-size matrix integration tests (all variants × 6/9/16)"
+git add engine/tests/size_matrix.rs
+git commit -m "engine: cross-size matrix integration tests (all variants × 6/9)"
 ```
 
 ---
 
-## Task 8: 16×16 perf spike (early gate from spec phasing #0)
+## Task 8: 16×16 perf spike — RESOLVED (deferred, no code)
 
-**Files:**
-- Create: `engine/tests/perf_16.rs` (a `#[test]` with timing + a generous ceiling, not a microbenchmark)
+**Outcome (2026-05-31):** The spike's question was answered during Task 5 without needing a separate test. With the current backtracking solver (no constraint propagation):
+- A single 16×16 uniqueness check hits **14–15 s** once givens fall below ~45% of cells; minimal-clue carving never completes.
+- The grader-based Killer/Jigsaw carve ran **>2 min** without finishing at 16×16.
+- **Conclusion: per-request 16×16 generate+grade is not viable** with today's solver.
 
-- [ ] **Step 1: Write a timed test with a generous ceiling**
+**Decision (user, 2026-05-31): defer 16×16.** Keep the engine 16×16-*capable* (Task 5's `n>9` clue-floor is a placeholder that keeps `generate_*` from hanging), but **do not surface 16×16** in server/web. A new prerequisite work item — **"solver constraint propagation"** (make `solver.rs` propagate naked singles / candidate elimination instead of pure backtracking) — must land before 16×16 ships. Recorded in spec Risk #1.
 
-```rust
-use std::time::Instant;
-use stillgrid_engine::{generate_for_n, grade_variant, Board, Variant, VariantKind, Rng};
-
-#[test]
-fn sixteen_generate_and_grade_within_budget() {
-    let mut rng = Rng::new(2024);
-    let t = Instant::now();
-    let p = generate_for_n(&mut rng, 16, VariantKind::Classic, 0);
-    let gen_ms = t.elapsed().as_millis();
-    let b = Board::from_str(&p.givens).unwrap();
-    let v = Variant::classic_n(16);
-    let t2 = Instant::now();
-    let _ = grade_variant(&b, &v);
-    let grade_ms = t2.elapsed().as_millis();
-    eprintln!("16x16 classic: generate={gen_ms}ms grade={grade_ms}ms");
-    // Ceiling chosen to flag a per-request-spawn problem, not to microbenchmark.
-    assert!(gen_ms < 5000, "16x16 generate too slow: {gen_ms}ms");
-    assert!(grade_ms < 5000, "16x16 grade too slow: {grade_ms}ms");
-}
-```
-
-- [ ] **Step 2: Run and record the numbers**
-
-Run: `cd engine && cargo test --release --test perf_16 -- --nocapture 2>&1 | tail -10`
-Expected: PASS; **record the printed `generate=`/`grade=` ms** in the commit message and in the spec's Risk #1 note.
-
-- [ ] **Step 3: Decision checkpoint (document, do not silently proceed)**
-
-If 16×16 generate or grade is too slow for per-request spawning (e.g. >1–2s typical), STOP and surface to the user: either (a) add iteration/time caps in `generator`/`techniques` and accept `Stuck`-graded 16×16 as "hardest" bucket, or (b) escalate the Postgres puzzle-pool (roadmap #5) ahead of the web work. Do not build server/web on an unviable per-request model. Update the spec Risk #1 with the measured numbers and the chosen mitigation.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add engine/tests/perf_16.rs
-git commit -m "engine: 16x16 perf spike with recorded generate/grade timings"
-```
+No `perf_16.rs` test is added (it would just assert the known-slow behavior). This task is closed as documentation only.
 
 ---
 

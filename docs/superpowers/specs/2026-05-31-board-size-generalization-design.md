@@ -152,11 +152,19 @@ web/ (React)    ── size selector, n-scaled board + digit pad, storage v-bump
 
 ## Risks & out-of-scope
 
-1. **16×16 performance** — uniqueness-checked backtracking generation and
-   chain-based grading over 256 cells may be slow. Mitigation: iteration/time
-   caps; a 16×16 that grades `Stuck` under the cap is acceptable (bucketed as
-   hardest). If per-request spawning is too slow, that strengthens the case for
-   roadmap #5 (Postgres puzzle pool) — **but the pool is out of scope here.**
+1. **16×16 performance — CONFIRMED BLOCKING; 16×16 DEFERRED (2026-05-31).**
+   Measured during engine implementation: with the current pure-backtracking
+   solver (no constraint propagation), a single 16×16 uniqueness check hits
+   **14–15 s** once givens drop below ~45% of cells, and minimal-clue carving
+   never completes; the grader-based Killer/Jigsaw carve ran **>2 min** without
+   finishing. **Per-request 16×16 generate+grade is not viable** with today's
+   solver. **Decision:** keep the engine 16×16-*capable* (a placeholder `n>9`
+   clue-floor keeps `generate_*` from hanging) but **do not surface 16×16** in
+   server/web. New prerequisite before 16×16 ships: **solver constraint
+   propagation** (`solver.rs` must propagate naked singles / candidate
+   elimination, not pure backtracking). 6×6 and 9×9 are unaffected and ship as
+   planned. The Postgres pool (roadmap #5) would *also* help but is not the
+   root fix — the solver is.
 2. **Killer cages at the extremes** — tiny at 6×6, large at 16×16; cage-sum
    combination pruning cost grows with cage size. Per-size generation tuning.
 3. **SEO landing pages stay 9×9-framed** — no new prerendered pages in this
