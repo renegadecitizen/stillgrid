@@ -1,6 +1,6 @@
 //! Backtracking solver with uniqueness check, parameterized by Variant.
 
-use crate::board::{Board, N};
+use crate::board::Board;
 use crate::variant::Variant;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -60,23 +60,24 @@ fn search(
 }
 
 fn find_empty_min_options(board: &Board, variant: &Variant) -> Option<(usize, usize, Vec<u8>)> {
+    let n = board.n();
     let mut best: Option<(usize, usize, Vec<u8>)> = None;
-    for r in 0..N {
-        for c in 0..N {
+    for r in 0..n {
+        for c in 0..n {
             if board.get(r, c) != 0 {
                 continue;
             }
             let opts: Vec<u8> =
-                (1u8..=9u8).filter(|&v| variant.can_place(board, r, c, v)).collect();
+                (1u8..=n as u8).filter(|&v| variant.can_place(board, r, c, v)).collect();
             if opts.is_empty() {
                 return Some((r, c, opts));
             }
-            let n = opts.len();
+            let count = opts.len();
             match &best {
-                Some((_, _, bo)) if bo.len() <= n => {}
+                Some((_, _, bo)) if bo.len() <= count => {}
                 _ => best = Some((r, c, opts)),
             }
-            if n == 1 {
+            if count == 1 {
                 return best;
             }
         }
@@ -89,8 +90,9 @@ impl Variant {
     /// check before recursive search starts.
     pub fn is_partial_consistent(&self, board: &Board) -> bool {
         // Standard row/col/box uniqueness across whatever digits are present.
-        for r in 0..N {
-            for c in 0..N {
+        let n = board.n();
+        for r in 0..n {
+            for c in 0..n {
                 let v = board.get(r, c);
                 if v == 0 {
                     continue;
@@ -140,5 +142,29 @@ mod tests {
         b.set(0, 0, 5);
         b.set(0, 1, 5);
         assert_eq!(solve(&b), SolveOutcome::Unsolvable);
+    }
+
+    // A known-valid 6×6 classic solution (2×3 boxes), rows concatenated.
+    const SOLVED6: &str = "123456456123231564564231312645645312";
+
+    #[test]
+    fn solves_6x6_uniquely() {
+        let v = Variant::classic_n(6);
+        // Blank the main diagonal: each blanked cell is the only empty in its row,
+        // so the completion is forced and unique — equals SOLVED6.
+        let mut b = Board::from_str(SOLVED6).unwrap();
+        for i in 0..6 {
+            b.set(i, i, 0);
+        }
+        match solve_variant(&b, &v) {
+            SolveOutcome::Unique(s) => assert_eq!(s.to_string_dotted(), SOLVED6),
+            other => panic!("expected unique, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn empty_6x6_has_multiple() {
+        let v = Variant::classic_n(6);
+        assert_eq!(solve_variant(&Board::empty_n(6), &v), SolveOutcome::Multiple);
     }
 }
