@@ -5,8 +5,8 @@
 //! Variant support: classic, X-Sudoku (diagonals), Jigsaw (custom boxes),
 //! Killer (cage uniqueness — cage-sum techniques are deferred).
 
-use crate::board::{Board, CELLS, N};
-use crate::variant::{cell_index, Variant};
+use crate::board::{Board, MAX_CELLS, MAX_N};
+use crate::variant::{cell_index_n, Variant};
 use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -124,25 +124,26 @@ struct PeerTable {
 
 impl PeerTable {
     fn build(variant: &Variant) -> Self {
-        let mut peers: Vec<Vec<usize>> = vec![Vec::new(); CELLS];
-        for i in 0..CELLS {
-            let r = i / N;
-            let c = i % N;
-            let mut seen = [false; CELLS];
+        let n = variant.n as usize;
+        let mut peers: Vec<Vec<usize>> = vec![Vec::new(); n * n];
+        for i in 0..(n * n) {
+            let r = i / n;
+            let c = i % n;
+            let mut seen = vec![false; n * n];
             seen[i] = true;
-            let add = |i: usize, seen: &mut [bool; CELLS], peers: &mut Vec<usize>| {
+            let add = |i: usize, seen: &mut Vec<bool>, peers: &mut Vec<usize>| {
                 if !seen[i] {
                     seen[i] = true;
                     peers.push(i);
                 }
             };
             // Row
-            for cc in 0..N {
-                add(cell_index(r, cc), &mut seen, &mut peers[i]);
+            for cc in 0..n {
+                add(cell_index_n(n, r, cc), &mut seen, &mut peers[i]);
             }
             // Col
-            for rr in 0..N {
-                add(cell_index(rr, c), &mut seen, &mut peers[i]);
+            for rr in 0..n {
+                add(cell_index_n(n, rr, c), &mut seen, &mut peers[i]);
             }
             // Box
             let b = variant.box_of[i] as usize;
@@ -152,13 +153,13 @@ impl PeerTable {
             // Diagonals
             if variant.diagonals {
                 if r == c {
-                    for k in 0..N {
-                        add(cell_index(k, k), &mut seen, &mut peers[i]);
+                    for k in 0..n {
+                        add(cell_index_n(n, k, k), &mut seen, &mut peers[i]);
                     }
                 }
-                if r + c == N - 1 {
-                    for k in 0..N {
-                        add(cell_index(k, N - 1 - k), &mut seen, &mut peers[i]);
+                if r + c == n - 1 {
+                    for k in 0..n {
+                        add(cell_index_n(n, k, n - 1 - k), &mut seen, &mut peers[i]);
                     }
                 }
             }
@@ -179,16 +180,23 @@ impl PeerTable {
 
 #[derive(Clone)]
 struct Candidates {
-    masks: [u16; CELLS],
+    masks: [u32; MAX_CELLS],
+    n: usize,
 }
 
-const ALL: u16 = 0b11_1111_1110; // bits 1..=9
+fn all_mask(n: usize) -> u32 {
+    (1u32 << (n + 1)) - 2
+}
 
 impl Candidates {
     fn from_board(b: &Board, peers: &PeerTable) -> Self {
-        let mut c = Candidates { masks: [ALL; CELLS] };
-        for r in 0..N {
-            for col in 0..N {
+        let n = b.n();
+        let mut c = Candidates { masks: [0u32; MAX_CELLS], n };
+        for i in 0..(n * n) {
+            c.masks[i] = all_mask(n);
+        }
+        for r in 0..n {
+            for col in 0..n {
                 let v = b.get(r, col);
                 if v != 0 {
                     c.fill(r, col, v, peers);
@@ -199,20 +207,20 @@ impl Candidates {
     }
 
     #[inline]
-    fn get(&self, r: usize, c: usize) -> u16 {
-        self.masks[r * N + c]
+    fn get(&self, r: usize, c: usize) -> u32 {
+        self.masks[r * self.n + c]
     }
 
     #[inline]
-    fn set(&mut self, r: usize, c: usize, m: u16) {
-        self.masks[r * N + c] = m;
+    fn set(&mut self, r: usize, c: usize, m: u32) {
+        self.masks[r * self.n + c] = m;
     }
 
     /// Mark (r,c) as filled with `v`; remove `v` from peers.
     fn fill(&mut self, r: usize, c: usize, v: u8, peers: &PeerTable) {
-        let here = r * N + c;
+        let here = r * self.n + c;
         self.masks[here] = 0;
-        let mask = !(1u16 << v);
+        let mask = !(1u32 << v);
         for &p in &peers.peers[here] {
             self.masks[p] &= mask;
         }
@@ -235,8 +243,10 @@ struct Node {
 }
 
 struct ChainGraph {
+    /// Board size this graph was built for.
+    n: usize,
     /// node_of[cell_index][digit-1] -> node id, or NONE_NODE if no candidate.
-    node_of: [[u16; N]; CELLS],
+    node_of: [[u16; MAX_N]; MAX_CELLS],
     /// One node per (cell, digit) candidate present in Candidates at build time.
     nodes: Vec<Node>,
     /// strong[n] = nodes that are TRUE iff n is FALSE (bivalue cell, bilocal unit).
@@ -248,19 +258,21 @@ struct ChainGraph {
 }
 
 fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> ChainGraph {
+    let n = c.n;
     let mut g = ChainGraph {
-        node_of: [[NONE_NODE; N]; CELLS],
+        n,
+        node_of: [[NONE_NODE; MAX_N]; MAX_CELLS],
         nodes: Vec::new(),
         strong: Vec::new(),
         weak: Vec::new(),
     };
     // Pass 1: enumerate nodes from every candidate.
-    for i in 0..CELLS {
+    for i in 0..(n * n) {
         let m = c.masks[i];
         if m == 0 {
             continue;
         }
-        for d in 1u8..=9 {
+        for d in 1u8..=n as u8 {
             if m & bit(d) != 0 {
                 let n = g.nodes.len() as u16;
                 g.nodes.push(Node { cell: i as u16, digit: d });
@@ -273,12 +285,12 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
 
     // Pass 2: bivalue cells. A cell with exactly two candidates {a, b}:
     // the two corresponding nodes are strongly linked (one must be true).
-    for i in 0..CELLS {
+    for i in 0..(n * n) {
         let m = c.masks[i];
         if popcount(m) != 2 {
             continue;
         }
-        let mut digits = (1u8..=9).filter(|&d| m & bit(d) != 0);
+        let mut digits = (1u8..=n as u8).filter(|&d| m & bit(d) != 0);
         let a = digits.next().expect("popcount==2 implies first digit exists");
         let b = digits.next().expect("popcount==2 implies second digit exists");
         let na = g.node_of[i][(a - 1) as usize];
@@ -297,13 +309,13 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
         if u.kind == UnitKind::Cage {
             continue;
         }
-        for d in 1u8..=9 {
+        for d in 1u8..=n as u8 {
             let b = bit(d);
             let mut first: Option<u16> = None;
             let mut second: Option<u16> = None;
             let mut count = 0u32;
             for &(r, col) in &u.cells {
-                let i = r * N + col;
+                let i = r * n + col;
                 if c.masks[i] & b != 0 {
                     count += 1;
                     let nid = g.node_of[i][(d - 1) as usize];
@@ -337,13 +349,13 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
     let mut seen: Vec<HashSet<u16>> = vec![HashSet::new(); g.nodes.len()];
 
     // (a) Intra-cell weak links.
-    for i in 0..CELLS {
+    for i in 0..(n * n) {
         let m = c.masks[i];
         if popcount(m) < 2 {
             continue;
         }
-        let mut digits: Vec<u8> = Vec::with_capacity(9);
-        for d in 1u8..=9 {
+        let mut digits: Vec<u8> = Vec::with_capacity(n);
+        for d in 1u8..=n as u8 {
             if m & bit(d) != 0 {
                 digits.push(d);
             }
@@ -364,11 +376,11 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
 
     // (b) Same-unit, same-digit weak links.
     for u in units {
-        for d in 1u8..=9 {
+        for d in 1u8..=n as u8 {
             let b = bit(d);
             let mut bearers: Vec<u16> = Vec::with_capacity(u.cells.len());
             for &(r, col) in &u.cells {
-                let i = r * N + col;
+                let i = r * n + col;
                 if c.masks[i] & b != 0 {
                     bearers.push(g.node_of[i][(d - 1) as usize]);
                 }
@@ -392,19 +404,19 @@ fn build_chain_graph(c: &Candidates, _peers: &PeerTable, units: &[Unit]) -> Chai
 }
 
 #[inline]
-fn popcount(m: u16) -> u32 {
+fn popcount(m: u32) -> u32 {
     m.count_ones()
 }
 
 #[inline]
-fn only_bit(m: u16) -> u8 {
+fn only_bit(m: u32) -> u8 {
     debug_assert_eq!(popcount(m), 1);
     m.trailing_zeros() as u8
 }
 
 #[inline]
-fn bit(v: u8) -> u16 {
-    1u16 << v
+fn bit(v: u8) -> u32 {
+    1u32 << v
 }
 
 // --- unit iterators -------------------------------------------------------
@@ -424,27 +436,28 @@ struct Unit {
 }
 
 fn build_units(variant: &Variant) -> Vec<Unit> {
-    let mut units = Vec::with_capacity(N * 3 + 2 + variant.cages.len());
-    for r in 0..N {
-        units.push(Unit { kind: UnitKind::Row, cells: (0..N).map(|c| (r, c)).collect() });
+    let n = variant.n as usize;
+    let mut units = Vec::with_capacity(n * 3 + 2 + variant.cages.len());
+    for r in 0..n {
+        units.push(Unit { kind: UnitKind::Row, cells: (0..n).map(|c| (r, c)).collect() });
     }
-    for c in 0..N {
-        units.push(Unit { kind: UnitKind::Col, cells: (0..N).map(|r| (r, c)).collect() });
+    for c in 0..n {
+        units.push(Unit { kind: UnitKind::Col, cells: (0..n).map(|r| (r, c)).collect() });
     }
-    for b in 0..9 {
+    for b in 0..n {
         units.push(Unit {
             kind: UnitKind::Box,
-            cells: variant.boxes[b].iter().map(|&i| (i / N, i % N)).collect(),
+            cells: variant.boxes[b].iter().map(|&i| (i / n, i % n)).collect(),
         });
     }
     if variant.diagonals {
-        units.push(Unit { kind: UnitKind::Diag, cells: (0..N).map(|i| (i, i)).collect() });
-        units.push(Unit { kind: UnitKind::Diag, cells: (0..N).map(|i| (i, N - 1 - i)).collect() });
+        units.push(Unit { kind: UnitKind::Diag, cells: (0..n).map(|i| (i, i)).collect() });
+        units.push(Unit { kind: UnitKind::Diag, cells: (0..n).map(|i| (i, n - 1 - i)).collect() });
     }
     for cage in &variant.cages {
         units.push(Unit {
             kind: UnitKind::Cage,
-            cells: cage.cells.iter().map(|&i| (i / N, i % N)).collect(),
+            cells: cage.cells.iter().map(|&i| (i / n, i % n)).collect(),
         });
     }
     units
@@ -453,8 +466,9 @@ fn build_units(variant: &Variant) -> Vec<Unit> {
 // --- Tier 1: singles ------------------------------------------------------
 
 fn find_naked_single(c: &Candidates) -> Option<Step> {
-    for r in 0..N {
-        for col in 0..N {
+    let n = c.n;
+    for r in 0..n {
+        for col in 0..n {
             let m = c.get(r, col);
             if popcount(m) == 1 {
                 return Some(Step::Placement {
@@ -504,7 +518,7 @@ fn find_hidden_single_unit(
     cells: &[(usize, usize)],
     tech: Technique,
 ) -> Option<Step> {
-    for v in 1u8..=9 {
+    for v in 1u8..=c.n as u8 {
         let b = bit(v);
         let mut count = 0usize;
         let mut at = (0usize, 0usize);
@@ -563,7 +577,7 @@ fn find_naked_pair_unit(c: &Candidates, cells: &[(usize, usize)], tech: Techniqu
                 if overlap == 0 {
                     continue;
                 }
-                for v in 1u8..=9 {
+                for v in 1u8..=c.n as u8 {
                     if overlap & bit(v) != 0 {
                         removed.push((r, col, v));
                     }
@@ -593,7 +607,8 @@ fn find_hidden_pair_unit(
     cells: &[(usize, usize)],
     tech: Technique,
 ) -> Option<Step> {
-    for v1 in 1u8..=8 {
+    let n = c.n as u8;
+    for v1 in 1u8..=(n - 1) {
         let b1 = bit(v1);
         let mut cells_v1 = Vec::new();
         for &(r, col) in cells {
@@ -604,7 +619,7 @@ fn find_hidden_pair_unit(
         if cells_v1.len() != 2 {
             continue;
         }
-        for v2 in (v1 + 1)..=9 {
+        for v2 in (v1 + 1)..=n {
             let b2 = bit(v2);
             let mut cells_v2 = Vec::new();
             for &(r, col) in cells {
@@ -623,7 +638,7 @@ fn find_hidden_pair_unit(
                 if extra == 0 {
                     continue;
                 }
-                for v in 1u8..=9 {
+                for v in 1u8..=n {
                     if extra & bit(v) != 0 {
                         removed.push((r, col, v));
                     }
@@ -659,12 +674,13 @@ fn find_hidden_pair(c: &Candidates, units: &[Unit]) -> Option<Step> {
 // box membership instead of 3×3 bounding rectangle.
 
 fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
-    for b in 0..9 {
-        let cells: Vec<(usize, usize)> = variant.boxes[b].iter().map(|&i| (i / N, i % N)).collect();
-        for v in 1u8..=9 {
+    let n = c.n;
+    for b in 0..n {
+        let cells: Vec<(usize, usize)> = variant.boxes[b].iter().map(|&i| (i / n, i % n)).collect();
+        for v in 1u8..=n as u8 {
             let mask = bit(v);
-            let mut rows = [false; N];
-            let mut cols = [false; N];
+            let mut rows = vec![false; n];
+            let mut cols = vec![false; n];
             let mut count = 0;
             for &(r, col) in &cells {
                 if c.get(r, col) & mask != 0 {
@@ -676,13 +692,13 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
             if count < 2 {
                 continue;
             }
-            let rows_used: Vec<usize> = (0..N).filter(|&r| rows[r]).collect();
+            let rows_used: Vec<usize> = (0..n).filter(|&r| rows[r]).collect();
             if rows_used.len() == 1 {
                 let r = rows_used[0];
                 let mut removed = Vec::new();
-                for col in 0..N {
+                for col in 0..n {
                     // Skip cells of this box (jigsaw-safe).
-                    if variant.box_of[cell_index(r, col)] as usize == b {
+                    if variant.box_of[cell_index_n(n, r, col)] as usize == b {
                         continue;
                     }
                     if c.get(r, col) & mask != 0 {
@@ -693,12 +709,12 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
                     return Some(Step::Elimination { technique: Technique::PointingPair, removed });
                 }
             }
-            let cols_used: Vec<usize> = (0..N).filter(|&c| cols[c]).collect();
+            let cols_used: Vec<usize> = (0..n).filter(|&c| cols[c]).collect();
             if cols_used.len() == 1 {
                 let col = cols_used[0];
                 let mut removed = Vec::new();
-                for r in 0..N {
-                    if variant.box_of[cell_index(r, col)] as usize == b {
+                for r in 0..n {
+                    if variant.box_of[cell_index_n(n, r, col)] as usize == b {
                         continue;
                     }
                     if c.get(r, col) & mask != 0 {
@@ -730,7 +746,7 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
 /// Can we pick distinct digits (one per mask, none in `used`) drawn from each
 /// mask in `masks`, summing exactly to `target`? Backtracking; cage open-cell
 /// counts are tiny (<= 4 from the generator), so this stays cheap.
-fn cage_can_fill(masks: &[u16], target: i64, used: u16) -> bool {
+fn cage_can_fill(masks: &[u32], target: i64, used: u32) -> bool {
     match masks.split_first() {
         None => target == 0,
         Some((&head, rest)) => {
@@ -753,11 +769,12 @@ fn cage_can_fill(masks: &[u16], target: i64, used: u16) -> bool {
 }
 
 fn find_cage_sum(c: &Candidates, board: &Board, variant: &Variant) -> Option<Step> {
+    let n = c.n;
     for cage in &variant.cages {
         let mut open: Vec<usize> = Vec::with_capacity(cage.cells.len());
         let mut placed_sum: u32 = 0;
         for &i in &cage.cells {
-            let v = board.get(i / N, i % N);
+            let v = board.get(i / n, i % n);
             if v != 0 {
                 placed_sum += v as u32;
             } else {
@@ -771,14 +788,14 @@ fn find_cage_sum(c: &Candidates, board: &Board, variant: &Variant) -> Option<Ste
         if remaining <= 0 {
             continue;
         }
-        let open_masks: Vec<u16> = open.iter().map(|&i| c.masks[i]).collect();
+        let open_masks: Vec<u32> = open.iter().map(|&i| c.masks[i]).collect();
         let mut removed: Vec<(usize, usize, u8)> = Vec::new();
         for (slot, &cell) in open.iter().enumerate() {
             let cand = open_masks[slot];
             // Other open cells' masks (this slot excluded), for the feasibility probe.
-            let others: Vec<u16> =
+            let others: Vec<u32> =
                 open_masks.iter().enumerate().filter(|&(j, _)| j != slot).map(|(_, &m)| m).collect();
-            let mut allowed: u16 = 0;
+            let mut allowed: u32 = 0;
             let mut bits = cand;
             while bits != 0 {
                 let d = bits.trailing_zeros() as u8;
@@ -789,8 +806,8 @@ fn find_cage_sum(c: &Candidates, board: &Board, variant: &Variant) -> Option<Ste
             }
             let drop = cand & !allowed;
             if drop != 0 {
-                let (r, col) = (cell / N, cell % N);
-                for d in 1u8..=9 {
+                let (r, col) = (cell / n, cell % n);
+                for d in 1u8..=n as u8 {
                     if drop & bit(d) != 0 {
                         removed.push((r, col, d));
                     }
@@ -807,11 +824,12 @@ fn find_cage_sum(c: &Candidates, board: &Board, variant: &Variant) -> Option<Ste
 // --- Tier 3: X-Wing -------------------------------------------------------
 
 fn find_xwing(c: &Candidates) -> Option<Step> {
-    for v in 1u8..=9 {
+    let n = c.n;
+    for v in 1u8..=n as u8 {
         let mask = bit(v);
         let row_cols: Vec<Vec<usize>> =
-            (0..N).map(|r| (0..N).filter(|&col| c.get(r, col) & mask != 0).collect()).collect();
-        for r1 in 0..N {
+            (0..n).map(|r| (0..n).filter(|&col| c.get(r, col) & mask != 0).collect()).collect();
+        for r1 in 0..n {
             if row_cols[r1].len() != 2 {
                 continue;
             }
@@ -822,7 +840,7 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
                 }
                 let mut removed = Vec::new();
                 for &col in &cols {
-                    for r in 0..N {
+                    for r in 0..n {
                         if r == r1 || r == r2 {
                             continue;
                         }
@@ -837,8 +855,8 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
             }
         }
         let col_rows: Vec<Vec<usize>> =
-            (0..N).map(|col| (0..N).filter(|&r| c.get(r, col) & mask != 0).collect()).collect();
-        for c1 in 0..N {
+            (0..n).map(|col| (0..n).filter(|&r| c.get(r, col) & mask != 0).collect()).collect();
+        for c1 in 0..n {
             if col_rows[c1].len() != 2 {
                 continue;
             }
@@ -849,7 +867,7 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
                 }
                 let mut removed = Vec::new();
                 for &r in &rows {
-                    for col in 0..N {
+                    for col in 0..n {
                         if col == c1 || col == c2 {
                             continue;
                         }
@@ -875,13 +893,14 @@ fn find_xwing(c: &Candidates) -> Option<Step> {
 // in every other row. Symmetric for columns.
 
 fn find_swordfish(c: &Candidates) -> Option<Step> {
-    for v in 1u8..=9 {
+    let n = c.n;
+    for v in 1u8..=n as u8 {
         let mask = bit(v);
 
         // Row-based
         let row_cols: Vec<Vec<usize>> =
-            (0..N).map(|r| (0..N).filter(|&col| c.get(r, col) & mask != 0).collect()).collect();
-        let candidate_rows: Vec<usize> = (0..N)
+            (0..n).map(|r| (0..n).filter(|&col| c.get(r, col) & mask != 0).collect()).collect();
+        let candidate_rows: Vec<usize> = (0..n)
             .filter(|&r| {
                 let n = row_cols[r].len();
                 n == 2 || n == 3
@@ -904,7 +923,7 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
                     }
                     let mut removed = Vec::new();
                     for &col in &union {
-                        for r in 0..N {
+                        for r in 0..n {
                             if r == r1 || r == r2 || r == r3 {
                                 continue;
                             }
@@ -925,8 +944,8 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
 
         // Column-based
         let col_rows: Vec<Vec<usize>> =
-            (0..N).map(|col| (0..N).filter(|&r| c.get(r, col) & mask != 0).collect()).collect();
-        let candidate_cols: Vec<usize> = (0..N)
+            (0..n).map(|col| (0..n).filter(|&r| c.get(r, col) & mask != 0).collect()).collect();
+        let candidate_cols: Vec<usize> = (0..n)
             .filter(|&col| {
                 let n = col_rows[col].len();
                 n == 2 || n == 3
@@ -949,7 +968,7 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
                     }
                     let mut removed = Vec::new();
                     for &r in &union {
-                        for col in 0..N {
+                        for col in 0..n {
                             if col == c1 || col == c2 || col == c3 {
                                 continue;
                             }
@@ -981,8 +1000,9 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
 // Variant-aware via PeerTable.
 
 fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
+    let n = c.n;
     // Collect bivalue cells (exactly 2 candidates).
-    let bivalues: Vec<(usize, u16)> = (0..CELLS)
+    let bivalues: Vec<(usize, u32)> = (0..(n * n))
         .filter_map(|i| {
             let m = c.masks[i];
             if popcount(m) == 2 {
@@ -1000,7 +1020,7 @@ fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
         // Decompose pivot mask into (X, Y).
         let mut digits = [0u8; 2];
         let mut k = 0;
-        for v in 1u8..=9 {
+        for v in 1u8..=n as u8 {
             if pivot_mask & bit(v) != 0 {
                 digits[k] = v;
                 k += 1;
@@ -1045,7 +1065,7 @@ fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
                 let w1_peers = &peers.peers[w1];
                 let w2_peers = &peers.peers[w2];
                 let mut removed = Vec::new();
-                for i in 0..CELLS {
+                for i in 0..(n * n) {
                     if i == pivot || i == w1 || i == w2 {
                         continue;
                     }
@@ -1053,7 +1073,7 @@ fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
                         continue;
                     }
                     if c.masks[i] & bit(z) != 0 {
-                        removed.push((i / N, i % N, z));
+                        removed.push((i / n, i % n, z));
                     }
                 }
                 if !removed.is_empty() {
@@ -1074,10 +1094,11 @@ fn find_xywing(c: &Candidates, peers: &PeerTable) -> Option<Step> {
 // candidate sees both colors of a chain — handled as a follow-up case below.)
 
 fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
+    let n = g.n;
     // color[node] = 0 unvisited, 1 = color A, 2 = color B.
     let mut color: Vec<u8> = vec![0; g.nodes.len()];
 
-    for d in 1u8..=9 {
+    for d in 1u8..=n as u8 {
         // Build the per-digit subgraph as we go: a node belongs to the
         // subgraph iff it carries digit `d`.
         // Reset coloring scratch for this digit.
@@ -1134,9 +1155,9 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
                         // All A-color candidates are eliminable.
                         let removed: Vec<(usize, usize, u8)> = group_a
                             .iter()
-                            .map(|&n| {
-                                let cell = g.nodes[n].cell as usize;
-                                (cell / N, cell % N, d)
+                            .map(|&node| {
+                                let cell = g.nodes[node].cell as usize;
+                                (cell / n, cell % n, d)
                             })
                             .collect();
                         return Some(Step::Elimination { technique: Technique::Coloring, removed });
@@ -1151,9 +1172,9 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
                     if g.weak[a].contains(&(b as u16)) {
                         let removed: Vec<(usize, usize, u8)> = group_b
                             .iter()
-                            .map(|&n| {
-                                let cell = g.nodes[n].cell as usize;
-                                (cell / N, cell % N, d)
+                            .map(|&node| {
+                                let cell = g.nodes[node].cell as usize;
+                                (cell / n, cell % n, d)
                             })
                             .collect();
                         return Some(Step::Elimination { technique: Technique::Coloring, removed });
@@ -1176,7 +1197,7 @@ fn find_simple_coloring(g: &ChainGraph) -> Option<Step> {
                 let sees_b = group_b.iter().any(|&b| g.weak[victim].contains(&(b as u16)));
                 if sees_a && sees_b {
                     let cell = g.nodes[victim].cell as usize;
-                    trap_removed.push((cell / N, cell % N, d));
+                    trap_removed.push((cell / n, cell % n, d));
                 }
             }
             if !trap_removed.is_empty() {
@@ -1289,7 +1310,7 @@ fn aic_check_victims(g: &ChainGraph, start: usize, end: usize, on_path: &[bool])
             continue;
         }
         let cell = g.nodes[victim].cell as usize;
-        removed.push((cell / N, cell % N, g.nodes[victim].digit));
+        removed.push((cell / g.n, cell % g.n, g.nodes[victim].digit));
     }
     if removed.is_empty() {
         return None;
@@ -1315,14 +1336,15 @@ fn aic_check_victims(g: &ChainGraph, start: usize, end: usize, on_path: &[bool])
 const FORCING_MAX_DEPTH: usize = 12;
 
 fn find_bivalue_forcing(g: &ChainGraph, c: &Candidates) -> Option<Step> {
-    for cell in 0..CELLS {
+    let size = c.n;
+    for cell in 0..(size * size) {
         let m = c.masks[cell];
         if popcount(m) != 2 {
             continue;
         }
         let mut a: u8 = 0;
         let mut b: u8 = 0;
-        for d in 1u8..=9 {
+        for d in 1u8..=size as u8 {
             if m & bit(d) != 0 {
                 if a == 0 {
                     a = d;
@@ -1344,7 +1366,7 @@ fn find_bivalue_forcing(g: &ChainGraph, c: &Candidates) -> Option<Step> {
         for (n, (&fa, &fb)) in false_a.iter().zip(false_b.iter()).enumerate() {
             if fa && fb {
                 let cell_n = g.nodes[n].cell as usize;
-                removed.push((cell_n / N, cell_n % N, g.nodes[n].digit));
+                removed.push((cell_n / size, cell_n % size, g.nodes[n].digit));
             }
         }
         if !removed.is_empty() {
@@ -1429,10 +1451,10 @@ struct Als {
     /// same unit (the one that produced this ALS).
     cells: Vec<usize>,
     /// Bitmask of candidate digits across all cells (always popcount == cells.len() + 1).
-    candidates: u16,
+    candidates: u32,
     /// digit_cells[d-1] = cells in this ALS that carry digit d. Empty if d
     /// is not in this ALS's candidate union.
-    digit_cells: [Vec<usize>; 9],
+    digit_cells: [Vec<usize>; MAX_N],
 }
 
 /// Iterate every size-`k` subset of `pool` (k <= pool.len()) and call `f`
@@ -1469,12 +1491,13 @@ fn for_each_combination<F: FnMut(&[usize])>(pool: &[usize], k: usize, mut f: F) 
 }
 
 fn find_alses(c: &Candidates, units: &[Unit]) -> Vec<Als> {
+    let n = c.n;
     let mut alses: Vec<Als> = Vec::new();
-    let mut active_cells: Vec<usize> = Vec::with_capacity(9);
+    let mut active_cells: Vec<usize> = Vec::with_capacity(n);
     for u in units {
         active_cells.clear();
         for &(r, col) in &u.cells {
-            let i = r * N + col;
+            let i = r * n + col;
             if c.masks[i] != 0 {
                 active_cells.push(i);
             }
@@ -1485,27 +1508,17 @@ fn find_alses(c: &Candidates, units: &[Unit]) -> Vec<Als> {
         let max_size = ALS_MAX_SIZE.min(active_cells.len());
         for size in ALS_MIN_SIZE..=max_size {
             for_each_combination(&active_cells, size, |subset| {
-                let mut union: u16 = 0;
+                let mut union: u32 = 0;
                 for &i in subset {
                     union |= c.masks[i];
                 }
                 if popcount(union) as usize != size + 1 {
                     return;
                 }
-                let mut digit_cells: [Vec<usize>; 9] = [
-                    Vec::new(),
-                    Vec::new(),
-                    Vec::new(),
-                    Vec::new(),
-                    Vec::new(),
-                    Vec::new(),
-                    Vec::new(),
-                    Vec::new(),
-                    Vec::new(),
-                ];
+                let mut digit_cells: [Vec<usize>; MAX_N] = Default::default();
                 for &i in subset {
                     let m = c.masks[i];
-                    for d in 1u8..=9 {
+                    for d in 1u8..=n as u8 {
                         if m & bit(d) != 0 {
                             digit_cells[(d - 1) as usize].push(i);
                         }
@@ -1519,6 +1532,7 @@ fn find_alses(c: &Candidates, units: &[Unit]) -> Vec<Als> {
 }
 
 fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step> {
+    let n = c.n;
     let alses = find_alses(c, units);
     if alses.len() < 2 {
         return None;
@@ -1542,7 +1556,7 @@ fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step
             // strictly keeps the search bounded).
             let mut rccs: Vec<u8> = Vec::with_capacity(2);
             let mut too_many = false;
-            for d in 1u8..=9 {
+            for d in 1u8..=n as u8 {
                 if common & bit(d) == 0 {
                     continue;
                 }
@@ -1573,7 +1587,7 @@ fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step
             }
             // For each non-RCC common digit X, scan for eliminations.
             let mut removed: Vec<(usize, usize, u8)> = Vec::new();
-            for x in 1u8..=9 {
+            for x in 1u8..=n as u8 {
                 if rccs.contains(&x) || common & bit(x) == 0 {
                     continue;
                 }
@@ -1582,7 +1596,7 @@ fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step
                 if xa.is_empty() || xb.is_empty() {
                     continue;
                 }
-                for victim in 0..CELLS {
+                for victim in 0..(n * n) {
                     if c.masks[victim] & bit(x) == 0 {
                         continue;
                     }
@@ -1597,7 +1611,7 @@ fn find_als_xz(c: &Candidates, peers: &PeerTable, units: &[Unit]) -> Option<Step
                     if !sees_all_in_b {
                         continue;
                     }
-                    let elim = (victim / N, victim % N, x);
+                    let elim = (victim / n, victim % n, x);
                     if !removed.contains(&elim) {
                         removed.push(elim);
                     }
@@ -1694,7 +1708,44 @@ pub fn grade_variant(board: &Board, variant: &Variant) -> GradeOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::variant::Cage;
+    use crate::board::{CELLS, N};
+    use crate::variant::{cell_index, Cage};
+
+    const ALL: u32 = 0b11_1111_1110; // classic 9×9 all-candidates
+
+    /// Classic 9×9 candidate grid with every cell empty (all candidates).
+    fn cands_all() -> Candidates {
+        let mut masks = [0u32; MAX_CELLS];
+        for m in masks.iter_mut().take(CELLS) {
+            *m = ALL;
+        }
+        Candidates { masks, n: N }
+    }
+
+    /// Classic 9×9 candidate grid with every cell holding no candidates.
+    fn cands_empty() -> Candidates {
+        Candidates { masks: [0u32; MAX_CELLS], n: N }
+    }
+
+    #[test]
+    fn all_mask_matches_9_and_16() {
+        assert_eq!(all_mask(9), 0b11_1111_1110);
+        assert_eq!(all_mask(16), (1u32 << 17) - 2); // bits 1..=16 set, bit 0 clear
+    }
+
+    #[test]
+    fn grades_6x6_solved() {
+        const SOLVED6: &str = "123456456123231564564231312645645312";
+        let v = Variant::classic_n(6);
+        let mut b = Board::from_str(SOLVED6).unwrap();
+        for i in 0..6 {
+            b.set(i, i, 0);
+        }
+        match grade_variant(&b, &v) {
+            GradeOutcome::Solved { solution, .. } => assert!(v.is_solution_consistent(&solution)),
+            GradeOutcome::Stuck { .. } => panic!("6x6 should be human-solvable"),
+        }
+    }
 
     const EASY: &str =
         "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79";
@@ -1834,7 +1885,7 @@ mod tests {
         // Start from ALL candidates, then prune digit 1 outside the target
         // pattern in rows 0, 4, 8.
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [ALL; CELLS] };
+        let mut c = cands_all();
         // Row 0: keep 1 only in cols 0,3
         for col in 0..N {
             if col != 0 && col != 3 {
@@ -1879,7 +1930,7 @@ mod tests {
     #[test]
     fn xywing_eliminates() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [ALL; CELLS] };
+        let mut c = cands_all();
         // Force pivot (0,0) = {1,2}
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         // Force wing 1 (0,5) = {2,3}
@@ -1907,7 +1958,7 @@ mod tests {
     #[test]
     fn chain_graph_empty_when_no_candidates() {
         let peers = PeerTable::build(&Variant::classic());
-        let c = Candidates { masks: [0u16; CELLS] };
+        let c = cands_empty();
         let units = build_units(&Variant::classic());
         let g = build_chain_graph(&c, &peers, &units);
         assert_eq!(g.nodes.len(), 0, "no candidates -> no nodes");
@@ -1920,7 +1971,7 @@ mod tests {
     #[test]
     fn chain_graph_indexes_present_candidates() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         c.masks[cell_index(0, 1)] = bit(3);
         let units = build_units(&Variant::classic());
@@ -1940,7 +1991,7 @@ mod tests {
     #[test]
     fn chain_graph_bivalue_cell_makes_strong_link() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         // Bivalue cell at (0,0) with candidates {1, 2}.
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         let units = build_units(&Variant::classic());
@@ -1954,7 +2005,7 @@ mod tests {
     #[test]
     fn chain_graph_bilocal_unit_makes_strong_link() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         // Row 0: only (0,0) and (0,3) have digit 5 as a candidate.
         // Need to populate the row with non-5 elsewhere so the bilocal logic
         // finds exactly two cells with candidate 5.
@@ -1977,7 +2028,7 @@ mod tests {
     #[test]
     fn chain_graph_weak_links_cover_cell_and_unit_peers() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         // Cell (0,0) has candidates {1, 2, 3} — three intra-cell weak links.
         c.masks[cell_index(0, 0)] = bit(1) | bit(2) | bit(3);
         // Cell (0,5) has candidate {1} — row peer of (0,0) for digit 1.
@@ -1999,7 +2050,7 @@ mod tests {
     #[test]
     fn simple_coloring_compiles_and_runs() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         c.masks[cell_index(0, 0)] = bit(5) | bit(9);
         c.masks[cell_index(0, 5)] = bit(5) | bit(9);
         let units = build_units(&Variant::classic());
@@ -2020,7 +2071,7 @@ mod tests {
     #[test]
     fn simple_coloring_trap_actually_eliminates() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [ALL; CELLS] };
+        let mut c = cands_all();
         // Remove digit 5 everywhere, then re-add it only at the chain + victim cells.
         for i in 0..CELLS {
             c.masks[i] &= !bit(5);
@@ -2252,7 +2303,7 @@ mod tests {
     #[test]
     fn find_aic_smoke_empty_graph() {
         let peers = PeerTable::build(&Variant::classic());
-        let c = Candidates { masks: [0u16; CELLS] };
+        let c = cands_empty();
         let units = build_units(&Variant::classic());
         let g = build_chain_graph(&c, &peers, &units);
         let result = find_aic(&g);
@@ -2264,7 +2315,7 @@ mod tests {
     #[test]
     fn find_bivalue_forcing_smoke_empty() {
         let peers = PeerTable::build(&Variant::classic());
-        let c = Candidates { masks: [0u16; CELLS] };
+        let c = cands_empty();
         let units = build_units(&Variant::classic());
         let g = build_chain_graph(&c, &peers, &units);
         assert!(find_bivalue_forcing(&g, &c).is_none());
@@ -2279,7 +2330,7 @@ mod tests {
     #[test]
     fn aic_cross_digit_eliminates() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         c.masks[cell_index(3, 0)] = bit(1) | bit(2);
         c.masks[cell_index(6, 0)] = bit(1) | bit(5);
@@ -2304,7 +2355,7 @@ mod tests {
     #[test]
     fn bivalue_forcing_intersection_eliminates() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         c.masks[cell_index(0, 4)] = bit(1) | bit(5);
         c.masks[cell_index(5, 0)] = bit(2) | bit(5);
@@ -2338,7 +2389,7 @@ mod tests {
     #[test]
     fn find_forcing_chain_smoke() {
         let peers = PeerTable::build(&Variant::classic());
-        let c = Candidates { masks: [0u16; CELLS] };
+        let c = cands_empty();
         let units = build_units(&Variant::classic());
         let g = build_chain_graph(&c, &peers, &units);
         assert!(find_forcing_chain(&g, &c).is_none());
@@ -2352,7 +2403,7 @@ mod tests {
     /// Smoke: `find_alses` runs on empty candidates and returns an empty Vec.
     #[test]
     fn find_alses_smoke_empty() {
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         // Trigger any safety branch involving non-zero masks but not enough
         // cells per unit to form an ALS.
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
@@ -2366,7 +2417,7 @@ mod tests {
     #[test]
     fn find_als_xz_smoke_empty() {
         let peers = PeerTable::build(&Variant::classic());
-        let c = Candidates { masks: [0u16; CELLS] };
+        let c = cands_empty();
         let units = build_units(&Variant::classic());
         assert!(find_als_xz(&c, &peers, &units).is_none());
     }
@@ -2376,7 +2427,7 @@ mod tests {
     /// Union = {1,2,3}, popcount = 3 = size + 1 → ALS.
     #[test]
     fn find_alses_discovers_size_2_als() {
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         c.masks[cell_index(0, 1)] = bit(2) | bit(3);
         let units = build_units(&Variant::classic());
@@ -2414,7 +2465,7 @@ mod tests {
     #[test]
     fn als_xz_eliminates_victim() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         c.masks[cell_index(0, 1)] = bit(2) | bit(3);
         c.masks[cell_index(3, 0)] = bit(1) | bit(3);
@@ -2439,7 +2490,7 @@ mod tests {
     #[test]
     fn als_xy_wing_does_not_break_xz_behavior() {
         let peers = PeerTable::build(&Variant::classic());
-        let mut c = Candidates { masks: [0u16; CELLS] };
+        let mut c = cands_empty();
         c.masks[cell_index(0, 0)] = bit(1) | bit(2);
         c.masks[cell_index(0, 1)] = bit(2) | bit(3);
         c.masks[cell_index(3, 0)] = bit(1) | bit(3);
@@ -2475,7 +2526,7 @@ mod tests {
         }
         let variant = Variant::killer(cages);
         let board = Board::empty();
-        let c = Candidates { masks: [ALL; CELLS] };
+        let c = cands_all();
         let step = find_cage_sum(&c, &board, &variant).expect("cage-sum should fire");
         match step {
             Step::Elimination { technique, removed } => {
