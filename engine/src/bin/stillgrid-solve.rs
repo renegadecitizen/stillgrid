@@ -13,7 +13,7 @@
 //! generate puzzles rather than just solve them.
 
 use std::io::{self, Read};
-use stillgrid_engine::{solve, Board, SolveOutcome};
+use stillgrid_engine::{solve_variant, Board, SolveOutcome, Variant};
 
 fn read_input() -> Result<String, String> {
     let arg = std::env::args().nth(1);
@@ -28,7 +28,7 @@ fn read_input() -> Result<String, String> {
 fn run() -> Result<String, String> {
     let raw = read_input()?;
     let board = Board::from_str(&raw)?;
-    let outcome = solve(&board);
+    let outcome = solve_variant(&board, &Variant::classic_n(board.n()));
     Ok(match outcome {
         SolveOutcome::Unique(s) => {
             format!(r#"{{"outcome":"unique","solution":"{}"}}"#, s.to_string_dotted())

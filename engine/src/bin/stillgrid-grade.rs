@@ -115,19 +115,17 @@ fn parse_input(raw: &str) -> Result<Input, String> {
             JsonValue::Array(a) => a,
             _ => return Err("box_of must be an array".into()),
         };
-        let mut out = Vec::with_capacity(81);
+        let mut out = Vec::with_capacity(arr.len());
         for item in arr {
             let n = match item {
                 JsonValue::Number(n) => *n,
                 _ => return Err("box_of items must be numbers".into()),
             };
-            if !(0.0..=8.0).contains(&n) {
+            // Wide sanity bound — per-n range is enforced in build_variant/jigsaw_n.
+            if !(0.0..=255.0).contains(&n) {
                 return Err(format!("box_of value out of range: {n}"));
             }
             out.push(n as u8);
-        }
-        if out.len() != 81 {
-            return Err(format!("box_of must be 81 entries, got {}", out.len()));
         }
         input.box_of = Some(out);
     }
@@ -154,7 +152,8 @@ fn parse_input(raw: &str) -> Result<Input, String> {
                     JsonValue::Number(n) => *n,
                     _ => return Err("cage cell must be a number".into()),
                 };
-                if !(0.0..=80.0).contains(&n) {
+                // Wide sanity bound — killer_n asserts full coverage per n.
+                if !(0.0..=255.0).contains(&n) {
                     return Err(format!("cage cell out of range: {n}"));
                 }
                 cells.push(n as usize);
@@ -356,23 +355,26 @@ impl<'a> JsonParser<'a> {
     }
 }
 
-fn build_variant(input: &Input) -> Result<Variant, String> {
+fn build_variant(input: &Input, n: usize) -> Result<Variant, String> {
     let kind = input.variant_kind.as_deref().unwrap_or("classic");
     let kind = VariantKind::parse(kind).ok_or_else(|| format!("unknown variant: {kind}"))?;
     match kind {
-        VariantKind::Classic => Ok(Variant::classic()),
-        VariantKind::XSudoku => Ok(Variant::xsudoku()),
+        VariantKind::Classic => Ok(Variant::classic_n(n)),
+        VariantKind::XSudoku => Ok(Variant::xsudoku_n(n)),
         VariantKind::Jigsaw => {
             let bo = input.box_of.as_ref().ok_or("jigsaw requires box_of")?;
-            let mut arr = [0u8; 81];
+            if bo.len() != n * n {
+                return Err(format!("jigsaw box_of must have {} entries for {n}×{n}, got {}", n * n, bo.len()));
+            }
+            let mut arr = [0u8; 256]; // MAX_CELLS = 256
             for (i, &v) in bo.iter().enumerate() {
                 arr[i] = v;
             }
-            Ok(Variant::jigsaw(arr))
+            Ok(Variant::jigsaw_n(n, arr))
         }
         VariantKind::Killer => {
             let cages = input.cages.as_ref().ok_or("killer requires cages")?;
-            Ok(Variant::killer(cages.clone()))
+            Ok(Variant::killer_n(n, cages.clone()))
         }
     }
 }
@@ -381,7 +383,8 @@ fn run() -> Result<String, String> {
     let raw = read_input()?;
     let input = parse_input(&raw)?;
     let board = Board::from_str(&input.givens)?;
-    let variant = build_variant(&input)?;
+    let n = board.n();
+    let variant = build_variant(&input, n)?;
     let result = grade_variant(&board, &variant);
     Ok(match result {
         GradeOutcome::Solved { steps, tier, .. } => {
