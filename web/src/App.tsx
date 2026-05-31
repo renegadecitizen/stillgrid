@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   getBest,
   recordRun,
@@ -384,17 +384,40 @@ function Controls({
   onNew: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <SizeSelect value={size} onChange={onSize} disabled={dailyActive} />
-      <VariantSelect value={variant} onChange={onVariant} />
-      <TierSelect value={tier} onChange={onTier} disabled={variant !== "classic"} />
-      <button
-        onClick={onNew}
-        className="rounded-full px-4 py-1.5 text-sm font-medium ml-auto transition-colors text-white"
-        style={{ background: variantColor }}
+    <div className="flex flex-col gap-3">
+      <SetupRow label="Size">
+        <SizeSelect value={size} onChange={onSize} disabled={dailyActive} />
+      </SetupRow>
+      <SetupRow label="Variant">
+        <VariantSelect value={variant} onChange={onVariant} />
+      </SetupRow>
+      <SetupRow label="Difficulty">
+        <TierSelect value={tier} onChange={onTier} disabled={variant !== "classic"} />
+      </SetupRow>
+      <div className="flex pt-1">
+        <button
+          onClick={onNew}
+          className="rounded-full px-5 py-1.5 text-sm font-medium transition-colors text-white"
+          style={{ background: variantColor }}
+        >
+          New puzzle
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Label-left setup row: a small fixed-width category label + its control.
+function SetupRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-4">
+      <span
+        className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-[0.08em]"
+        style={{ color: "var(--color-ink-mute)" }}
       >
-        New puzzle
-      </button>
+        {label}
+      </span>
+      {children}
     </div>
   );
 }
