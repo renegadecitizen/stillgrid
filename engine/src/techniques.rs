@@ -6,7 +6,7 @@
 //! Killer (cage uniqueness — cage-sum techniques are deferred).
 
 use crate::board::{Board, MAX_CELLS, MAX_N};
-use crate::variant::{cell_index_n, Variant};
+use crate::variant::{cell_index, Variant};
 use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -139,11 +139,11 @@ impl PeerTable {
             };
             // Row
             for cc in 0..n {
-                add(cell_index_n(n, r, cc), &mut seen, &mut peers[i]);
+                add(cell_index(n, r, cc), &mut seen, &mut peers[i]);
             }
             // Col
             for rr in 0..n {
-                add(cell_index_n(n, rr, c), &mut seen, &mut peers[i]);
+                add(cell_index(n, rr, c), &mut seen, &mut peers[i]);
             }
             // Box
             let b = variant.box_of[i] as usize;
@@ -154,12 +154,12 @@ impl PeerTable {
             if variant.diagonals {
                 if r == c {
                     for k in 0..n {
-                        add(cell_index_n(n, k, k), &mut seen, &mut peers[i]);
+                        add(cell_index(n, k, k), &mut seen, &mut peers[i]);
                     }
                 }
                 if r + c == n - 1 {
                     for k in 0..n {
-                        add(cell_index_n(n, k, n - 1 - k), &mut seen, &mut peers[i]);
+                        add(cell_index(n, k, n - 1 - k), &mut seen, &mut peers[i]);
                     }
                 }
             }
@@ -698,7 +698,7 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
                 let mut removed = Vec::new();
                 for col in 0..n {
                     // Skip cells of this box (jigsaw-safe).
-                    if variant.box_of[cell_index_n(n, r, col)] as usize == b {
+                    if variant.box_of[cell_index(n, r, col)] as usize == b {
                         continue;
                     }
                     if c.get(r, col) & mask != 0 {
@@ -714,7 +714,7 @@ fn find_pointing_pair(c: &Candidates, variant: &Variant) -> Option<Step> {
                 let col = cols_used[0];
                 let mut removed = Vec::new();
                 for r in 0..n {
-                    if variant.box_of[cell_index_n(n, r, col)] as usize == b {
+                    if variant.box_of[cell_index(n, r, col)] as usize == b {
                         continue;
                     }
                     if c.get(r, col) & mask != 0 {
@@ -902,8 +902,8 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
             (0..n).map(|r| (0..n).filter(|&col| c.get(r, col) & mask != 0).collect()).collect();
         let candidate_rows: Vec<usize> = (0..n)
             .filter(|&r| {
-                let n = row_cols[r].len();
-                n == 2 || n == 3
+                let len = row_cols[r].len();
+                len == 2 || len == 3
             })
             .collect();
         for i in 0..candidate_rows.len() {
@@ -947,8 +947,8 @@ fn find_swordfish(c: &Candidates) -> Option<Step> {
             (0..n).map(|col| (0..n).filter(|&r| c.get(r, col) & mask != 0).collect()).collect();
         let candidate_cols: Vec<usize> = (0..n)
             .filter(|&col| {
-                let n = col_rows[col].len();
-                n == 2 || n == 3
+                let len = col_rows[col].len();
+                len == 2 || len == 3
             })
             .collect();
         for i in 0..candidate_cols.len() {
@@ -1708,8 +1708,14 @@ pub fn grade_variant(board: &Board, variant: &Variant) -> GradeOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::board::{CELLS, N};
-    use crate::variant::{cell_index, Cage};
+    use crate::variant::Cage;
+
+    // 9×9 test-fixture conveniences (production code uses board.n()/cell_index(n,..)).
+    const N: usize = 9;
+    const CELLS: usize = 81;
+    fn cell_index(r: usize, c: usize) -> usize {
+        r * N + c
+    }
 
     const ALL: u32 = 0b11_1111_1110; // classic 9×9 all-candidates
 

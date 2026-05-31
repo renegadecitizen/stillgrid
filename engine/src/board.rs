@@ -1,7 +1,5 @@
 //! Generalized sudoku board: any size n in {6, 9, 16}.
 
-pub const N: usize = 9; // legacy 9×9 constant — kept until cleanup task
-pub const CELLS: usize = N * N;
 pub const MAX_N: usize = 16;
 pub const MAX_CELLS: usize = MAX_N * MAX_N;
 

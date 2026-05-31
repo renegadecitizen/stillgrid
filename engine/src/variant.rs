@@ -9,15 +9,10 @@
 //! - **Killer**: cells are grouped into cages; each cage has a target sum
 //!   and no digit repeats within it.
 
-use crate::board::{box_dims, Board, CELLS, MAX_CELLS, N};
+use crate::board::{box_dims, Board, MAX_CELLS};
 
 #[inline]
-pub fn cell_index(r: usize, c: usize) -> usize {
-    r * N + c
-}
-
-#[inline]
-pub fn cell_index_n(n: usize, r: usize, c: usize) -> usize {
+pub fn cell_index(n: usize, r: usize, c: usize) -> usize {
     r * n + c
 }
 
@@ -89,7 +84,7 @@ impl Variant {
         for r in 0..n {
             for c in 0..n {
                 let b = ((r / bh) * boxes_per_row + (c / bw)) as u8;
-                let idx = cell_index_n(n, r, c);
+                let idx = cell_index(n, r, c);
                 box_of[idx] = b;
                 boxes[b as usize].push(idx);
             }
@@ -116,11 +111,11 @@ impl Variant {
         v
     }
 
-    // 9-default shim: generator passes a `[u8; CELLS]` (81). Copy into the
-    // wider MAX_CELLS buffer and delegate.
-    pub fn jigsaw(box_partition: [u8; CELLS]) -> Self {
+    // 9×9 classic jigsaw input (81 cells). Copy into the wider MAX_CELLS
+    // buffer and delegate.
+    pub fn jigsaw(box_partition: [u8; 81]) -> Self {
         let mut big = [0u8; MAX_CELLS];
-        big[..CELLS].copy_from_slice(&box_partition);
+        big[..81].copy_from_slice(&box_partition);
         Self::jigsaw_n(9, big)
     }
     pub fn jigsaw_n(n: usize, box_partition: [u8; MAX_CELLS]) -> Self {
@@ -167,7 +162,7 @@ impl Variant {
 
     pub fn box_idx(&self, r: usize, c: usize) -> usize {
         debug_assert!(r < self.n() && c < self.n(), "cell ({r},{c}) out of range for n={}", self.n());
-        self.box_of[cell_index_n(self.n(), r, c)] as usize
+        self.box_of[cell_index(self.n(), r, c)] as usize
     }
 
     /// Returns true if placing `v` at (r,c) violates row/col/box/diagonal/
@@ -205,7 +200,7 @@ impl Variant {
             }
         }
         if !self.cages.is_empty() {
-            let here = cell_index_n(self.n(), r, c);
+            let here = cell_index(self.n(), r, c);
             for cage in &self.cages {
                 if !cage.cells.contains(&here) {
                     continue;
@@ -338,13 +333,13 @@ mod tests {
         // Top-left 3x3 is box 0
         for r in 0..3 {
             for c in 0..3 {
-                assert_eq!(v.box_of[cell_index(r, c)], 0);
+                assert_eq!(v.box_of[cell_index(9, r, c)], 0);
             }
         }
         // Center 3x3 is box 4
         for r in 3..6 {
             for c in 3..6 {
-                assert_eq!(v.box_of[cell_index(r, c)], 4);
+                assert_eq!(v.box_of[cell_index(9, r, c)], 4);
             }
         }
     }
@@ -356,7 +351,7 @@ mod tests {
         // top-left 2x3 region is box 0
         for r in 0..2 {
             for c in 0..3 {
-                assert_eq!(v.box_of[cell_index_n(6, r, c)], 0);
+                assert_eq!(v.box_of[cell_index(6, r, c)], 0);
             }
         }
         // every box has exactly 6 cells
