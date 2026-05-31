@@ -3,6 +3,14 @@ import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { generate, grade, solve, type GradeInput, type GeneratedPuzzle } from "./engine.js";
 
+const SUPPORTED_SIZES = new Set([6, 9]); // 16 deferred (engine-capable, solver not viable per-request)
+
+export function parseSize(raw: string | undefined): number | null {
+  if (raw === undefined) return 9;
+  const n = Number(raw);
+  return SUPPORTED_SIZES.has(n) ? n : null;
+}
+
 function puzzleToGradeInput(p: GeneratedPuzzle): GradeInput {
   return {
     givens: p.givens,
@@ -77,6 +85,11 @@ app.get("/api/puzzle", async (req, res) => {
     res.status(400).json({ error: "unknown variant", variant, supported: [...VARIANTS] });
     return;
   }
+  const size = parseSize(req.query.size !== undefined ? String(req.query.size) : undefined);
+  if (size === null) {
+    res.status(400).json({ error: "unsupported size", supported: [6, 9] });
+    return;
+  }
   const minClues = req.query.minClues ? Number(req.query.minClues) : undefined;
   const seed = req.query.seed ? Number(req.query.seed) : undefined;
   const wantTier = req.query.tier ? String(req.query.tier) : null;
@@ -89,6 +102,7 @@ app.get("/api/puzzle", async (req, res) => {
     for (let i = 0; i < MAX_RETRIES; i++) {
       const puzzle = await generate({
         variant: variant as "classic" | "xsudoku" | "jigsaw" | "killer",
+        size,
         minClues,
         seed: seed !== undefined ? seed + i : undefined,
       });
@@ -105,6 +119,7 @@ app.get("/api/puzzle", async (req, res) => {
       return;
     }
     const body: Record<string, unknown> = { ...lastPuzzle };
+    body.size = size;
     if (lastGrade) body.grade = lastGrade;
     if (wantTier && !matched) {
       body.requested_tier = wantTier;
@@ -191,8 +206,10 @@ if (SERVE_STATIC) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(
-    `stillgrid-server listening on :${PORT} (static: ${SERVE_STATIC ? WEB_DIST : "off"})`,
-  );
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(
+      `stillgrid-server listening on :${PORT} (static: ${SERVE_STATIC ? WEB_DIST : "off"})`,
+    );
+  });
+}

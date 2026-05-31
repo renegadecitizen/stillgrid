@@ -21,6 +21,7 @@ export interface GeneratedPuzzle {
   givens: string;
   solution: string;
   clue_count: number;
+  size?: number;
   diagonals?: boolean;
   box_of?: number[];
   cages?: Array<{ cells: number[]; sum: number }>;
@@ -68,11 +69,12 @@ export function solve(puzzle: string, timeoutMs = 5000): Promise<SolveResult> {
 }
 
 export function generate(
-  opts: { seed?: number; minClues?: number; variant?: VariantKind } = {},
+  opts: { seed?: number; minClues?: number; variant?: VariantKind; size?: number } = {},
   timeoutMs = 15000,
 ): Promise<GeneratedPuzzle> {
   const args: string[] = [];
   if (opts.variant) args.push("--variant", opts.variant);
+  if (opts.size !== undefined) args.push("--size", String(opts.size));
   if (opts.seed !== undefined) args.push("--seed", String(opts.seed));
   if (opts.minClues !== undefined) args.push("--min-clues", String(opts.minClues));
   return runJson<GeneratedPuzzle>(GENERATE_BIN, args, null, timeoutMs);
