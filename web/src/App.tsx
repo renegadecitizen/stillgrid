@@ -80,12 +80,19 @@ const kbd: React.CSSProperties = {
   color: "var(--color-ink-soft)",
 };
 
-const VARIANT_BLURB: Record<Variant, string> = {
-  classic: "The original. Rows, columns, and 3×3 boxes — each holds 1 through 9.",
-  xsudoku: "Classic, plus both main diagonals must contain 1 through 9.",
-  jigsaw: "The boxes aren't 3×3 — they're irregular regions of nine cells.",
-  killer: "No starting digits. Cages give you a target sum; no digit repeats inside a cage.",
-};
+function blurbFor(variant: Variant, n: number): string {
+  const { bh, bw } = boxDims(n);
+  switch (variant) {
+    case "classic":
+      return `The original. Rows, columns, and ${bh}×${bw} boxes — each holds 1 through ${n}.`;
+    case "xsudoku":
+      return `Classic, plus both main diagonals must contain 1 through ${n}.`;
+    case "jigsaw":
+      return `The boxes aren't ${bh}×${bw} — they're irregular regions of ${n} cells.`;
+    case "killer":
+      return "No starting digits. Cages give you a target sum; no digit repeats inside a cage.";
+  }
+}
 
 export function App() {
   const [puzzle, setPuzzle] = useState<PuzzleResponse | null>(null);
@@ -240,7 +247,7 @@ export function App() {
               className="mt-4 text-sm italic leading-relaxed"
               style={{ color: "var(--color-ink-soft)" }}
             >
-              {VARIANT_BLURB[variant]}
+              {blurbFor(variant, size)}
             </p>
 
             {error && (
@@ -955,7 +962,7 @@ function PlayCard({
           {notesMode ? (
             <>
               <span style={{ color: "var(--color-ink-soft)" }}>
-                <strong style={{ color: playAccent }}>Notes are ON.</strong> Typing 1–9 writes small
+                <strong style={{ color: playAccent }}>Notes are ON.</strong> Typing 1–{n} writes small
                 candidate digits in the selected cell instead of placing a value.
               </span>
               <span>Turn off with the Notes button or press N.</span>
@@ -963,7 +970,7 @@ function PlayCard({
           ) : selected === null ? (
             <>
               <span>
-                Click a cell, then type 1–9 to fill it. <strong>Notes</strong> mode (or Shift+digit)
+                Click a cell, then type 1–{n} to fill it. <strong>Notes</strong> mode (or Shift+digit)
                 writes small pencil-mark candidates.
               </span>
               <span>Shortcuts: <kbd style={kbd}>N</kbd> notes · <kbd style={kbd}>⌘Z</kbd> undo · arrows navigate</span>
@@ -971,7 +978,7 @@ function PlayCard({
           ) : (
             <>
               <span>
-                <strong>1–9</strong> places a value · <strong>Shift+digit</strong> toggles a note ·{" "}
+                <strong>1–{n}</strong> places a value · <strong>Shift+digit</strong> toggles a note ·{" "}
                 <strong>⌫</strong> clears
               </span>
               <span>Toggle Notes mode for pen-and-paper-style candidates · <kbd style={kbd}>⌘Z</kbd> undo</span>
@@ -1139,7 +1146,7 @@ function NumberPad({
       <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-center sm:flex-wrap w-full mx-auto ${ROW_GAP}`}>
         <button
           onClick={onToggleNotes}
-          title="Toggle notes mode (N). When on, 1-9 writes small candidate digits instead of placing a value."
+          title={`Toggle notes mode (N). When on, 1-${n} writes small candidate digits instead of placing a value.`}
           className="inline-flex items-center justify-center gap-2 px-2 sm:px-4 rounded-lg text-sm transition-colors w-full sm:w-auto"
           style={{
             height: BTN_H,
