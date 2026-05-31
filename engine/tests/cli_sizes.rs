@@ -35,7 +35,9 @@ fn solve_6x6_via_stdin() {
     let givens = {
         let full = "123456456123231564564231312645645312";
         let mut v: Vec<char> = full.chars().collect();
-        for i in 0..6 { v[i * 6 + i] = '.'; }
+        for i in 0..6 {
+            v[i * 6 + i] = '.';
+        }
         v.into_iter().collect::<String>()
     };
     let mut child = Command::new(bin("stillgrid-solve"))

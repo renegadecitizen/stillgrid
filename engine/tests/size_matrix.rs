@@ -22,12 +22,8 @@ use stillgrid_engine::{
     generate_for_n, grade_variant, solve_variant, GradeOutcome, Rng, SolveOutcome, VariantKind,
 };
 
-const KINDS: [VariantKind; 4] = [
-    VariantKind::Classic,
-    VariantKind::XSudoku,
-    VariantKind::Jigsaw,
-    VariantKind::Killer,
-];
+const KINDS: [VariantKind; 4] =
+    [VariantKind::Classic, VariantKind::XSudoku, VariantKind::Jigsaw, VariantKind::Killer];
 
 #[test]
 fn classic_x_jigsaw_generate_unique_6_and_9() {
