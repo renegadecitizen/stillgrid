@@ -9,7 +9,7 @@
 //! handled separately (`generate_killer`) because it builds cages from a
 //! completed grid rather than carving clues.
 
-use crate::board::{Board, CELLS, N};
+use crate::board::{Board, MAX_CELLS};
 use crate::rng::Rng;
 use crate::solver::{solve_variant, SolveOutcome};
 use crate::techniques::{grade_variant, GradeOutcome};
@@ -27,7 +27,8 @@ pub struct Puzzle {
 /// on the (extremely rare) chance that no solution exists for the random
 /// fill order (effectively never for classic/x/jigsaw with valid boxes).
 pub fn random_solution(rng: &mut Rng, variant: &Variant) -> Option<Board> {
-    let mut b = Board::empty();
+    let n = variant.n as usize;
+    let mut b = Board::empty_n(n);
     if fill_random(&mut b, variant, rng) {
         Some(b)
     } else {
@@ -36,12 +37,13 @@ pub fn random_solution(rng: &mut Rng, variant: &Variant) -> Option<Board> {
 }
 
 fn fill_random(board: &mut Board, variant: &Variant, rng: &mut Rng) -> bool {
-    let Some((r, c)) = first_empty(board) else {
+    let n = variant.n as usize;
+    let Some((r, c)) = first_empty(board, n) else {
         return true;
     };
-    let mut digits: [u8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    rng.shuffle(&mut digits);
-    for &v in &digits {
+    let mut digits: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    rng.shuffle(&mut digits[..n]);
+    for &v in &digits[..n] {
         if variant.can_place(board, r, c, v) {
             board.set(r, c, v);
             if fill_random(board, variant, rng) {
@@ -53,9 +55,9 @@ fn fill_random(board: &mut Board, variant: &Variant, rng: &mut Rng) -> bool {
     false
 }
 
-fn first_empty(board: &Board) -> Option<(usize, usize)> {
-    for r in 0..N {
-        for c in 0..N {
+fn first_empty(board: &Board, n: usize) -> Option<(usize, usize)> {
+    for r in 0..n {
+        for c in 0..n {
             if board.get(r, c) == 0 {
                 return Some((r, c));
             }
@@ -68,16 +70,27 @@ fn first_empty(board: &Board) -> Option<(usize, usize)> {
 /// For Killer use `generate_killer` instead — this function returns a
 /// classic-style puzzle even if you pass a killer variant.
 pub fn generate_variant(rng: &mut Rng, variant: &Variant, min_clues: usize) -> Puzzle {
+    let n = variant.n as usize;
+    let cells = n * n;
     let solution =
         random_solution(rng, variant).expect("solution always exists for non-degenerate variants");
     let mut givens = solution;
 
-    let mut order: Vec<usize> = (0..CELLS).collect();
+    let mut order: Vec<usize> = (0..cells).collect();
     rng.shuffle(&mut order);
 
-    let mut clue_count = CELLS;
+    // On a 16×16 the backtracking uniqueness check degrades catastrophically
+    // once givens fall below ~45% of cells (single checks blow past 10s), so
+    // carving toward a near-minimal grid is computationally infeasible with the
+    // current solver. Cap the carve at a board-size-scaled clue floor for n>9.
+    // For n<=9 the natural carve depth is far below any such floor, so 9×9 (and
+    // 6×6) behaviour is unchanged. See Task 5 perf notes; the dedicated 16×16
+    // performance task may revisit this once the solver gains propagation.
+    let floor = if n > 9 { min_clues.max(cells * 47 / 100) } else { min_clues };
+
+    let mut clue_count = cells;
     for &idx in &order {
-        if clue_count <= min_clues {
+        if clue_count <= floor {
             break;
         }
         let saved = givens.0[idx];
@@ -105,40 +118,46 @@ pub fn generate(rng: &mut Rng, min_clues: usize) -> Puzzle {
 
 // --- Jigsaw partition generation -----------------------------------------
 //
-// Build a random partition of 81 cells into 9 connected regions of 9.
-// Uses BFS growth from 9 random seed cells, then assigns the rest greedily.
+// Build a random partition of n*n cells into n connected regions of n.
+// Uses BFS growth from n random seed cells; retries if a region gets boxed in.
 
-pub fn random_jigsaw_variant(rng: &mut Rng) -> Variant {
+pub fn random_jigsaw_variant_n(rng: &mut Rng, n: usize) -> Variant {
     loop {
-        if let Some(partition) = try_jigsaw_partition(rng) {
-            return Variant::jigsaw(partition);
+        if let Some(partition) = try_jigsaw_partition(rng, n) {
+            return Variant::jigsaw_n(n, partition);
         }
     }
 }
 
-fn try_jigsaw_partition(rng: &mut Rng) -> Option<[u8; CELLS]> {
-    let mut partition = [u8::MAX; CELLS];
-    let mut region_size = [0u8; 9];
+/// 9-default shim.
+pub fn random_jigsaw_variant(rng: &mut Rng) -> Variant {
+    random_jigsaw_variant_n(rng, 9)
+}
 
-    // Seeds: 9 random distinct cells.
-    let mut seeds: Vec<usize> = (0..CELLS).collect();
+fn try_jigsaw_partition(rng: &mut Rng, n: usize) -> Option<[u8; MAX_CELLS]> {
+    let cells = n * n;
+    let mut partition = [u8::MAX; MAX_CELLS];
+    let mut region_size = vec![0u8; n];
+
+    // Seeds: n random distinct cells.
+    let mut seeds: Vec<usize> = (0..cells).collect();
     rng.shuffle(&mut seeds);
-    for (region, &seed) in seeds.iter().take(9).enumerate() {
+    for (region, &seed) in seeds.iter().take(n).enumerate() {
         partition[seed] = region as u8;
         region_size[region] = 1;
     }
 
     // BFS frontier per region.
     let mut frontiers: Vec<Vec<usize>> =
-        (0..9).map(|r| neighbours(seeds[r]).into_iter().collect()).collect();
+        (0..n).map(|r| neighbours(seeds[r], n).into_iter().collect()).collect();
 
-    let mut placed = 9;
-    while placed < CELLS {
+    let mut placed = n;
+    while placed < cells {
         let mut made_progress = false;
-        let mut order: Vec<usize> = (0..9).collect();
+        let mut order: Vec<usize> = (0..n).collect();
         rng.shuffle(&mut order);
         for &region in &order {
-            if region_size[region] >= 9 {
+            if region_size[region] as usize >= n {
                 continue;
             }
             // Find an unassigned frontier cell.
@@ -150,9 +169,9 @@ fn try_jigsaw_partition(rng: &mut Rng) -> Option<[u8; CELLS]> {
                 region_size[region] += 1;
                 placed += 1;
                 made_progress = true;
-                for n in neighbours(cell) {
-                    if partition[n] == u8::MAX {
-                        frontiers[region].push(n);
+                for nb in neighbours(cell, n) {
+                    if partition[nb] == u8::MAX {
+                        frontiers[region].push(nb);
                     }
                 }
                 break;
@@ -165,20 +184,20 @@ fn try_jigsaw_partition(rng: &mut Rng) -> Option<[u8; CELLS]> {
     Some(partition)
 }
 
-fn neighbours(cell: usize) -> Vec<usize> {
-    let r = cell / N;
-    let c = cell % N;
+fn neighbours(cell: usize, n: usize) -> Vec<usize> {
+    let r = cell / n;
+    let c = cell % n;
     let mut out = Vec::with_capacity(4);
     if r > 0 {
-        out.push(cell - N);
+        out.push(cell - n);
     }
-    if r < N - 1 {
-        out.push(cell + N);
+    if r < n - 1 {
+        out.push(cell + n);
     }
     if c > 0 {
         out.push(cell - 1);
     }
-    if c < N - 1 {
+    if c < n - 1 {
         out.push(cell + 1);
     }
     out
@@ -192,12 +211,13 @@ fn neighbours(cell: usize) -> Vec<usize> {
 // 4. The givens board is *empty* — Killer puzzles ship with no digit clues,
 //    only cages and sums.
 
-pub fn generate_killer(rng: &mut Rng) -> Puzzle {
-    let classic = Variant::classic();
+pub fn generate_killer_n(rng: &mut Rng, n: usize) -> Puzzle {
+    let cells = n * n;
+    let classic = Variant::classic_n(n);
     let solution = random_solution(rng, &classic).expect("classic solution");
 
-    let cages = partition_into_cages(rng, &solution);
-    let variant = Variant::killer(cages);
+    let cages = partition_into_cages(rng, &solution, n);
+    let variant = Variant::killer_n(n, cages);
 
     // A random cage partition almost never pins a unique solution on its own
     // (empirically ~85% of partitions are ambiguous). Carve from the fully
@@ -208,9 +228,9 @@ pub fn generate_killer(rng: &mut Rng) -> Puzzle {
     // constrained layouts carve all the way to zero givens; the rest keep the
     // minimum clues the technique set needs.
     let mut givens = solution;
-    let mut order: Vec<usize> = (0..CELLS).collect();
+    let mut order: Vec<usize> = (0..cells).collect();
     rng.shuffle(&mut order);
-    let mut clue_count = CELLS;
+    let mut clue_count = cells;
     for &idx in &order {
         let saved = givens.0[idx];
         givens.0[idx] = 0;
@@ -223,25 +243,32 @@ pub fn generate_killer(rng: &mut Rng) -> Puzzle {
     Puzzle { givens, solution, clue_count, variant }
 }
 
-fn partition_into_cages(rng: &mut Rng, solution: &Board) -> Vec<Cage> {
-    let mut assigned = [false; CELLS];
+/// 9-default shim.
+pub fn generate_killer(rng: &mut Rng) -> Puzzle {
+    generate_killer_n(rng, 9)
+}
+
+fn partition_into_cages(rng: &mut Rng, solution: &Board, n: usize) -> Vec<Cage> {
+    let total = n * n;
+    let mut assigned = vec![false; total];
     let mut cages: Vec<Cage> = Vec::new();
-    let mut order: Vec<usize> = (0..CELLS).collect();
+    let mut order: Vec<usize> = (0..total).collect();
     rng.shuffle(&mut order);
 
     for &start in &order {
         if assigned[start] {
             continue;
         }
-        // Cage size: 2, 3, or 4 (with mild bias toward 3).
+        // Cage size: 2, 3, or 4 (with mild bias toward 3), never exceeding n.
         let target = match rng.gen_range(10) {
             0..=2 => 2,
             3..=7 => 3,
             _ => 4,
-        };
+        }
+        .min(n);
         let mut cells = vec![start];
         assigned[start] = true;
-        let mut frontier = neighbours(start);
+        let mut frontier = neighbours(start, n);
 
         while cells.len() < target && !frontier.is_empty() {
             let i = rng.gen_range(frontier.len());
@@ -256,9 +283,9 @@ fn partition_into_cages(rng: &mut Rng, solution: &Board) -> Vec<Cage> {
             }
             assigned[cell] = true;
             cells.push(cell);
-            for n in neighbours(cell) {
-                if !assigned[n] {
-                    frontier.push(n);
+            for nb in neighbours(cell, n) {
+                if !assigned[nb] {
+                    frontier.push(nb);
                 }
             }
         }
@@ -276,16 +303,21 @@ fn partition_into_cages(rng: &mut Rng, solution: &Board) -> Vec<Cage> {
 
 // --- variant dispatch -----------------------------------------------------
 
-pub fn generate_for(rng: &mut Rng, kind: VariantKind, min_clues: usize) -> Puzzle {
+pub fn generate_for_n(rng: &mut Rng, n: usize, kind: VariantKind, min_clues: usize) -> Puzzle {
     match kind {
-        VariantKind::Classic => generate_variant(rng, &Variant::classic(), min_clues),
-        VariantKind::XSudoku => generate_variant(rng, &Variant::xsudoku(), min_clues),
+        VariantKind::Classic => generate_variant(rng, &Variant::classic_n(n), min_clues),
+        VariantKind::XSudoku => generate_variant(rng, &Variant::xsudoku_n(n), min_clues),
         VariantKind::Jigsaw => {
-            let v = random_jigsaw_variant(rng);
+            let v = random_jigsaw_variant_n(rng, n);
             generate_variant(rng, &v, min_clues)
         }
-        VariantKind::Killer => generate_killer(rng),
+        VariantKind::Killer => generate_killer_n(rng, n),
     }
+}
+
+/// 9-default shim.
+pub fn generate_for(rng: &mut Rng, kind: VariantKind, min_clues: usize) -> Puzzle {
+    generate_for_n(rng, 9, kind, min_clues)
 }
 
 #[cfg(test)]
@@ -332,7 +364,7 @@ mod tests {
         let mut rng = Rng::new(3);
         let v = random_jigsaw_variant(&mut rng);
         let mut counts = [0u32; 9];
-        for i in 0..CELLS {
+        for i in 0..81 {
             counts[v.box_of[i] as usize] += 1;
         }
         for c in counts {
@@ -358,6 +390,20 @@ mod tests {
             let sum: u32 = cage.cells.iter().map(|&c| p.solution.0[c] as u32).sum();
             assert_eq!(sum, cage.sum);
         }
-        assert_eq!(covered, CELLS);
+        assert_eq!(covered, 81);
+    }
+
+    #[test]
+    fn generate_variant_6_and_16_unique() {
+        use crate::solver::{solve_variant, SolveOutcome};
+        let mut rng = Rng::new(7);
+        for &n in &[6usize, 16usize] {
+            let v = Variant::classic_n(n);
+            let p = generate_variant(&mut rng, &v, 0);
+            // givens is an n×n board; its dotted form round-trips to length n*n.
+            let b = Board::from_str(&p.givens.to_string_dotted()).unwrap();
+            assert_eq!(b.n(), n);
+            assert!(matches!(solve_variant(&b, &v), SolveOutcome::Unique(_)), "n={n} not unique");
+        }
     }
 }
