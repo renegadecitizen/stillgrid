@@ -1,5 +1,6 @@
 use std::process::Command;
 
+// These tests run the compiled binaries — requires `cargo build --release` first (cargo test --release builds them).
 fn bin(name: &str) -> String {
     // CARGO_MANIFEST_DIR = …/engine; target dir lives inside the crate root.
     format!("{}/target/release/{}", env!("CARGO_MANIFEST_DIR"), name)
@@ -8,7 +9,12 @@ fn bin(name: &str) -> String {
 // Pull a JSON string field value from the one-line generator output (no JSON dep).
 fn json_str_field<'a>(s: &'a str, field: &str) -> &'a str {
     let needle = format!("\"{field}\":\"");
-    s.split(&needle).nth(1).expect("field present").split('"').next().unwrap()
+    s.split(&needle)
+        .nth(1)
+        .unwrap_or_else(|| panic!("field '{field}' not found in output: {s}"))
+        .split('"')
+        .next()
+        .unwrap()
 }
 
 #[test]

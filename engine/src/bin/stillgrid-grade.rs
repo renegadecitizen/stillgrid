@@ -1,11 +1,11 @@
 //! CLI: grade a puzzle by required human-solving technique.
 //!
 //! Input modes:
-//! - argv[1]: 81-char classic puzzle string.
-//! - stdin (no argv): either an 81-char classic string OR a JSON object:
+//! - argv[1]: a 36/81/256-char puzzle string (size inferred from length).
+//! - stdin (no argv): either a 36/81/256-char classic string OR a JSON object:
 //!   {"givens":"...","variant":"classic|xsudoku|jigsaw|killer",
-//!   "box_of":[...81 ints], "cages":[{"cells":[..],"sum":N}]}
-//!   box_of is required for jigsaw, cages required for killer.
+//!   "box_of":[...n*n ints], "cages":[{"cells":[..],"sum":N}]}
+//!   box_of is n*n entries (required for jigsaw), cages required for killer.
 
 use std::collections::HashMap;
 use std::io::{self, Read};
