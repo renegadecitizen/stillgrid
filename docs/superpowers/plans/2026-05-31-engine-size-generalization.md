@@ -17,11 +17,20 @@
 These types/signatures are the contract every task below builds against. Defined concretely in Tasks 1–2; later tasks must match these names exactly.
 
 - `board::MAX_N: usize = 16`, `board::MAX_CELLS: usize = 256`.
-- `struct Board { pub n: u8, pub cells: [u8; MAX_CELLS] }` — **derives `Copy`**. The global `pub const N`/`pub const CELLS` are **deleted**.
-- `Board` accessors: `fn n(&self) -> usize { self.n as usize }`, `fn cells(&self) -> usize { self.n() * self.n() }`.
-- Free helper `variant::cell_index(n: usize, r: usize, c: usize) -> usize { r * n + c }` — **gains an `n` parameter** (the global-`N` version is removed). Every call site passes the in-scope `n`.
+- **`Board` is a tuple struct: `pub struct Board(pub [u8; MAX_CELLS], pub u8)`** — `.0` is the cells buffer (now length 256; only the first `n*n` are live), `.1` is `n`. **Derives `Copy`.** *Why a tuple struct:* it preserves the existing `board.0[idx]` field access used across `variant.rs`/`generator.rs`, so changing the representation does NOT break those modules — the crate keeps compiling while each module migrates.
+- `Board` accessors: `fn n(&self) -> usize { self.1 as usize }`, `fn cells(&self) -> usize { self.n() * self.n() }`.
+- `fn box_dims(n: usize) -> (usize, usize)` **lives in `board.rs`** (lowest module — avoids a board→variant dependency cycle, since `Board::can_place` needs it): `6 → (2, 3)`, `9 → (3, 3)`, `16 → (4, 4)`. Panics on unsupported `n`. `variant.rs` calls `crate::board::box_dims`.
+- **During migration** the generalized helper is named `variant::cell_index_n(n, r, c) -> usize { r * n + c }`, and the legacy `variant::cell_index(r, c)` (9-based) is **kept unchanged** so un-migrated modules (techniques.rs, generator.rs) compile without edits. **Task 9** deletes the legacy `cell_index`, renames `cell_index_n → cell_index`, and updates the migrated callers. (Final target name is `cell_index(n, r, c)`.)
 - `Variant` gains `pub n: u8`, `pub box_h: u8`, `pub box_w: u8`; `boxes: Vec<Vec<usize>>` replaces `[[usize; 9]; 9]`; `box_of: [u8; MAX_CELLS]`.
-- `fn box_dims(n: usize) -> (usize, usize)`: `6 → (2, 3)`, `9 → (3, 3)`, `16 → (4, 4)`. Panics on unsupported `n`.
+
+### Incremental-compilation strategy (so tasks stay independent)
+
+The board-representation change ripples across modules; to keep each task independently compilable with the **full 9×9 suite green throughout**:
+- Keep `pub const N: usize = 9;` and `pub const CELLS: usize = 81;` in `board.rs` **alive during migration** (Tasks 1–6). Un-migrated modules keep referencing them and compile unchanged.
+- Keep both `cell_index` arities (old 9-based + new `n`-based) during migration.
+- The tuple-struct `.0`/`.1` layout keeps `board.0[idx]` working everywhere.
+- **Task 9 (cleanup)** removes `N`, `CELLS`, and the old `cell_index` shim once Tasks 1–6 have migrated every caller, and re-runs the full suite.
+- Consequence: between tasks, modules not yet widened (e.g. `techniques.rs` masks still `[u16; CELLS=81]`) are correct at `n=9` but would panic/misbehave at `n∈{6,16}`. That is fine — the 6×6/16×16 tests for a module are only added in that module's task. The 9×9 gate never regresses.
 - **Symbol map** (single source of truth, `board.rs`):
   - encode: `0 → '.'`; `1..=9 → ('0' + d)`; `10..=16 → ('A' + (d - 10))`.
   - decode: `'.' | '0' → 0`; `'1'..='9' → d`; `'A'..='G' → 10 + (ch - 'A')`.
@@ -52,6 +61,13 @@ fn board_sizes_6_9_16() {
 }
 
 #[test]
+fn box_dims_per_size() {
+    assert_eq!(box_dims(6), (2, 3));
+    assert_eq!(box_dims(9), (3, 3));
+    assert_eq!(box_dims(16), (4, 4));
+}
+
+#[test]
 fn symbol_roundtrip_16() {
     // 16-char first row uses 1-9 then A-G; rest empty.
     let mut s = String::from("123456789ABCDEFG");
@@ -71,19 +87,25 @@ Expected: FAIL — `empty_n` / `cells` not found; `from_str` rejects length 256.
 
 - [ ] **Step 3: Rewrite board.rs storage + symbol map**
 
-Replace the top of `engine/src/board.rs` (the constants, struct, and `empty`/`from_str`/`to_string_dotted`/`get`/`set`) with:
+Replace the top of `engine/src/board.rs` (the struct + `empty`/`from_str`/`to_string_dotted`/`get`/`set`) with the following. **Keep the existing `pub const N`/`pub const CELLS` lines** (other modules still reference them during migration — Task 9 removes them). Add `MAX_N`/`MAX_CELLS`/`box_dims`/symbol-map alongside.
 
 ```rust
 //! Generalized sudoku board: any size n in {6, 9, 16}.
 
+pub const N: usize = 9; // legacy 9×9 constant — kept until Task 9 cleanup
+pub const CELLS: usize = N * N; // legacy — kept until Task 9 cleanup
 pub const MAX_N: usize = 16;
 pub const MAX_CELLS: usize = MAX_N * MAX_N;
 
-/// 0 = empty cell. 1..=n = filled. Only the first n*n cells are live.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Board {
-    pub n: u8,
-    pub cells: [u8; MAX_CELLS],
+/// Box geometry per size. 6×6 boxes are 2 tall × 3 wide (not √n).
+/// Lives here (not variant.rs) so `Board::can_place` can use it without a cycle.
+pub fn box_dims(n: usize) -> (usize, usize) {
+    match n {
+        6 => (2, 3),
+        9 => (3, 3),
+        16 => (4, 4),
+        _ => panic!("unsupported size {n}"),
+    }
 }
 
 /// Encode a digit (0 = empty) to its display char: 1-9 -> '1'..'9', 10-16 -> 'A'..'G'.
@@ -115,6 +137,11 @@ fn size_from_len(len: usize) -> Option<u8> {
     }
 }
 
+/// Tuple struct: `.0` = cells buffer (first n*n live), `.1` = n.
+/// Tuple layout preserves existing `board.0[idx]` access across the crate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Board(pub [u8; MAX_CELLS], pub u8);
+
 impl Board {
     pub fn empty() -> Self {
         Self::empty_n(9)
@@ -122,12 +149,12 @@ impl Board {
 
     pub fn empty_n(n: usize) -> Self {
         assert!(matches!(n, 6 | 9 | 16), "unsupported size {n}");
-        Board { n: n as u8, cells: [0u8; MAX_CELLS] }
+        Board([0u8; MAX_CELLS], n as u8)
     }
 
     #[inline]
     pub fn n(&self) -> usize {
-        self.n as usize
+        self.1 as usize
     }
 
     #[inline]
@@ -147,32 +174,34 @@ impl Board {
             if d as usize > n as usize {
                 return Err(format!("digit {d} out of range for size {n}"));
             }
-            b.cells[i] = d;
+            b.0[i] = d;
         }
         Ok(b)
     }
 
     pub fn to_string_dotted(&self) -> String {
-        self.cells[..self.cells()].iter().map(|&v| digit_to_char(v)).collect()
+        self.0[..self.cells()].iter().map(|&v| digit_to_char(v)).collect()
     }
 
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> u8 {
-        self.cells[row * self.n() + col]
+        self.0[row * self.n() + col]
     }
 
     #[inline]
     pub fn set(&mut self, row: usize, col: usize, v: u8) {
         let n = self.n();
-        self.cells[row * n + col] = v;
+        self.0[row * n + col] = v;
     }
 }
 ```
 
+Note: `box_dims` is referenced by `Board::can_place` in Step 4 as `box_dims(n)` (same module). `variant.rs` will call it as `crate::board::box_dims` in Task 2. **Remove the `box_dims` definition from Task 2** (it now lives here) — Task 2 only adds the generalized `cell_index(n, …)`.
+
 - [ ] **Step 4: Update `can_place`/`is_complete`/`is_consistent` for runtime n**
 
-In the same `impl Board`, replace the bodies that referenced `N` / `self.0`:
-- `can_place`: replace `for i in 0..N` → `let n = self.n(); for i in 0..n`; replace the hardcoded `/3*3` box math with `box_dims`-derived block:
+In the same `impl Board`, replace the bodies that referenced `N`:
+- `can_place`: replace `for i in 0..N` → `let n = self.n(); for i in 0..n`; replace the hardcoded `/3*3` box math with the `box_dims`-derived block (note `box_dims` is in this same module — call it unqualified):
 
 ```rust
     pub fn can_place(&self, row: usize, col: usize, v: u8) -> bool {
@@ -182,7 +211,7 @@ In the same `impl Board`, replace the bodies that referenced `N` / `self.0`:
                 return false;
             }
         }
-        let (bh, bw) = crate::variant::box_dims(n);
+        let (bh, bw) = box_dims(n);
         let br = (row / bh) * bh;
         let bc = (col / bw) * bw;
         for r in br..br + bh {
@@ -196,7 +225,7 @@ In the same `impl Board`, replace the bodies that referenced `N` / `self.0`:
     }
 ```
 
-- `is_complete`: `self.cells[..self.cells()].iter().all(|&v| v != 0)`.
+- `is_complete`: `self.0[..self.cells()].iter().all(|&v| v != 0)`.
 - `is_consistent`: replace `0..N` loops with `0..n` and the `/3*3` block with the `box_dims` block as above (mirror the `can_place` box loop, skipping `(rr,cc) == (r,c)`).
 
 (Note: `Board::can_place`/`is_consistent` are only the classic-3×3 path; variant-aware checks live in `variant.rs`. They must still compile and stay correct at every n.)
@@ -215,23 +244,18 @@ git commit -m "engine: Board carries runtime n; 6/9/16 + A-G symbol map"
 
 ---
 
-## Task 2: `box_dims` + generalized `cell_index` + `Variant` fields (variant.rs)
+## Task 2: generalized `cell_index` + `Variant` fields (variant.rs)
 
 **Files:**
 - Modify: `engine/src/variant.rs`
+
+(Note: `box_dims` already lives in `board.rs` as of Task 1 — do NOT redefine it here.)
 
 - [ ] **Step 1: Write the failing test**
 
 Add to the `tests` module in `engine/src/variant.rs`:
 
 ```rust
-#[test]
-fn box_dims_per_size() {
-    assert_eq!(box_dims(6), (2, 3));
-    assert_eq!(box_dims(9), (3, 3));
-    assert_eq!(box_dims(16), (4, 4));
-}
-
 #[test]
 fn classic_6x6_boxes_are_2x3() {
     let v = Variant::classic_n(6);
@@ -251,31 +275,25 @@ fn classic_6x6_boxes_are_2x3() {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd engine && cargo test --release variant:: 2>&1 | tail -20`
-Expected: FAIL — `box_dims` / `classic_n` not found; `cell_index` arity wrong.
+Expected: FAIL — `classic_n` not found; new `cell_index(n, …)` arity not present.
 
-- [ ] **Step 3: Add `box_dims`, generalize `cell_index`, extend struct**
+- [ ] **Step 3: Generalize `cell_index` (keep a 9-arity shim), extend struct**
 
 In `engine/src/variant.rs`:
 - Delete the `Mini 6×6 and 16×16 ... deferred` doc-comment lines.
-- Change the import to `use crate::board::{Board, MAX_CELLS};`
-- Replace `cell_index`:
+- Change the import to `use crate::board::{box_dims, Board, MAX_CELLS, N};` (keep `N` — the legacy `cell_index` shim still uses it; removed in Task 9).
+- **Keep** the existing `pub fn cell_index(r: usize, c: usize) -> usize { r * N + c }` exactly as-is (techniques.rs / generator.rs still call it — leave them untouched this task). **Add** the generalized helper alongside it:
 
 ```rust
 #[inline]
-pub fn cell_index(n: usize, r: usize, c: usize) -> usize {
+pub fn cell_index_n(n: usize, r: usize, c: usize) -> usize {
     r * n + c
 }
-
-/// Box geometry per size. 6×6 boxes are 2 tall × 3 wide (not √n).
-pub fn box_dims(n: usize) -> (usize, usize) {
-    match n {
-        6 => (2, 3),
-        9 => (3, 3),
-        16 => (4, 4),
-        _ => panic!("unsupported size {n}"),
-    }
-}
 ```
+
+Inside `variant.rs` itself, migrate this module's own `cell_index(r, c)` calls to `cell_index_n(self.n(), r, c)`.
+
+**Keep the legacy constructor signatures compiling.** The `Variant` struct's `box_of` widens to `[u8; MAX_CELLS]`, so the existing `jigsaw(box_partition: [u8; CELLS])` callers in `generator.rs` would break. Keep a `jigsaw(box_partition: [u8; CELLS])` shim (9-default) that copies the 81-entry partition into the `MAX_CELLS` field and delegates to the general builder; add the general `jigsaw_n(n, [u8; MAX_CELLS])`. Likewise keep `classic()`, `xsudoku()`, `killer(Vec<Cage>)` as 9-defaulting shims (generator/solver/tests still call them). Generator migrates to the `_n` builders in Task 5.
 
 - Extend the struct (replace the `box_of`/`boxes` fields and add size fields):
 
@@ -770,6 +788,36 @@ If 16×16 generate or grade is too slow for per-request spawning (e.g. >1–2s t
 ```bash
 git add engine/tests/perf_16.rs
 git commit -m "engine: 16x16 perf spike with recorded generate/grade timings"
+```
+
+---
+
+## Task 9: Remove migration shims (cleanup)
+
+**Files:**
+- Modify: `engine/src/board.rs`, `engine/src/variant.rs`, and any caller of the shims.
+
+By now every module uses runtime `n`. Remove the temporary scaffolding:
+
+- [ ] **Step 1: Delete legacy constants & helpers**
+  - `board.rs`: delete `pub const N` and `pub const CELLS`.
+  - `variant.rs`: delete legacy `cell_index(r, c)`; rename `cell_index_n` → `cell_index` (now the only one).
+  - Delete the 9-defaulting constructor shims **only if** nothing still calls them. Keep `Board::empty()`, `Variant::classic()` etc. if the binaries' classic argv path or existing tests still rely on them — back-compat shims are allowed to stay; pure migration scaffolding is not.
+
+- [ ] **Step 2: Fix fallout & rename callers**
+
+Run `cargo build --release` and fix every `cell_index(r, c)` → `cell_index(n, r, c)` (the `n` is in scope in each migrated fn). `rg 'cell_index9|cell_index_n|\bboard::N\b|\bboard::CELLS\b' engine/src` must return nothing after this step.
+
+- [ ] **Step 3: Full suite green**
+
+Run: `cd engine && cargo test --release 2>&1 | grep "test result:"`
+Expected: the full suite (9×9 + all 6×6/16×16 + matrix + perf) passes; counts ≥ the post-Task-8 totals.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add engine/src
+git commit -m "engine: remove size-migration shims (N/CELLS/cell_index_n)"
 ```
 
 ---
