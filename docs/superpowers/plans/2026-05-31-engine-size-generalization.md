@@ -511,13 +511,22 @@ Add to the `tests` module in `engine/src/techniques.rs`:
 
 ```rust
 #[test]
-fn grades_generated_6x6_solved() {
-    use crate::generator::generate_variant;
-    use crate::rng::Rng;
-    let mut rng = Rng::new(12345);
+fn all_mask_matches_9_and_16() {
+    // 9×9 must be bit-identical to the old hardcoded const; 16×16 needs bit 16.
+    assert_eq!(all_mask(9), 0b11_1111_1110);
+    assert_eq!(all_mask(16), (1u32 << 17) - 2); // bits 1..=16 set, bit 0 clear
+}
+
+#[test]
+fn grades_6x6_solved() {
+    // Diagonal-blanked known-valid 6×6 solution — solvable by singles alone,
+    // so the grader must reach Solved. Generator-free (Task 5 not required).
+    const SOLVED6: &str = "123456456123231564564231312645645312";
     let v = Variant::classic_n(6);
-    let puzzle = generate_variant(&mut rng, &v, 0);
-    let b = Board::from_str(&puzzle.givens).unwrap();
+    let mut b = Board::from_str(SOLVED6).unwrap();
+    for i in 0..6 {
+        b.set(i, i, 0);
+    }
     match grade_variant(&b, &v) {
         GradeOutcome::Solved { solution, .. } => assert!(v.is_solution_consistent(&solution)),
         GradeOutcome::Stuck { .. } => panic!("6x6 should be human-solvable"),
@@ -525,7 +534,7 @@ fn grades_generated_6x6_solved() {
 }
 ```
 
-(Depends on Task 5's `generate_variant` signature. If executing strictly in order, write this test in Task 5's commit instead and in Task 4 use a hand-authored 6×6 givens string.)
+(`all_mask` is a private fn in this module; the in-module `tests` block can call it via `use super::*`. These tests need no generator. Before Step 3 the `all_mask` test won't even compile — that counts as the failing-test state.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -535,7 +544,7 @@ Expected: FAIL — `ALL`/`masks` are `u16` and hardcoded `0..N`/`1..=9` paths gi
 - [ ] **Step 3: Widen masks and parameterize `ALL`**
 
 In `engine/src/techniques.rs`:
-- Change import to `use crate::board::{Board, MAX_CELLS};` and `use crate::variant::{cell_index, Variant};`.
+- Change imports to `use crate::board::{Board, MAX_CELLS, MAX_N};` and `use crate::variant::{cell_index_n, Variant};` (this module migrates fully to the 3-arg `cell_index_n` — the legacy 2-arg `cell_index` is 9-only and must not be used at runtime n).
 - `Candidates.masks: [u32; MAX_CELLS]`.
 - Delete `const ALL: u16 = ...`. Add `fn all_mask(n: usize) -> u32 { (1u32 << (n + 1)) - 2 }`.
 - `Candidates::from_board(b, peers)` initializes `masks: [0u32; MAX_CELLS]`, then sets the live cells to `all_mask(b.n())` before filling:
@@ -560,14 +569,14 @@ In `engine/src/techniques.rs`:
 ```
 
 - `get`/`set`/`fill` use `r * n + c` — thread `n` in (store `n: usize` on `Candidates`, set in `from_board`, or pass the board). Simplest: add a `n: usize` field to `Candidates`; `get(&self, r, c) -> self.masks[r * self.n + c]`. Update `fill` to use `self.n` and `1u32 << v`.
-- `NONE_NODE` and node indices: bump `node_of: [[u16; N]; CELLS]` → `node_of: Vec<[u32; MAX_N + 1]>` sized `MAX_CELLS` (digits `1..=16`), or `[[u32; MAX_N + 1]; MAX_CELLS]`. Use `u32` for node ids if node count can exceed `u16::MAX` at 16×16 (256 cells × 16 digits = 4096 ≤ u16::MAX, so `u16` ids are still safe — keep `u16` ids, only the digit dimension needs `MAX_N+1`). Keep `NONE_NODE: u16 = u16::MAX`.
+- `node_of`: currently `[[u16; N]; CELLS]`. **First read how it is indexed** in the actual code — by the raw digit (`node_of[cell][digit]`, needs size ≥ digit+1) or by digit−1 (`node_of[cell][digit-1]`, needs size ≥ digit). Generalize the **cell** dimension `CELLS → MAX_CELLS`, and the **digit** dimension to cover digits up to 16 while preserving the existing indexing convention: `MAX_N + 1` if indexed by raw digit, `MAX_N` if indexed by digit−1. Node **ids** can stay `u16` (256 cells × ≤16 digits = ≤4096 ≤ `u16::MAX`); keep `NONE_NODE: u16 = u16::MAX`. The element type of `node_of` was `u16` (a node id) — it can stay `u16`. (Only the candidate *masks* must become `u32`, because they pack digit bits up to bit 16.)
 
 - [ ] **Step 4: Sweep the size-coupled constants in the technique bodies**
 
 Across `techniques.rs`, replace mechanically (each gated by the test suite, not individually):
 - `for r in 0..N` / `0..N` row/col loops → `0..n` where `let n = board.n()` (or `variant.n()`) is in scope at the top of each technique fn.
 - digit loops `1..=9` / `1u8..=9` → `1..=n`.
-- `cell_index(r, c)` → `cell_index(n, r, c)`.
+- `cell_index(r, c)` → `cell_index_n(n, r, c)` (import is `cell_index_n`).
 - box-count loops `0..9` → `0..n`; box-cell loops already iterate `variant.boxes[b]` (now `Vec`), unchanged.
 - `PeerTable::build`: `peers: vec![Vec::new(); n*n]`; `seen` arrays `vec![false; n*n]` (was `[false; CELLS]`); `r = i / n; c = i % n`; loops `0..n`; diagonals use `n - 1`.
 - Any `[T; CELLS]` working buffer used at full size → `[T; MAX_CELLS]` (iterate only `0..n*n`).
