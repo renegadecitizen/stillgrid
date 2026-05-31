@@ -632,7 +632,7 @@ Expected: FAIL — generator allocates `(0..CELLS)` and fills `0..N`, producing 
 
 In `engine/src/generator.rs`:
 - Change import to `use crate::board::Board;` (drop `N`, `CELLS`).
-- In every fn, derive `let n = variant.n(); let cells = n * n;` (add `Variant::n(&self)` if not already present) and replace `CELLS` → `cells`, `0..N` → `0..n`.
+- In every fn, derive `let n = variant.n as usize; let cells = n * n;` (use the **public `n` field** — `Variant::n()` is private to variant.rs) and replace `CELLS` → `cells`, `0..N` → `0..n`.
 - `random_solution`: start from `Board::empty_n(n)`; fill loops `0..n`.
 - `generate_variant`: `order: (0..cells).collect()`; `clue_count = cells`; dig/uniqueness loop unchanged in structure.
 - `try_jigsaw_partition` / `neighbours`: `partition = [u8::MAX; MAX_CELLS]` but seed/region growth over `0..cells`, region count `n`, neighbour math uses `n` (`cell / n`, `cell % n`, edges `cell - n` / `cell + n`, `r < n - 1`, `c < n - 1`). Return `[u8; MAX_CELLS]`.
