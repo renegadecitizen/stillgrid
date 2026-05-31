@@ -14,6 +14,7 @@ import {
 import { track } from "./analytics";
 import {
   type BoardState,
+  type Size,
   initialState,
   isSolved as boardIsSolved,
   autoPencil as boardAutoPencil,
@@ -36,6 +37,7 @@ interface PuzzleResponse {
   variant: Variant;
   givens: string;
   solution: string;
+  size?: number;
   clue_count: number;
   diagonals?: boolean;
   box_of?: number[];
@@ -89,6 +91,7 @@ export function App() {
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
   const [tier, setTier] = useState<string>("");
   const [variant, setVariant] = useState<Variant>("classic");
+  const [size, setSize] = useState<Size>(9);
   const [showSolution, setShowSolution] = useState(false);
   // If the currently-loaded puzzle came from a "daily" load, we mark its
   // completion in the daily streak store.
@@ -98,14 +101,16 @@ export function App() {
 
   const isDemo = import.meta.env.VITE_DEMO === "1";
 
-  const load = (vArg: Variant = variant, tArg: string = tier) => {
+  const load = (vArg: Variant = variant, tArg: string = tier, sArg: Size = size) => {
     setPuzzle(null);
     setError(null);
     setShowSolution(false);
     setDailyTag(null);
     const t0 = performance.now();
 
-    if (isDemo) {
+    // Demo pool is 9×9 only — skip it for 6×6 requests and fall through to the
+    // API fetch, which the dev server proxies to :3001.
+    if (isDemo && sArg === 9) {
       fetch("puzzles.json")
         .then((r) => r.json())
         .then((pool: Record<Variant, PuzzleResponse[]>) => {
@@ -121,6 +126,7 @@ export function App() {
 
     const params = new URLSearchParams({ variant: vArg });
     if (tArg && vArg === "classic") params.set("tier", tArg);
+    params.set("size", String(sArg));
     fetch(`/api/puzzle?${params}`)
       .then((r) => r.json())
       .then((data: PuzzleResponse | { error: string }) => {
@@ -154,6 +160,7 @@ export function App() {
             const pick = kind === "classic" ? d.classic : d.killer;
             setVariant(pick.variant);
             setTier("");
+            setSize(9);
             setPuzzle(pick);
             setDailyTag({ date: d.date, kind });
             setElapsedMs(Math.round(performance.now() - t0));
@@ -173,6 +180,7 @@ export function App() {
         const pick = kind === "classic" ? data.classic : data.killer;
         setVariant(pick.variant);
         setTier("");
+        setSize(9);
         setPuzzle(pick);
         setDailyTag({ date: data.date, kind });
         setElapsedMs(Math.round(performance.now() - t0));
@@ -180,7 +188,7 @@ export function App() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
-  useEffect(() => load("classic", ""), []);
+  useEffect(() => load("classic", "", 9), []);
 
   // Fire first_visit_ever once per browser (localStorage-flagged).
   // Mount-only effect — empty deps array.
@@ -208,16 +216,22 @@ export function App() {
             <Controls
               variant={variant}
               tier={tier}
+              size={size}
               variantColor={variantColor.main}
+              dailyActive={dailyTag !== null}
               onVariant={(v) => {
                 setVariant(v);
-                load(v, tier);
+                load(v, tier, size);
               }}
               onTier={(t) => {
                 setTier(t);
-                load(variant, t);
+                load(variant, t, size);
               }}
-              onNew={() => load(variant, tier)}
+              onSize={(s) => {
+                setSize(s);
+                load(variant, tier, s);
+              }}
+              onNew={() => load(variant, tier, size)}
             />
 
             <p
@@ -260,7 +274,7 @@ export function App() {
           <aside className="lg:col-span-1 space-y-4">
             <DailyCard onPlay={loadDaily} />
             <StreakCard />
-            <VariantsCard active={variant} onPick={(v) => { setVariant(v); load(v, tier); }} />
+            <VariantsCard active={variant} onPick={(v) => { setVariant(v); load(v, tier, size); }} />
             <RoadmapCard />
           </aside>
         </div>
@@ -342,20 +356,27 @@ function Badge({ color, text }: { color: string; text: string }) {
 function Controls({
   variant,
   tier,
+  size,
   variantColor,
+  dailyActive,
   onVariant,
   onTier,
+  onSize,
   onNew,
 }: {
   variant: Variant;
   tier: string;
+  size: Size;
   variantColor: string;
+  dailyActive: boolean;
   onVariant: (v: Variant) => void;
   onTier: (t: string) => void;
+  onSize: (s: Size) => void;
   onNew: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
+      <SizeSelect value={size} onChange={onSize} disabled={dailyActive} />
       <VariantSelect value={variant} onChange={onVariant} />
       <TierSelect value={tier} onChange={onTier} disabled={variant !== "classic"} />
       <button
@@ -365,6 +386,38 @@ function Controls({
       >
         New puzzle
       </button>
+    </div>
+  );
+}
+
+function SizeSelect({ value, onChange, disabled }: { value: Size; onChange: (s: Size) => void; disabled?: boolean }) {
+  const options: { v: Size; label: string }[] = [
+    { v: 6, label: "6×6" },
+    { v: 9, label: "9×9" },
+  ];
+  return (
+    <div
+      className="inline-flex rounded-full p-0.5 gap-0.5"
+      style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)", opacity: disabled ? 0.5 : 1 }}
+    >
+      {options.map(({ v, label }) => {
+        const active = v === value;
+        return (
+          <button
+            key={v}
+            disabled={disabled}
+            onClick={() => onChange(v)}
+            className="px-3 py-1 text-xs rounded-full transition-colors"
+            style={{
+              background: active ? "var(--color-ink-soft)" : "transparent",
+              color: active ? "white" : "var(--color-ink-soft)",
+              cursor: disabled ? "not-allowed" : "pointer",
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -460,6 +513,7 @@ function PlayCard({
   // to fire puzzle_abandoned for the OUTGOING puzzle.
   const prevInProgressRef = useRef<{
     variant: string;
+    size: Size;
     tier: string | null;
     progressPct: number;
   } | null>(null);
@@ -476,8 +530,9 @@ function PlayCard({
 
   const [currentBest, setCurrentBest] = useState<Best | null>(null);
   useEffect(() => {
-    setCurrentBest(getBest(puzzle.variant, tierBucket));
-  }, [puzzle.variant, tierBucket]);
+    const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
+    setCurrentBest(getBest(puzzle.variant, puzzleSize, tierBucket));
+  }, [puzzle.variant, puzzle.givens, tierBucket]);
 
   // Reset everything on puzzle change. First, if the PREVIOUS puzzle was in
   // progress and never completed, fire puzzle_abandoned with its last-seen
@@ -488,6 +543,7 @@ function PlayCard({
     if (prev !== null) {
       track("puzzle_abandoned", {
         variant: prev.variant,
+        size: prev.size,
         tier: prev.tier ?? "any",
         progress_pct: prev.progressPct,
       });
@@ -508,8 +564,10 @@ function PlayCard({
   // Strict deps: puzzle.variant, tierBucket, dailyTag change in lockstep
   // with puzzle.givens, so we deliberately omit them to keep this single-fire.
   useEffect(() => {
+    const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
     track("puzzle_started", {
       variant: puzzle.variant,
+      size: puzzleSize,
       tier: tierBucket ?? "any",
       is_daily: dailyTag !== null,
     });
@@ -539,10 +597,12 @@ function PlayCard({
   useEffect(() => {
     if (stateBelongsToRef.current !== puzzle.givens) return;
     if (startedAt !== null && finishedAt === null) {
+      const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
+      const cells = puzzleSize * puzzleSize;
       const givenCount = state.givenMask.reduce((a, b) => a + b, 0);
-      const userCells = 81 - givenCount;
+      const userCells = cells - givenCount;
       let userFilled = 0;
-      for (let i = 0; i < 81; i++) {
+      for (let i = 0; i < cells; i++) {
         if ((state.givenMask[i] ?? 0) === 0 && (state.values[i] ?? 0) !== 0) {
           userFilled += 1;
         }
@@ -550,6 +610,7 @@ function PlayCard({
       const progressPct = userCells === 0 ? 0 : Math.floor((userFilled / userCells) * 100);
       prevInProgressRef.current = {
         variant: puzzle.variant,
+        size: puzzleSize,
         tier: tierBucket,
         progressPct,
       };
@@ -695,6 +756,7 @@ function PlayCard({
   useEffect(() => {
     if (!isSolved || finishedAt === null || startedAt === null || outcome) return;
     const seconds = Math.max(1, Math.floor((finishedAt - startedAt) / 1000));
+    const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
     const tierLabel =
       puzzle.grade && puzzle.grade.outcome === "solved" ? puzzle.grade.tier_label : "easy";
     const tierMult: Record<string, number> = {
@@ -704,6 +766,7 @@ function PlayCard({
     const scoreValue = Math.max(0, Math.round(raw - mistakes * 50));
     const result = recordRun({
       variant: puzzle.variant,
+      size: puzzleSize,
       tierLabel: tierBucket,
       timeSec: seconds,
       mistakes,
@@ -714,6 +777,7 @@ function PlayCard({
 
     track("puzzle_completed", {
       variant: puzzle.variant,
+      size: puzzleSize,
       tier: tierBucket ?? "any",
       is_daily: dailyTag !== null,
       duration_seconds: seconds,
