@@ -14,7 +14,7 @@
 export type Size = 6 | 9;
 
 export interface BoardState {
-  n: number;
+  n: Size;
   values: Uint8Array;    // length n*n, 0..n
   notes: Uint16Array;    // length n*n, bits 1..n (16 bits covers 1–9 and 1–6)
   givenMask: Uint8Array; // length n*n, 1 if given (immutable), 0 otherwise

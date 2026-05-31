@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { initialState, placeValue, boxDims, defaultBoxOf } from "./boardState";
+import { initialState, placeValue, autoPencil, boxDims, defaultBoxOf } from "./boardState";
 
 describe("boardState size-parametric", () => {
   it("boxDims: 6→2×3, 9→3×3", () => {
@@ -20,12 +20,15 @@ describe("boardState size-parametric", () => {
   it("initialState infers n=9 from an 81-char string (unchanged)", () => {
     expect(initialState(".".repeat(81)).n).toBe(9);
   });
-  it("placeValue prunes 6×6 row/col/box notes for value 5 at cell 0", () => {
+  it("placeValue prunes only true peers in a 6×6 (2×3 box geometry)", () => {
     let s = initialState(".".repeat(36));
-    s = placeValue(s, 0, 5);
-    const has5 = (i: number) => (s.notes[i]! & (1 << 5)) !== 0;
-    expect(has5(1)).toBe(false); // same row
-    expect(has5(6)).toBe(false); // same col (cell (1,0))
-    expect(has5(7)).toBe(false); // same 2×3 box (cell (1,1))
+    s = autoPencil(s); // every empty cell gets all candidates 1..6
+    const has5 = (st: typeof s, i: number) => (st.notes[i]! & (1 << 5)) !== 0;
+    // sanity: before placing, both cells have candidate 5
+    expect(has5(s, 8)).toBe(true);
+    expect(has5(s, 13)).toBe(true);
+    s = placeValue(s, 0, 5); // value 5 at cell (0,0)
+    expect(has5(s, 8)).toBe(false);  // (1,2): box-only peer → pruned
+    expect(has5(s, 13)).toBe(true);  // (2,1): non-peer → retained
   });
 });
