@@ -281,7 +281,7 @@ Expected: FAIL — `classic_n` not found; new `cell_index(n, …)` arity not pre
 
 In `engine/src/variant.rs`:
 - Delete the `Mini 6×6 and 16×16 ... deferred` doc-comment lines.
-- Change the import to `use crate::board::{box_dims, Board, MAX_CELLS, N};` (keep `N` — the legacy `cell_index` shim still uses it; removed in Task 9).
+- Change the import to `use crate::board::{box_dims, Board, CELLS, MAX_CELLS, N};` (keep `N` for the legacy `cell_index` shim and `CELLS` for the `jigsaw` shim copy; both removed in Task 9).
 - **Keep** the existing `pub fn cell_index(r: usize, c: usize) -> usize { r * N + c }` exactly as-is (techniques.rs / generator.rs still call it — leave them untouched this task). **Add** the generalized helper alongside it:
 
 ```rust
@@ -358,8 +358,12 @@ impl Variant {
         v
     }
 
-    pub fn jigsaw(box_partition: [u8; MAX_CELLS]) -> Self {
-        Self::jigsaw_n(9, box_partition)
+    // 9-default shim: generator passes a `[u8; CELLS]` (81). Copy into the
+    // wider MAX_CELLS buffer and delegate. (CELLS must be in the `use` import.)
+    pub fn jigsaw(box_partition: [u8; CELLS]) -> Self {
+        let mut big = [0u8; MAX_CELLS];
+        big[..CELLS].copy_from_slice(&box_partition);
+        Self::jigsaw_n(9, big)
     }
     pub fn jigsaw_n(n: usize, box_partition: [u8; MAX_CELLS]) -> Self {
         let (bh, bw) = box_dims(n);
@@ -407,7 +411,14 @@ impl Variant {
 
 - [ ] **Step 5: Generalize `box_idx`, `can_place`, `is_solution_consistent`, peer math**
 
-In `variant.rs`, replace every `cell_index(r, c)` with `cell_index(self.n(), r, c)` (add `fn n(&self) -> usize { self.n as usize }` to the impl), every `for i in 0..N` with `for i in 0..self.n()`, every diagonal `N - 1` with `self.n() - 1`, every `[false; 10]` digit-seen array with `vec![false; self.n() + 1]`, and in cage partial-sum logic replace the magic `9` (max digit) with `self.n() as u32` — i.e. `if remaining > self.n() as u32 * empty { return false; }`. The `boxes[b]` iteration is unchanged (now `Vec<Vec<usize>>`, still indexable). Box-count loops `for b in 0..9` become `for b in 0..self.n()`.
+In `variant.rs`, add `fn n(&self) -> usize { self.n as usize }` to the `impl Variant`, then replace, in this module's own methods (`box_idx`, `can_place`, `is_solution_consistent`, and `solver.rs`'s `is_partial_consistent` lives in solver — leave it):
+- every `cell_index(r, c)` call → `cell_index_n(self.n(), r, c)` (the migration-era 3-arg helper);
+- every `for i in 0..N` → `for i in 0..self.n()`;
+- every diagonal `N - 1` → `self.n() - 1`;
+- every `[false; 10]` digit-seen array → `vec![false; self.n() + 1]`;
+- in cage partial-sum logic, the magic `9` (max digit) → `self.n() as u32`, i.e. `if remaining > self.n() as u32 * empty { return false; }`;
+- box-count loops `for b in 0..9` → `for b in 0..self.n()`.
+The `boxes[b]` iteration is unchanged (now `Vec<Vec<usize>>`, still indexable).
 
 - [ ] **Step 6: Run tests to verify they pass**
 
