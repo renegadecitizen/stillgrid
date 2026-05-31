@@ -17,3 +17,6 @@ coverage/
 pkg/
 *.tsbuildinfo
 .claude/settings.local.json
+
+# git worktrees (isolated workspaces)
+.worktrees/
