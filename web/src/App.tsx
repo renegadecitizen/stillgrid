@@ -24,6 +24,8 @@ import {
   clearCell,
   listNotes,
   getValue,
+  boxDims,
+  defaultBoxOf,
 } from "./boardState";
 
 type Variant = "classic" | "xsudoku" | "jigsaw" | "killer";
@@ -683,6 +685,8 @@ function PlayCard({
     setHistoryIdx((i) => (i < history.length - 1 ? i + 1 : i));
   }, [history.length]);
 
+  const n = state.n;
+
   // Keyboard handling
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -709,11 +713,11 @@ function PlayCard({
 
       if (selected === null) return;
 
-      const r = Math.floor(selected / 9);
-      const c = selected % 9;
+      const r = Math.floor(selected / n);
+      const c = selected % n;
 
-      if (/^[1-9]$/.test(e.key)) {
-        const d = parseInt(e.key, 10);
+      const d = parseInt(e.key, 10);
+      if (Number.isInteger(d) && d >= 1 && d <= n) {
         // Shift+digit always toggles a note. Otherwise honor notes mode.
         if (e.shiftKey || notesMode) handleToggleNote(selected, d);
         else handlePlace(selected, d);
@@ -724,14 +728,14 @@ function PlayCard({
       } else if (e.key === "ArrowLeft" && c > 0) {
         setSelected(selected - 1);
         e.preventDefault();
-      } else if (e.key === "ArrowRight" && c < 8) {
+      } else if (e.key === "ArrowRight" && c < n - 1) {
         setSelected(selected + 1);
         e.preventDefault();
       } else if (e.key === "ArrowUp" && r > 0) {
-        setSelected(selected - 9);
+        setSelected(selected - n);
         e.preventDefault();
-      } else if (e.key === "ArrowDown" && r < 8) {
-        setSelected(selected + 9);
+      } else if (e.key === "ArrowDown" && r < n - 1) {
+        setSelected(selected + n);
         e.preventDefault();
       } else if (e.key === "Escape") {
         setSelected(null);
@@ -739,7 +743,7 @@ function PlayCard({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, notesMode, handlePlace, handleToggleNote, handleClear, handleUndo, handleRedo]);
+  }, [selected, notesMode, n, handlePlace, handleToggleNote, handleClear, handleUndo, handleRedo]);
 
   const isSolved = useMemo(
     () => boardIsSolved(state, puzzle.solution),
@@ -925,6 +929,7 @@ function PlayCard({
       )}
 
       <NumberPad
+        n={n}
         accent={playAccent}
         notesMode={notesMode}
         onDigit={(d) => {
@@ -1052,19 +1057,23 @@ function TierBadge({ tier, steps }: { tier: string; steps: number }) {
 }
 
 function NotesGrid({
+  n,
   notes,
   highlightDigit,
 }: {
+  n: number;
   notes: number[];
   highlightDigit: number | null;
 }) {
   const set = new Set(notes);
+  const bw = boxDims(n).bw;
+  const rows = Math.ceil(n / bw);
   return (
     <div
       className="grid w-full h-full p-0.5"
-      style={{ gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "repeat(3, 1fr)" }}
+      style={{ gridTemplateColumns: `repeat(${bw}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}
     >
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => {
+      {Array.from({ length: n }, (_, k) => k + 1).map((d) => {
         const present = set.has(d);
         const hl = highlightDigit === d && present;
         return (
@@ -1091,6 +1100,7 @@ function NotesGrid({
 }
 
 function NumberPad({
+  n,
   accent,
   notesMode,
   onDigit,
@@ -1103,6 +1113,7 @@ function NumberPad({
   canUndo,
   canRedo,
 }: {
+  n: number;
   accent: string;
   notesMode: boolean;
   onDigit: (d: number) => void;
@@ -1172,9 +1183,12 @@ function NumberPad({
         </div>
       </div>
 
-      {/* digit row */}
-      <div className={`grid grid-cols-5 sm:grid-cols-10 w-full sm:max-w-[512px] mx-auto ${ROW_GAP}`}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
+      {/* digit row — n digits + 1 clear = n+1 buttons. Mobile: half-width rows; desktop: single row. */}
+      <div
+        className={`grid w-full sm:max-w-[512px] mx-auto ${ROW_GAP}`}
+        style={{ gridTemplateColumns: `repeat(${n + 1}, 1fr)` }}
+      >
+        {Array.from({ length: n }, (_, k) => k + 1).map((d) => (
           <button
             key={d}
             onClick={() => onDigit(d)}
@@ -1364,21 +1378,23 @@ function Grid({
   muted: boolean;
   interactive?: boolean;
 }) {
-  const cageOf: (number | null)[] = Array(81).fill(null);
+  const n = state.n;
+  const cells = n * n;
+  const cageOf: (number | null)[] = Array(cells).fill(null);
   if (puzzle.cages) {
     puzzle.cages.forEach((cage, ci) => cage.cells.forEach((c) => (cageOf[c] = ci)));
   }
   const cageSumAt = new Map<number, number>();
   if (puzzle.cages) {
     puzzle.cages.forEach((cage) => {
-      const topLeft = cage.cells.reduce((a, b) => Math.min(a, b), 81);
+      const topLeft = cage.cells.reduce((a, b) => Math.min(a, b), cells);
       cageSumAt.set(topLeft, cage.sum);
     });
   }
-  const boxOf = puzzle.box_of ?? defaultBoxOf();
+  const boxOf = puzzle.box_of ?? defaultBoxOf(n);
 
-  const selRow = selected !== null ? Math.floor(selected / 9) : -1;
-  const selCol = selected !== null ? selected % 9 : -1;
+  const selRow = selected !== null ? Math.floor(selected / n) : -1;
+  const selCol = selected !== null ? selected % n : -1;
   const selBox = selected !== null ? boxOf[selected] : -1;
   const selDigit = selected !== null ? getValue(state, selected) || null : null;
 
@@ -1386,8 +1402,8 @@ function Grid({
     <div
       className="grid"
       style={{
-        gridTemplateColumns: "repeat(9, minmax(34px, 46px))",
-        gridTemplateRows: "repeat(9, minmax(34px, 46px))",
+        gridTemplateColumns: `repeat(${n}, minmax(34px, 46px))`,
+        gridTemplateRows: `repeat(${n}, minmax(34px, 46px))`,
         border: "2px solid var(--color-box-line)",
         borderRadius: 4,
         overflow: "hidden",
@@ -1395,9 +1411,9 @@ function Grid({
         userSelect: "none",
       }}
     >
-      {Array.from({ length: 81 }, (_, i) => {
-        const row = Math.floor(i / 9);
-        const col = i % 9;
+      {Array.from({ length: cells }, (_, i) => {
+        const row = Math.floor(i / n);
+        const col = i % n;
         const given = state.givenMask[i] === 1;
         const value = state.values[i] ?? 0;
         const valueChar = value === 0 ? "" : String(value);
@@ -1418,7 +1434,7 @@ function Grid({
         const isConflict = !given && value !== 0 && value !== expected;
 
         let bg: string | undefined;
-        if (puzzle.diagonals && (row === col || row + col === 8)) {
+        if (puzzle.diagonals && (row === col || row + col === n - 1)) {
           bg = "var(--color-diagonal)";
         }
         if (isPeer) bg = accentSoft;
@@ -1426,16 +1442,16 @@ function Grid({
         if (isSelected) bg = accentSoft;
 
         // cell borders
-        const rightIdx = col < 8 ? i + 1 : null;
-        const bottomIdx = row < 8 ? i + 9 : null;
+        const rightIdx = col < n - 1 ? i + 1 : null;
+        const bottomIdx = row < n - 1 ? i + n : null;
         const borderRight =
-          col === 8
+          col === n - 1
             ? "none"
             : rightIdx !== null && boxOf[rightIdx] !== myBox
               ? "2px solid var(--color-box-line)"
               : "1px solid var(--color-cell-line)";
         const borderBottom =
-          row === 8
+          row === n - 1
             ? "none"
             : bottomIdx !== null && boxOf[bottomIdx] !== myBox
               ? "2px solid var(--color-box-line)"
@@ -1445,10 +1461,10 @@ function Grid({
         const cageInsets: string[] = [];
         if (puzzle.cages) {
           const myCage = cageOf[i];
-          const above = row > 0 ? cageOf[i - 9] : null;
+          const above = row > 0 ? cageOf[i - n] : null;
           const left = col > 0 ? cageOf[i - 1] : null;
-          const right = col < 8 ? cageOf[i + 1] : null;
-          const below = row < 8 ? cageOf[i + 9] : null;
+          const right = col < n - 1 ? cageOf[i + 1] : null;
+          const below = row < n - 1 ? cageOf[i + n] : null;
           const c = "var(--color-cage)";
           if (above !== myCage) cageInsets.push(`inset 0 2px 0 -1px ${c}`);
           if (left !== myCage) cageInsets.push(`inset 2px 0 0 -1px ${c}`);
@@ -1502,7 +1518,7 @@ function Grid({
             {valueChar ? (
               valueChar
             ) : notes.length > 0 ? (
-              <NotesGrid notes={notes} highlightDigit={selDigit} />
+              <NotesGrid n={n} notes={notes} highlightDigit={selDigit} />
             ) : null}
           </div>
         );
@@ -1758,8 +1774,3 @@ function Footer({ isDemo }: { isDemo: boolean }) {
   );
 }
 
-function defaultBoxOf(): number[] {
-  const out: number[] = [];
-  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) out.push(Math.floor(r / 3) * 3 + Math.floor(c / 3));
-  return out;
-}
