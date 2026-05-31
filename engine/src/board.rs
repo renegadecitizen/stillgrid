@@ -1,7 +1,7 @@
 //! Generalized sudoku board: any size n in {6, 9, 16}.
 
 pub const N: usize = 9; // legacy 9×9 constant — kept until cleanup task
-pub const CELLS: usize = N * N; // legacy — kept until cleanup task
+pub const CELLS: usize = N * N;
 pub const MAX_N: usize = 16;
 pub const MAX_CELLS: usize = MAX_N * MAX_N;
 
@@ -71,7 +71,7 @@ impl Board {
     }
 
     /// Parse from a 36/81/256-char string. Size is inferred from length.
-    #[allow(clippy::should_implement_trait)]
+    #[allow(clippy::should_implement_trait)] // method name matches intent; error type differs from FromStr
     pub fn from_str(s: &str) -> Result<Self, String> {
         let trimmed: String = s.chars().filter(|c| !c.is_whitespace()).collect();
         let n = size_from_len(trimmed.len())
@@ -131,6 +131,7 @@ impl Board {
     /// Empty cells are ignored.
     pub fn is_consistent(&self) -> bool {
         let n = self.n();
+        let (bh, bw) = box_dims(n);
         for r in 0..n {
             for c in 0..n {
                 let v = self.get(r, c);
@@ -145,7 +146,6 @@ impl Board {
                         return false;
                     }
                 }
-                let (bh, bw) = box_dims(n);
                 let br = (r / bh) * bh;
                 let bc = (c / bw) * bw;
                 for rr in br..br + bh {
