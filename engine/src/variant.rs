@@ -1,10 +1,11 @@
 //! Variant abstraction: one engine, many sudoku rule-sets.
 //!
-//! A `Variant` is the full set of constraints that define how a 9×9 grid
-//! must be filled. Classic = row + col + 3×3 box. Variants add or substitute:
+//! A `Variant` is the full set of constraints that define how an n×n grid
+//! must be filled. Classic = row + col + n boxes (rectangular regions).
+//! Variants add or substitute:
 //!
-//! - **X-Sudoku**: both diagonals must contain 1..=9.
-//! - **Jigsaw**: the 9 "boxes" are arbitrary connected 9-cell regions.
+//! - **X-Sudoku**: both diagonals must contain each digit exactly once.
+//! - **Jigsaw**: the n boxes are arbitrary connected n-cell regions.
 //! - **Killer**: cells are grouped into cages; each cage has a target sum
 //!   and no digit repeats within it.
 
@@ -125,8 +126,8 @@ impl Variant {
     pub fn jigsaw_n(n: usize, box_partition: [u8; MAX_CELLS]) -> Self {
         let (bh, bw) = box_dims(n);
         let mut boxes: Vec<Vec<usize>> = vec![Vec::new(); n];
-        for i in 0..(n * n) {
-            let b = box_partition[i] as usize;
+        for (i, &bp) in box_partition[..n * n].iter().enumerate() {
+            let b = bp as usize;
             assert!(b < n, "box id out of range");
             assert!(boxes[b].len() < n, "box {b} has more than {n} cells");
             boxes[b].push(i);
@@ -165,6 +166,7 @@ impl Variant {
     }
 
     pub fn box_idx(&self, r: usize, c: usize) -> usize {
+        debug_assert!(r < self.n() && c < self.n(), "cell ({r},{c}) out of range for n={}", self.n());
         self.box_of[cell_index_n(self.n(), r, c)] as usize
     }
 
