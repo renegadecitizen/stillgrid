@@ -161,7 +161,11 @@ impl Variant {
     }
 
     pub fn box_idx(&self, r: usize, c: usize) -> usize {
-        debug_assert!(r < self.n() && c < self.n(), "cell ({r},{c}) out of range for n={}", self.n());
+        debug_assert!(
+            r < self.n() && c < self.n(),
+            "cell ({r},{c}) out of range for n={}",
+            self.n()
+        );
         self.box_of[cell_index(self.n(), r, c)] as usize
     }
 

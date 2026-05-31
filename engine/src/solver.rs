@@ -3,6 +3,11 @@
 use crate::board::Board;
 use crate::variant::Variant;
 
+// `Board` is a fixed 257-byte buffer (MAX_CELLS + n). The size gap vs the unit
+// variants trips clippy's large_enum_variant, but boxing is pointless here:
+// a SolveOutcome is produced once per solve and matched immediately, never
+// stored in bulk — the indirection would cost more than the stack copy saves.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum SolveOutcome {
     Unique(Board),

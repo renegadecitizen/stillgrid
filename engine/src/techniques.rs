@@ -793,8 +793,12 @@ fn find_cage_sum(c: &Candidates, board: &Board, variant: &Variant) -> Option<Ste
         for (slot, &cell) in open.iter().enumerate() {
             let cand = open_masks[slot];
             // Other open cells' masks (this slot excluded), for the feasibility probe.
-            let others: Vec<u32> =
-                open_masks.iter().enumerate().filter(|&(j, _)| j != slot).map(|(_, &m)| m).collect();
+            let others: Vec<u32> = open_masks
+                .iter()
+                .enumerate()
+                .filter(|&(j, _)| j != slot)
+                .map(|(_, &m)| m)
+                .collect();
             let mut allowed: u32 = 0;
             let mut bits = cand;
             while bits != 0 {
@@ -2538,8 +2542,16 @@ mod tests {
             Step::Elimination { technique, removed } => {
                 assert_eq!(technique, Technique::CageCombo);
                 // 2 and 4..9 gone from (0,0); 1 and 3 stay.
-                assert!(removed.contains(&(0, 0, 2)), "expected (0,0,2) removed; got {:?}", removed);
-                assert!(removed.contains(&(0, 1, 5)), "expected (0,1,5) removed; got {:?}", removed);
+                assert!(
+                    removed.contains(&(0, 0, 2)),
+                    "expected (0,0,2) removed; got {:?}",
+                    removed
+                );
+                assert!(
+                    removed.contains(&(0, 1, 5)),
+                    "expected (0,1,5) removed; got {:?}",
+                    removed
+                );
                 assert!(!removed.contains(&(0, 0, 1)), "1 must remain in (0,0)");
                 assert!(!removed.contains(&(0, 0, 3)), "3 must remain in (0,0)");
             }

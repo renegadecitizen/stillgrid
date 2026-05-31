@@ -1,9 +1,17 @@
 import { describe, it, expect } from "vitest";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { generate } from "./engine.js";
 import { parseSize } from "./index.js";
 
-// Integration test: spawns the real Rust binary at engine/target/release.
-describe("generate size", () => {
+// These spawn the real Rust binary; they only run where it's been built
+// (local dev, the engine CI job). The server CI job has no cargo build, so
+// skip rather than fail with ENOENT. Mirrors engine.ts's binary resolution.
+const ENGINE_DIR =
+  process.env.STILLGRID_ENGINE_DIR ?? resolve(import.meta.dirname, "../../engine/target/release");
+const HAVE_ENGINE = existsSync(resolve(ENGINE_DIR, "stillgrid-generate"));
+
+describe.skipIf(!HAVE_ENGINE)("generate size", () => {
   it("produces a 36-char 6×6 board", async () => {
     const p = await generate({ variant: "classic", size: 6, seed: 1 });
     expect(p.givens.length).toBe(36);

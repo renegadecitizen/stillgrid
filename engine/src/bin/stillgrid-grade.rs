@@ -364,7 +364,11 @@ fn build_variant(input: &Input, n: usize) -> Result<Variant, String> {
         VariantKind::Jigsaw => {
             let bo = input.box_of.as_ref().ok_or("jigsaw requires box_of")?;
             if bo.len() != n * n {
-                return Err(format!("jigsaw box_of must have {} entries for {n}×{n}, got {}", n * n, bo.len()));
+                return Err(format!(
+                    "jigsaw box_of must have {} entries for {n}×{n}, got {}",
+                    n * n,
+                    bo.len()
+                ));
             }
             let mut arr = [0u8; 256]; // MAX_CELLS = 256
             for (i, &v) in bo.iter().enumerate() {
