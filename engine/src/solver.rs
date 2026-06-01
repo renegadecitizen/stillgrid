@@ -342,6 +342,9 @@ pub(crate) mod naive {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::generator::generate_for_n;
+    use crate::rng::Rng;
+    use crate::variant::VariantKind;
 
     const EASY: &str =
         "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79";
@@ -439,5 +442,105 @@ mod tests {
         // its row, col, nor box -> present only because of the diagonal.
         assert!(ctx.peers[0].contains(&(4 * 9 + 4)), "diagonal peer present");
         assert!(!ctx.has_cages);
+    }
+
+    /// Blank a few cells out of a complete, valid solution and assert both
+    /// solvers agree. Operating on NEAR-FULL boards keeps the naive oracle
+    /// tractable for every variant — including Killer, whose real givens are
+    /// near-empty and would make naive uniqueness proofs slow (precisely the
+    /// blowup propagation fixes).
+    ///
+    /// `min_clues = cells` disables the generator's carve step, so each puzzle
+    /// is just a fresh random solution (fast). Jigsaw is exercised at 6×6 only:
+    /// the generator builds solutions with naive first-empty backtracking
+    /// (`fill_random`, which does NOT use this solver), and for the irregular
+    /// 9×9 jigsaw boxes that has a pathological heavy tail (some seeds take 40+
+    /// seconds). The solver's jigsaw code path is size-independent, so 6×6
+    /// jigsaw covers it; large-n coverage comes from classic/X at 9×9 and the
+    /// separate 16×16 test. (The slow 9×9 jigsaw *generation* is a pre-existing
+    /// concern, tracked separately.)
+    #[test]
+    fn propagating_solver_matches_naive_across_sizes_and_variants() {
+        // (n, kind) — every combo whose generation is reliably fast.
+        let combos: &[(usize, VariantKind)] = &[
+            (6, VariantKind::Classic),
+            (9, VariantKind::Classic),
+            (6, VariantKind::XSudoku),
+            (9, VariantKind::XSudoku),
+            (6, VariantKind::Jigsaw),
+            (6, VariantKind::Killer),
+            (9, VariantKind::Killer),
+        ];
+        let mut checked = 0u32;
+        for &(n, kind) in combos {
+            let cells = n * n;
+            for seed in 0..25u64 {
+                let mut rng = Rng::new(seed * 1000 + n as u64);
+                let puzzle = generate_for_n(&mut rng, n, kind, cells);
+                let variant = &puzzle.variant;
+
+                // Blank an increasing number of cells (1..=5) from the solution.
+                // Few holes -> naive stays fast; varying the count exercises
+                // both Unique and Multiple outcomes.
+                for holes in 1..=5usize {
+                    let mut b = puzzle.solution;
+                    let mut idxs: Vec<usize> = (0..cells).collect();
+                    rng.shuffle(&mut idxs);
+                    for &i in idxs.iter().take(holes) {
+                        b.0[i] = 0;
+                    }
+                    assert_eq!(
+                        solve_variant(&b, variant),
+                        super::naive::solve_variant_naive(&b, variant),
+                        "n={n} kind={kind:?} seed={seed} holes={holes}"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked >= 800, "expected a broad sweep, ran {checked}");
+    }
+
+    /// A deliberately inconsistent board must be Unsolvable under both solvers.
+    #[test]
+    fn propagating_solver_matches_naive_on_contradictions() {
+        let v = Variant::classic();
+        let mut b = Board::empty();
+        b.set(0, 0, 5);
+        b.set(0, 1, 5);
+        assert_eq!(solve_variant(&b, &v), super::naive::solve_variant_naive(&b, &v));
+        assert_eq!(solve_variant(&b, &v), SolveOutcome::Unsolvable);
+    }
+
+    /// n=16 differential coverage. The naive solver is only fast on near-full
+    /// 16×16 boards, so this carves just a few holes from a generated (high-clue,
+    /// floor=47%) grid — enough to exercise propagation at size 16 without the
+    /// ~14 s low-clue blowup the naive oracle would hit.
+    #[test]
+    fn propagating_solver_matches_naive_16x16_near_full() {
+        for seed in 0..3u64 {
+            let mut rng = Rng::new(7000 + seed);
+            let puzzle = generate_for_n(&mut rng, 16, VariantKind::Classic, 0);
+            let variant = &puzzle.variant;
+
+            assert_eq!(
+                solve_variant(&puzzle.givens, variant),
+                super::naive::solve_variant_naive(&puzzle.givens, variant),
+                "16x16 givens seed={seed}"
+            );
+
+            // Remove 3 clues — still near-full, so naive stays fast.
+            let mut b = puzzle.givens;
+            let mut idxs: Vec<usize> = (0..256).filter(|&i| b.0[i] != 0).collect();
+            rng.shuffle(&mut idxs);
+            for &i in idxs.iter().take(3) {
+                b.0[i] = 0;
+            }
+            assert_eq!(
+                solve_variant(&b, variant),
+                super::naive::solve_variant_naive(&b, variant),
+                "16x16 carved seed={seed}"
+            );
+        }
     }
 }
