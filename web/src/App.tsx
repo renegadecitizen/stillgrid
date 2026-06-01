@@ -894,7 +894,7 @@ function PlayCard({
         <div className="flex flex-col items-end gap-1 text-xs tabular-nums">
           <div className="flex items-baseline gap-3" style={{ color: "var(--color-ink-soft)" }}>
             <Stat label="time" value={formatTime(elapsedSeconds)} accent={playAccent} active={startedAt !== null && finishedAt === null} />
-            <Stat label="mistakes" value={String(mistakes)} accent={mistakes > 0 ? "var(--color-hard)" : "var(--color-ink-mute)"} />
+            <Stat label="mistakes" value={String(mistakes)} accent={mistakes > 0 ? "var(--color-error)" : "var(--color-ink-mute)"} />
           </div>
           {currentBest && (
             <div
@@ -1470,6 +1470,9 @@ function Grid({
         if (isPeer) bg = accentSoft;
         if (isSameDigit) bg = "var(--color-paper)";
         if (isSelected) bg = accentSoft;
+        // A wrong entry gets its own wash so it can't be mistaken for a correct
+        // value under the terracotta accent (Hard / Killer). Wins over selection.
+        if (isConflict) bg = "var(--color-error-soft)";
 
         // cell borders
         const rightIdx = col < n - 1 ? i + 1 : null;
@@ -1505,13 +1508,13 @@ function Grid({
         // selected ring (visible inset)
         const allInsets = [...cageInsets];
         if (isSelected) {
-          allInsets.push(`inset 0 0 0 2px ${accent}`);
+          allInsets.push(`inset 0 0 0 2px ${isConflict ? "var(--color-error)" : accent}`);
         }
 
         let textColor = "var(--color-ink)";
         if (muted) textColor = "var(--color-ink-mute)";
         else if (!given && value !== 0) {
-          textColor = isConflict ? "#b91c1c" : accent;
+          textColor = isConflict ? "var(--color-error)" : accent;
         }
 
         return (
