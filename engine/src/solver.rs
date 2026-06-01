@@ -1,7 +1,6 @@
 //! Backtracking solver with uniqueness check, parameterized by Variant.
 
-use crate::board::Board;
-use crate::board::MAX_CELLS;
+use crate::board::{Board, MAX_CELLS};
 use crate::variant::Variant;
 
 /// Per-solve immutable context: variant + precomputed peer lists.
@@ -153,6 +152,10 @@ fn assign_and_propagate(
             }
             if after.count_ones() == 1 {
                 let fv = (after.trailing_zeros() + 1) as u8;
+                // This cage check can go stale before the cell is popped and
+                // assigned (a later cascade step may fill a cage peer first);
+                // the full-board `is_solution_consistent` at the search leaf
+                // re-verifies cage sums, so the invariant holds end-to-end.
                 if ctx.has_cages && !ctx.variant.can_place(board, p / ctx.n, p % ctx.n, fv) {
                     return false; // forced single violates cage sum
                 }
