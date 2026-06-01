@@ -3,6 +3,70 @@
 use crate::board::Board;
 use crate::variant::Variant;
 
+/// Per-solve immutable context: variant + precomputed peer lists.
+/// Fields `variant` and `n` are consumed by later propagation tasks; dead_code
+/// at this stage but required by the planned API.
+#[allow(dead_code)]
+struct SolveCtx<'a> {
+    variant: &'a Variant,
+    n: usize,
+    has_cages: bool,
+    /// peers[cell] = every other cell sharing a unit (row/col/box/diag) with it.
+    peers: Vec<Vec<usize>>,
+}
+
+impl<'a> SolveCtx<'a> {
+    fn new(variant: &'a Variant, n: usize) -> Self {
+        let cells = n * n;
+        let mut peers: Vec<Vec<usize>> = vec![Vec::new(); cells];
+        for i in 0..cells {
+            let r = i / n;
+            let c = i % n;
+            let set = &mut peers[i];
+            // Row + column.
+            for k in 0..n {
+                let row_cell = r * n + k;
+                if row_cell != i {
+                    set.push(row_cell);
+                }
+                let col_cell = k * n + c;
+                if col_cell != i {
+                    set.push(col_cell);
+                }
+            }
+            // Box (variant-defined; covers jigsaw + classic).
+            let b = variant.box_idx(r, c);
+            for &idx in &variant.boxes[b] {
+                if idx != i {
+                    set.push(idx);
+                }
+            }
+            // Diagonals (X-Sudoku).
+            if variant.diagonals {
+                if r == c {
+                    for k in 0..n {
+                        let d = k * n + k;
+                        if d != i {
+                            set.push(d);
+                        }
+                    }
+                }
+                if r + c == n - 1 {
+                    for k in 0..n {
+                        let d = k * n + (n - 1 - k);
+                        if d != i {
+                            set.push(d);
+                        }
+                    }
+                }
+            }
+            set.sort_unstable();
+            set.dedup();
+        }
+        SolveCtx { variant, n, has_cages: !variant.cages.is_empty(), peers }
+    }
+}
+
 // `Board` is a fixed 257-byte buffer (MAX_CELLS + n). The size gap vs the unit
 // variants trips clippy's large_enum_variant, but boxing is pointless here:
 // a SolveOutcome is produced once per solve and matched immediately, never
@@ -255,5 +319,26 @@ mod tests {
     fn empty_6x6_has_multiple() {
         let v = Variant::classic_n(6);
         assert_eq!(solve_variant(&Board::empty_n(6), &v), SolveOutcome::Multiple);
+    }
+
+    #[test]
+    fn ctx_peers_classic_9x9_has_20() {
+        let v = Variant::classic();
+        let ctx = SolveCtx::new(&v, 9);
+        // Cell (0,0): 8 row + 8 col + 4 box-only (excluding shared) = 20 peers.
+        let p = &ctx.peers[0];
+        assert_eq!(p.len(), 20, "classic peer count");
+        assert!(!p.contains(&0), "cell is not its own peer");
+        assert!(p.contains(&1) && p.contains(&9) && p.contains(&10));
+    }
+
+    #[test]
+    fn ctx_peers_xsudoku_diagonal_included() {
+        let v = Variant::xsudoku_n(9);
+        let ctx = SolveCtx::new(&v, 9);
+        // (0,0) is on the main diagonal; (4,4) shares it and is in neither
+        // its row, col, nor box -> present only because of the diagonal.
+        assert!(ctx.peers[0].contains(&(4 * 9 + 4)), "diagonal peer present");
+        assert!(ctx.has_cages == false);
     }
 }
