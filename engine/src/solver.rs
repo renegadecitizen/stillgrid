@@ -1,11 +1,10 @@
 //! Backtracking solver with uniqueness check, parameterized by Variant.
 
 use crate::board::Board;
+use crate::board::MAX_CELLS;
 use crate::variant::Variant;
 
 /// Per-solve immutable context: variant + precomputed peer lists.
-/// Fields `variant` and `n` are consumed by later propagation tasks; dead_code
-/// at this stage but required by the planned API.
 #[allow(dead_code)]
 struct SolveCtx<'a> {
     variant: &'a Variant,
@@ -88,10 +87,14 @@ pub fn solve_variant(board: &Board, variant: &Variant) -> SolveOutcome {
     if !variant.is_partial_consistent(board) {
         return SolveOutcome::Unsolvable;
     }
+    let n = board.n();
+    let ctx = SolveCtx::new(variant, n);
     let mut work = *board;
+    let mut cand = [0u32; MAX_CELLS];
+    seed_masks(&work, &ctx, &mut cand);
     let mut found: Option<Board> = None;
     let mut count = 0u32;
-    search(&mut work, variant, &mut found, &mut count, 2);
+    search(&mut work, &mut cand, &ctx, &mut found, &mut count, 2);
     match count {
         0 => SolveOutcome::Unsolvable,
         1 => SolveOutcome::Unique(found.unwrap()),
@@ -99,9 +102,97 @@ pub fn solve_variant(board: &Board, variant: &Variant) -> SolveOutcome {
     }
 }
 
+/// For every empty cell, mask = digits not present among its peers.
+fn seed_masks(board: &Board, ctx: &SolveCtx, cand: &mut [u32; MAX_CELLS]) {
+    let cells = ctx.n * ctx.n;
+    // n <= MAX_N (16) < 32, so the shift never overflows a u32.
+    let full: u32 = (1u32 << ctx.n) - 1;
+    for i in 0..cells {
+        if board.0[i] != 0 {
+            cand[i] = 0;
+            continue;
+        }
+        let mut m = full;
+        for &p in &ctx.peers[i] {
+            let pv = board.0[p];
+            if pv != 0 {
+                m &= !(1u32 << (pv - 1));
+            }
+        }
+        cand[i] = m;
+    }
+}
+
+/// Assign `v` at `cell`, eliminate from peers, and cascade naked singles.
+/// Returns false on contradiction (an empty cell with no candidates).
+fn assign_and_propagate(
+    board: &mut Board,
+    cand: &mut [u32; MAX_CELLS],
+    ctx: &SolveCtx,
+    cell: usize,
+    v: u8,
+) -> bool {
+    let mut stack: Vec<(usize, u8)> = vec![(cell, v)];
+    while let Some((c0, v0)) = stack.pop() {
+        if board.0[c0] != 0 {
+            continue; // already filled by an earlier cascade step
+        }
+        board.0[c0] = v0;
+        cand[c0] = 0;
+        let bit = 1u32 << (v0 - 1);
+        for &p in &ctx.peers[c0] {
+            if board.0[p] != 0 {
+                continue;
+            }
+            if cand[p] & bit == 0 {
+                continue;
+            }
+            let after = cand[p] & !bit;
+            cand[p] = after;
+            if after == 0 {
+                return false; // peer has no candidates -> dead branch
+            }
+            if after.count_ones() == 1 {
+                let fv = (after.trailing_zeros() + 1) as u8;
+                if ctx.has_cages && !ctx.variant.can_place(board, p / ctx.n, p % ctx.n, fv) {
+                    return false; // forced single violates cage sum
+                }
+                stack.push((p, fv));
+            }
+        }
+    }
+    true
+}
+
+/// Minimum-remaining-values branch cell. Returns the empty cell with the
+/// fewest candidates and its mask; a returned mask of 0 means a dead end
+/// (the branch loop will try no candidates and prune).
+fn find_branch_cell(board: &Board, cand: &[u32; MAX_CELLS], cells: usize) -> Option<(usize, u32)> {
+    let mut best: Option<(usize, u32, u32)> = None; // (cell, mask, popcount)
+    for i in 0..cells {
+        if board.0[i] != 0 {
+            continue;
+        }
+        let m = cand[i];
+        let pc = m.count_ones();
+        if pc == 0 {
+            return Some((i, 0));
+        }
+        match best {
+            Some((_, _, bpc)) if bpc <= pc => {}
+            _ => best = Some((i, m, pc)),
+        }
+        if pc == 1 {
+            return Some((i, m));
+        }
+    }
+    best.map(|(i, m, _)| (i, m))
+}
+
 fn search(
     board: &mut Board,
-    variant: &Variant,
+    cand: &mut [u32; MAX_CELLS],
+    ctx: &SolveCtx,
     found: &mut Option<Board>,
     count: &mut u32,
     limit: u32,
@@ -109,8 +200,10 @@ fn search(
     if *count >= limit {
         return;
     }
-    let Some((r, c, candidates)) = find_empty_min_options(board, variant) else {
-        if variant.is_solution_consistent(board) {
+    let cells = ctx.n * ctx.n;
+    let Some((cell, mask)) = find_branch_cell(board, cand, cells) else {
+        // No empty cell remains -> full board. Verify (catches cage sums).
+        if ctx.variant.is_solution_consistent(board) {
             *count += 1;
             if found.is_none() {
                 *found = Some(*board);
@@ -118,41 +211,24 @@ fn search(
         }
         return;
     };
-    for v in candidates {
-        board.set(r, c, v);
-        search(board, variant, found, count, limit);
-        board.set(r, c, 0);
+    let mut bits = mask;
+    while bits != 0 {
+        let v = (bits.trailing_zeros() + 1) as u8;
+        bits &= bits - 1;
+        if ctx.has_cages && !ctx.variant.can_place(board, cell / ctx.n, cell % ctx.n, v) {
+            continue;
+        }
+        let saved_board = *board;
+        let saved_cand = *cand;
+        if assign_and_propagate(board, cand, ctx, cell, v) {
+            search(board, cand, ctx, found, count, limit);
+        }
+        *board = saved_board;
+        *cand = saved_cand;
         if *count >= limit {
             return;
         }
     }
-}
-
-fn find_empty_min_options(board: &Board, variant: &Variant) -> Option<(usize, usize, Vec<u8>)> {
-    let n = board.n();
-    let mut best: Option<(usize, usize, Vec<u8>)> = None;
-    for r in 0..n {
-        for c in 0..n {
-            if board.get(r, c) != 0 {
-                continue;
-            }
-            let n_max = u8::try_from(n).expect("board size fits in u8");
-            let opts: Vec<u8> =
-                (1u8..=n_max).filter(|&v| variant.can_place(board, r, c, v)).collect();
-            if opts.is_empty() {
-                return Some((r, c, opts));
-            }
-            let count = opts.len();
-            match &best {
-                Some((_, _, bo)) if bo.len() <= count => {}
-                _ => best = Some((r, c, opts)),
-            }
-            if count == 1 {
-                return best;
-            }
-        }
-    }
-    best
 }
 
 impl Variant {
@@ -186,9 +262,9 @@ impl Variant {
 pub(crate) mod naive {
     //! Frozen copy of the pre-propagation solver. Kept permanently as the
     //! differential oracle proving the propagating solver is equivalent.
+    use super::SolveOutcome;
     use crate::board::Board;
     use crate::variant::Variant;
-    use super::SolveOutcome;
 
     pub fn solve_variant_naive(board: &Board, variant: &Variant) -> SolveOutcome {
         if !variant.is_partial_consistent(board) {
@@ -234,10 +310,7 @@ pub(crate) mod naive {
         }
     }
 
-    fn find_empty_min_options(
-        board: &Board,
-        variant: &Variant,
-    ) -> Option<(usize, usize, Vec<u8>)> {
+    fn find_empty_min_options(board: &Board, variant: &Variant) -> Option<(usize, usize, Vec<u8>)> {
         let n = board.n();
         let mut best: Option<(usize, usize, Vec<u8>)> = None;
         for r in 0..n {
@@ -319,6 +392,31 @@ mod tests {
     fn empty_6x6_has_multiple() {
         let v = Variant::classic_n(6);
         assert_eq!(solve_variant(&Board::empty_n(6), &v), SolveOutcome::Multiple);
+    }
+
+    #[test]
+    fn propagating_solver_solves_easy() {
+        // Reuses EASY / EASY_SOLN constants already in this module.
+        let b = Board::from_str(EASY).unwrap();
+        match solve(&b) {
+            SolveOutcome::Unique(s) => assert_eq!(s.to_string_dotted(), EASY_SOLN),
+            other => panic!("expected unique, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn propagating_solver_cascade_forces_singles() {
+        // Givens leave each diagonal cell as the only empty in its row -> the
+        // propagator must fill all of them by cascade and return the unique grid.
+        let mut b = Board::from_str(SOLVED6).unwrap();
+        for i in 0..6 {
+            b.set(i, i, 0);
+        }
+        let v = Variant::classic_n(6);
+        match solve_variant(&b, &v) {
+            SolveOutcome::Unique(s) => assert_eq!(s.to_string_dotted(), SOLVED6),
+            other => panic!("expected unique, got {:?}", other),
+        }
     }
 
     #[test]
