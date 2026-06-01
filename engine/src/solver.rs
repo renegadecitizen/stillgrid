@@ -18,10 +18,9 @@ impl<'a> SolveCtx<'a> {
     fn new(variant: &'a Variant, n: usize) -> Self {
         let cells = n * n;
         let mut peers: Vec<Vec<usize>> = vec![Vec::new(); cells];
-        for i in 0..cells {
+        for (i, set) in peers.iter_mut().enumerate() {
             let r = i / n;
             let c = i % n;
-            let set = &mut peers[i];
             // Row + column.
             for k in 0..n {
                 let row_cell = r * n + k;
@@ -107,9 +106,9 @@ fn seed_masks(board: &Board, ctx: &SolveCtx, cand: &mut [u32; MAX_CELLS]) {
     let cells = ctx.n * ctx.n;
     // n <= MAX_N (16) < 32, so the shift never overflows a u32.
     let full: u32 = (1u32 << ctx.n) - 1;
-    for i in 0..cells {
+    for (i, slot) in cand.iter_mut().enumerate().take(cells) {
         if board.0[i] != 0 {
-            cand[i] = 0;
+            *slot = 0;
             continue;
         }
         let mut m = full;
@@ -119,7 +118,7 @@ fn seed_masks(board: &Board, ctx: &SolveCtx, cand: &mut [u32; MAX_CELLS]) {
                 m &= !(1u32 << (pv - 1));
             }
         }
-        cand[i] = m;
+        *slot = m;
     }
 }
 
@@ -169,11 +168,10 @@ fn assign_and_propagate(
 /// (the branch loop will try no candidates and prune).
 fn find_branch_cell(board: &Board, cand: &[u32; MAX_CELLS], cells: usize) -> Option<(usize, u32)> {
     let mut best: Option<(usize, u32, u32)> = None; // (cell, mask, popcount)
-    for i in 0..cells {
+    for (i, &m) in cand.iter().enumerate().take(cells) {
         if board.0[i] != 0 {
             continue;
         }
-        let m = cand[i];
         let pc = m.count_ones();
         if pc == 0 {
             return Some((i, 0));
@@ -437,6 +435,6 @@ mod tests {
         // (0,0) is on the main diagonal; (4,4) shares it and is in neither
         // its row, col, nor box -> present only because of the diagonal.
         assert!(ctx.peers[0].contains(&(4 * 9 + 4)), "diagonal peer present");
-        assert!(ctx.has_cages == false);
+        assert!(!ctx.has_cages);
     }
 }
