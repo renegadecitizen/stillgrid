@@ -444,11 +444,15 @@ mod tests {
         assert!(!ctx.has_cages);
     }
 
-    /// Blank a few cells out of a complete, valid solution and assert both
-    /// solvers agree. Operating on NEAR-FULL boards keeps the naive oracle
-    /// tractable for every variant — including Killer, whose real givens are
-    /// near-empty and would make naive uniqueness proofs slow (precisely the
-    /// blowup propagation fixes).
+    /// BREADTH gate for the naked-single CASCADE path: blank a few cells out of
+    /// a complete solution and assert both solvers agree. Near-full boards stay
+    /// forced (every hole is a naked single), so these cases drive the cascade
+    /// and cage-cascade across all variants/sizes without ever branching — and
+    /// they keep the naive oracle tractable (including Killer, whose real givens
+    /// are near-empty and would make naive uniqueness proofs slow). The
+    /// *branching*, Multiple, and Unsolvable-via-search paths are covered
+    /// separately by `..._on_branching_boards`, `..._on_ambiguous_boards`, and
+    /// `..._unsolvable_via_search` below.
     ///
     /// `min_clues = cells` disables the generator's carve step, so each puzzle
     /// is just a fresh random solution (fast). Jigsaw is exercised at 6×6 only:
@@ -456,8 +460,7 @@ mod tests {
     /// (`fill_random`, which does NOT use this solver), and for the irregular
     /// 9×9 jigsaw boxes that has a pathological heavy tail (some seeds take 40+
     /// seconds). The solver's jigsaw code path is size-independent, so 6×6
-    /// jigsaw covers it; large-n coverage comes from classic/X at 9×9 and the
-    /// separate 16×16 test. (The slow 9×9 jigsaw *generation* is a pre-existing
+    /// jigsaw covers it. (The slow 9×9 jigsaw *generation* is a pre-existing
     /// concern, tracked separately.)
     #[test]
     fn propagating_solver_matches_naive_across_sizes_and_variants() {
@@ -479,9 +482,8 @@ mod tests {
                 let puzzle = generate_for_n(&mut rng, n, kind, cells);
                 let variant = &puzzle.variant;
 
-                // Blank an increasing number of cells (1..=5) from the solution.
-                // Few holes -> naive stays fast; varying the count exercises
-                // both Unique and Multiple outcomes.
+                // Blank 1..=5 cells from the solution. Few holes -> naive stays
+                // fast and the boards stay forced (cascade-only, all Unique).
                 for holes in 1..=5usize {
                     let mut b = puzzle.solution;
                     let mut idxs: Vec<usize> = (0..cells).collect();
@@ -498,7 +500,109 @@ mod tests {
                 }
             }
         }
-        assert!(checked >= 800, "expected a broad sweep, ran {checked}");
+        assert!(checked >= 800, "expected a broad cascade sweep, ran {checked}");
+    }
+
+    /// BRANCHING gate: real carved puzzles force the propagator into its branch
+    /// loop (MRV pick + `can_place`-gated bits + snapshot/restore), so this diffs
+    /// the *guessing* paths against the naive oracle — the coverage the cascade
+    /// sweep lacks. Naive must stay tractable, which bounds the variants/sizes:
+    /// classic/X are carved to near-minimal at 6×6 AND 9×9 (proper puzzles, naive
+    /// solves in ms); Killer and Jigsaw run at 6×6 only (Killer's 9×9 givens are
+    /// near-empty → naive uniqueness proof is the blowup we're avoiding; Jigsaw's
+    /// 9×9 *generation* has the pre-existing fill_random tail). Cage and irregular
+    /// -box branch paths are size-independent, so 6×6 exercises them.
+    #[test]
+    fn propagating_solver_matches_naive_on_branching_boards() {
+        // (n, kind, min_clues). Low min_clues -> near-minimal -> forces branching.
+        let combos: &[(usize, VariantKind, usize)] = &[
+            (6, VariantKind::Classic, 0),
+            (9, VariantKind::Classic, 17),
+            (6, VariantKind::XSudoku, 0),
+            (9, VariantKind::XSudoku, 17),
+            (6, VariantKind::Jigsaw, 0),
+            (6, VariantKind::Killer, 0),
+        ];
+        let mut checked = 0u32;
+        for &(n, kind, min_clues) in combos {
+            for seed in 0..20u64 {
+                let mut rng = Rng::new(seed * 131 + n as u64);
+                let puzzle = generate_for_n(&mut rng, n, kind, min_clues);
+                let variant = &puzzle.variant;
+                // The carved puzzle: Unique, but reached only by branching.
+                assert_eq!(
+                    solve_variant(&puzzle.givens, variant),
+                    super::naive::solve_variant_naive(&puzzle.givens, variant),
+                    "carved givens n={n} kind={kind:?} seed={seed}"
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked >= 100, "expected a branching sweep, ran {checked}");
+    }
+
+    /// MULTIPLE gate: knock extra clues out of a carved puzzle until it is
+    /// ambiguous, and assert the new solver agrees with naive on the
+    /// (often `Multiple`) outcome — exercising the uniqueness-limit-2 boundary
+    /// differentially. Restricted to classic/X (6×6 + 9×9) where naive stays
+    /// fast on under-constrained boards.
+    #[test]
+    fn propagating_solver_matches_naive_on_ambiguous_boards() {
+        let combos: &[(usize, VariantKind)] = &[
+            (6, VariantKind::Classic),
+            (9, VariantKind::Classic),
+            (6, VariantKind::XSudoku),
+            (9, VariantKind::XSudoku),
+        ];
+        let mut saw_multiple = false;
+        for &(n, kind) in combos {
+            let cells = n * n;
+            for seed in 0..20u64 {
+                let mut rng = Rng::new(seed * 977 + n as u64);
+                let min_clues = if n == 6 { 0 } else { 17 };
+                let puzzle = generate_for_n(&mut rng, n, kind, min_clues);
+                let variant = &puzzle.variant;
+                // Remove several givens -> usually multiple completions.
+                let mut b = puzzle.givens;
+                let mut present: Vec<usize> = (0..cells).filter(|&i| b.0[i] != 0).collect();
+                rng.shuffle(&mut present);
+                for &i in present.iter().take(4) {
+                    b.0[i] = 0;
+                }
+                let out = solve_variant(&b, variant);
+                assert_eq!(
+                    out,
+                    super::naive::solve_variant_naive(&b, variant),
+                    "ambiguous n={n} kind={kind:?} seed={seed}"
+                );
+                if out == SolveOutcome::Multiple {
+                    saw_multiple = true;
+                }
+            }
+        }
+        assert!(saw_multiple, "expected some ambiguous boards to be Multiple");
+    }
+
+    /// UNSOLVABLE-VIA-SEARCH gate: a board that passes the `is_partial_consistent`
+    /// preflight (no two placed givens conflict) but has NO completion, so the
+    /// dead end is found inside `search`/`assign_and_propagate`, not the preflight.
+    /// Construction: row 0 holds 1..=7, leaving (0,7),(0,8) ∈ {8,9}; a 9 in
+    /// column 7 (at (1,7)) and a 9 in column 8 (at (4,8), a different box) force
+    /// BOTH of (0,7),(0,8) to 8 — same row, impossible. The two 9s share no
+    /// row/col/box, so preflight passes.
+    #[test]
+    fn propagating_solver_matches_naive_unsolvable_via_search() {
+        let v = Variant::classic();
+        let mut b = Board::empty();
+        for c in 0..7 {
+            b.set(0, c, (c + 1) as u8);
+        }
+        b.set(1, 7, 9);
+        b.set(4, 8, 9);
+        // Sanity: preflight does NOT reject this (the dead end is mid-search).
+        assert!(v.is_partial_consistent(&b), "should pass preflight");
+        assert_eq!(solve_variant(&b, &v), SolveOutcome::Unsolvable);
+        assert_eq!(solve_variant(&b, &v), super::naive::solve_variant_naive(&b, &v));
     }
 
     // Run with: cargo test --release --lib bench_16x16 -- --ignored --nocapture
