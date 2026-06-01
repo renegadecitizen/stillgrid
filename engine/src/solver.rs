@@ -501,6 +501,60 @@ mod tests {
         assert!(checked >= 800, "expected a broad sweep, ran {checked}");
     }
 
+    // Run with: cargo test --release --lib bench_16x16 -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn bench_16x16_uniqueness_and_generation() {
+        use std::time::Instant;
+
+        // (a) End-to-end generation at whatever floor the generator currently uses.
+        let mut rng = Rng::new(42);
+        let t0 = Instant::now();
+        let puzzle = generate_for_n(&mut rng, 16, VariantKind::Classic, 0);
+        let gen_ms = t0.elapsed().as_millis();
+        let clues = puzzle.givens.0.iter().filter(|&&x| x != 0).count();
+        println!("16x16 generate: {gen_ms} ms, {clues} clues");
+
+        // (b) A single uniqueness check on the generated puzzle.
+        let t1 = Instant::now();
+        let out = solve_variant(&puzzle.givens, &puzzle.variant);
+        let solve_ms = t1.elapsed().as_millis();
+        println!("16x16 uniqueness check (givens): {solve_ms} ms, outcome={out:?}");
+        assert!(matches!(out, SolveOutcome::Unique(_)));
+
+        // (c) Cost of a single uniqueness check as the board gets sparser.
+        // Carve the solution down, keeping each removal only if still unique,
+        // and time a check at several clue milestones. Characterizes solver
+        // cost vs. clue count independent of the generator's floor.
+        let cells = 256usize;
+        let mut board = puzzle.solution;
+        let mut order: Vec<usize> = (0..cells).collect();
+        rng.shuffle(&mut order);
+        let mut clue_count = cells;
+        let milestones = [128usize, 110, 100, 90, 80];
+        let mut mi = 0;
+        for &idx in &order {
+            if mi >= milestones.len() {
+                break;
+            }
+            let saved = board.0[idx];
+            board.0[idx] = 0;
+            match solve_variant(&board, &puzzle.variant) {
+                SolveOutcome::Unique(_) => clue_count -= 1,
+                _ => board.0[idx] = saved,
+            }
+            if clue_count <= milestones[mi] {
+                let t = Instant::now();
+                let o = solve_variant(&board, &puzzle.variant);
+                println!(
+                    "16x16 uniqueness check @ {clue_count} clues: {} ms, outcome={o:?}",
+                    t.elapsed().as_millis()
+                );
+                mi += 1;
+            }
+        }
+    }
+
     /// A deliberately inconsistent board must be Unsolvable under both solvers.
     #[test]
     fn propagating_solver_matches_naive_on_contradictions() {
