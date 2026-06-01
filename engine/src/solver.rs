@@ -119,6 +119,89 @@ impl Variant {
 }
 
 #[cfg(test)]
+pub(crate) mod naive {
+    //! Frozen copy of the pre-propagation solver. Kept permanently as the
+    //! differential oracle proving the propagating solver is equivalent.
+    use crate::board::Board;
+    use crate::variant::Variant;
+    use super::SolveOutcome;
+
+    pub fn solve_variant_naive(board: &Board, variant: &Variant) -> SolveOutcome {
+        if !variant.is_partial_consistent(board) {
+            return SolveOutcome::Unsolvable;
+        }
+        let mut work = *board;
+        let mut found: Option<Board> = None;
+        let mut count = 0u32;
+        search(&mut work, variant, &mut found, &mut count, 2);
+        match count {
+            0 => SolveOutcome::Unsolvable,
+            1 => SolveOutcome::Unique(found.unwrap()),
+            _ => SolveOutcome::Multiple,
+        }
+    }
+
+    fn search(
+        board: &mut Board,
+        variant: &Variant,
+        found: &mut Option<Board>,
+        count: &mut u32,
+        limit: u32,
+    ) {
+        if *count >= limit {
+            return;
+        }
+        let Some((r, c, candidates)) = find_empty_min_options(board, variant) else {
+            if variant.is_solution_consistent(board) {
+                *count += 1;
+                if found.is_none() {
+                    *found = Some(*board);
+                }
+            }
+            return;
+        };
+        for v in candidates {
+            board.set(r, c, v);
+            search(board, variant, found, count, limit);
+            board.set(r, c, 0);
+            if *count >= limit {
+                return;
+            }
+        }
+    }
+
+    fn find_empty_min_options(
+        board: &Board,
+        variant: &Variant,
+    ) -> Option<(usize, usize, Vec<u8>)> {
+        let n = board.n();
+        let mut best: Option<(usize, usize, Vec<u8>)> = None;
+        for r in 0..n {
+            for c in 0..n {
+                if board.get(r, c) != 0 {
+                    continue;
+                }
+                let n_max = u8::try_from(n).expect("board size fits in u8");
+                let opts: Vec<u8> =
+                    (1u8..=n_max).filter(|&v| variant.can_place(board, r, c, v)).collect();
+                if opts.is_empty() {
+                    return Some((r, c, opts));
+                }
+                let count = opts.len();
+                match &best {
+                    Some((_, _, bo)) if bo.len() <= count => {}
+                    _ => best = Some((r, c, opts)),
+                }
+                if count == 1 {
+                    return best;
+                }
+            }
+        }
+        best
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
