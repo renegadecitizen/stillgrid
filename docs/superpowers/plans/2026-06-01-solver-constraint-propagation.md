@@ -702,11 +702,24 @@ git commit -m "engine: fmt + clippy clean for solver propagation"
 
 ---
 
-## Outcome notes (fill in during Task 5)
+## Outcome notes (measured during Task 5)
 
-- 16×16 generation: __ ms, __ clues (floor multiplier = __).
-- 16×16 single uniqueness check: __ ms.
-- Recommendation: per-request 16×16 [feasible | needs Postgres pool] because __.
+Measured with the propagating solver, 16×16 classic, release build:
+
+- **Generation** (47% floor → 120 clues): ~33–40 ms typical across seeds 1–8, one 402 ms outlier. All sub-second.
+- **Grading** a generated 120-clue 16×16: ~19–25 ms (tier varied: mostly 1, one tier 5).
+- **Total per-request (generate + grade): ~50–420 ms — comfortably sub-second.**
+- **Single uniqueness check vs. clue count:** ~0–1 ms down to 110 clues, **137 ms at 100 clues**, then explodes below ~100 (the old ~14 s regime). So the steep cliff is ~100–110 clues.
+
+**Decision: per-request 16×16 is FEASIBLE** (no Postgres pool needed for the
+generate+grade path). The n>9 clue floor is **kept at 47%** — it is proven
+robust and sub-second; lowering it trades real robustness/variance for
+marginally harder puzzles, so it's deferred to whenever 16×16 is actually
+exposed. **No `generator.rs` change this round.**
+
+Remaining to actually ship 16×16 (separate follow-up, was the "then decide"
+branch): server `size=16` acceptance + web `Size` type `6|9` → `6|9|16` +
+selector. Not in this engine-only round.
 
 ## Success criteria (from spec)
 
