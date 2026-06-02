@@ -38,32 +38,57 @@ pub fn random_solution(rng: &mut Rng, variant: &Variant) -> Option<Board> {
 
 fn fill_random(board: &mut Board, variant: &Variant, rng: &mut Rng) -> bool {
     let n = variant.n as usize;
-    let Some((r, c)) = first_empty(board, n) else {
-        return true;
-    };
-    let mut digits: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-    rng.shuffle(&mut digits[..n]);
-    for &v in &digits[..n] {
-        if variant.can_place(board, r, c, v) {
-            board.set(r, c, v);
-            if fill_random(board, variant, rng) {
-                return true;
+    // MRV: choose the empty cell with the fewest legal candidates. This collapses
+    // the 256-cell search from catastrophic backtracking (naive first-empty) to
+    // near-linear, eliminating the 16×16 generation hang. Digit order stays random
+    // for solution diversity.
+    let mut best: Option<(usize, usize, u32)> = None;
+    let mut best_count = usize::MAX;
+    'scan: for r in 0..n {
+        for c in 0..n {
+            if board.get(r, c) != 0 {
+                continue;
             }
-            board.set(r, c, 0);
+            let mut cands: u32 = 0;
+            let mut count = 0usize;
+            for val in 1..=n as u8 {
+                if variant.can_place(board, r, c, val) {
+                    cands |= 1 << val;
+                    count += 1;
+                }
+            }
+            if count == 0 {
+                return false; // dead cell — fail this branch fast
+            }
+            if count < best_count {
+                best_count = count;
+                best = Some((r, c, cands));
+                if count == 1 {
+                    break 'scan; // a forced cell — can't do better
+                }
+            }
         }
+    }
+    let Some((r, c, cands)) = best else {
+        return true; // no empty cell remains → grid complete
+    };
+    let mut digits = [0u8; 16];
+    let mut k = 0;
+    for val in 1..=n as u8 {
+        if cands & (1 << val) != 0 {
+            digits[k] = val;
+            k += 1;
+        }
+    }
+    rng.shuffle(&mut digits[..k]);
+    for &val in &digits[..k] {
+        board.set(r, c, val);
+        if fill_random(board, variant, rng) {
+            return true;
+        }
+        board.set(r, c, 0);
     }
     false
-}
-
-fn first_empty(board: &Board, n: usize) -> Option<(usize, usize)> {
-    for r in 0..n {
-        for c in 0..n {
-            if board.get(r, c) == 0 {
-                return Some((r, c));
-            }
-        }
-    }
-    None
 }
 
 /// Generate a unique-solution puzzle for the given variant.
@@ -323,6 +348,29 @@ pub fn generate_for(rng: &mut Rng, kind: VariantKind, min_clues: usize) -> Puzzl
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fill_random_no_hang_classic_16() {
+        let v = Variant::classic_n(16);
+        for seed in 1..=40u64 {
+            let mut rng = Rng::new(seed);
+            let sol = random_solution(&mut rng, &v).expect("16×16 solution exists");
+            for i in 0..256 {
+                assert_ne!(sol.0[i], 0, "seed {seed}: incomplete fill at cell {i}");
+            }
+            for r in 0..16 {
+                for c in 0..16 {
+                    let saved = sol.get(r, c);
+                    let mut probe = sol;
+                    probe.set(r, c, 0);
+                    assert!(
+                        v.can_place(&probe, r, c, saved),
+                        "seed {seed}: illegal digit at ({r},{c})"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn classic_solution_consistent() {
