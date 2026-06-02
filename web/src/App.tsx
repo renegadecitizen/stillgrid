@@ -914,7 +914,7 @@ function PlayCard({
 
   return (
     <div
-      className="rounded-2xl p-4 sm:p-8 mt-6"
+      className="rounded-2xl p-3 sm:p-8 mt-6"
       style={{ background: "var(--color-card)", boxShadow: "var(--shadow-paper)", borderTop: `3px solid ${variantAccent}` }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-5">
@@ -1477,8 +1477,9 @@ function Grid({
 }) {
   const n = state.n;
   const cells = n * n;
-  const cellMin = n === 16 ? 18 : 34;
-  const cellMax = n === 16 ? 34 : 46;
+  // Board fills its container width (square cells) and caps at maxCell px per
+  // cell on desktop — so it shrinks to fit any phone instead of overflowing.
+  const maxCell = n === 16 ? 34 : 46;
   const valueFont = n === 16 ? 15 : 22;
   const cageOf: (number | null)[] = Array(cells).fill(null);
   if (puzzle.cages) {
@@ -1500,10 +1501,13 @@ function Grid({
 
   return (
     <div
-      className="grid"
+      className="grid w-full"
       style={{
-        gridTemplateColumns: `repeat(${n}, minmax(${cellMin}px, ${cellMax}px))`,
-        gridTemplateRows: `repeat(${n}, minmax(${cellMin}px, ${cellMax}px))`,
+        maxWidth: n * maxCell,
+        // minmax(0,1fr) — NOT plain 1fr (= minmax(auto,1fr)), whose content-size
+        // floor would stop columns shrinking below the digit width and overflow
+        // the board on narrow phones.
+        gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
         border: "2px solid var(--color-box-line)",
         borderRadius: 4,
         overflow: "hidden",
@@ -1594,6 +1598,7 @@ function Grid({
             onClick={interactive ? () => onSelect(i) : undefined}
             className="relative flex items-center justify-center transition-colors"
             style={{
+              aspectRatio: "1 / 1",
               background: bg,
               borderRight,
               borderBottom,
