@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { generate } from "./engine.js";
-import { parseSize } from "./index.js";
+import { parseSize, variantSupportsSize } from "./index.js";
 
 // These spawn the real Rust binary; they only run where it's been built
 // (local dev, the engine CI job). The server CI job has no cargo build, so
@@ -34,8 +34,24 @@ describe("parseSize", () => {
     expect(parseSize("9")).toBe(9);
   });
   it("rejects 16 (deferred) and junk with null", () => {
-    expect(parseSize("16")).toBeNull();
+    expect(parseSize("16")).toBe(16);
     expect(parseSize("7")).toBeNull();
     expect(parseSize("abc")).toBeNull();
+  });
+});
+
+describe("variantSupportsSize", () => {
+  it("classic + xsudoku support 6, 9, 16", () => {
+    for (const v of ["classic", "xsudoku"]) {
+      expect(variantSupportsSize(v, 6)).toBe(true);
+      expect(variantSupportsSize(v, 9)).toBe(true);
+      expect(variantSupportsSize(v, 16)).toBe(true);
+    }
+  });
+  it("jigsaw + killer support 6, 9 but NOT 16", () => {
+    for (const v of ["jigsaw", "killer"]) {
+      expect(variantSupportsSize(v, 9)).toBe(true);
+      expect(variantSupportsSize(v, 16)).toBe(false);
+    }
   });
 });

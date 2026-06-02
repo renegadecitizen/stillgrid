@@ -3,7 +3,14 @@ import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { generate, grade, solve, type GradeInput, type GeneratedPuzzle } from "./engine.js";
 
-const SUPPORTED_SIZES = new Set([6, 9]); // 16 deferred (engine-capable, solver not viable per-request)
+const SUPPORTED_SIZES = new Set([6, 9, 16]);
+// 16×16 is exposed only for classic + xsudoku (jigsaw/killer deferred — perf + cage UX).
+const SIZE_16_VARIANTS: ReadonlySet<string> = new Set(["classic", "xsudoku"]);
+
+export function variantSupportsSize(variant: string, size: number): boolean {
+  if (size === 16) return SIZE_16_VARIANTS.has(variant);
+  return size === 6 || size === 9;
+}
 
 export function parseSize(raw: string | undefined): number | null {
   if (raw === undefined) return 9;
@@ -87,7 +94,16 @@ app.get("/api/puzzle", async (req, res) => {
   }
   const size = parseSize(req.query.size !== undefined ? String(req.query.size) : undefined);
   if (size === null) {
-    res.status(400).json({ error: "unsupported size", supported: [6, 9] });
+    res.status(400).json({ error: "unsupported size", supported: [6, 9, 16] });
+    return;
+  }
+  if (!variantSupportsSize(variant, size)) {
+    res.status(400).json({
+      error: "unsupported size for variant",
+      variant,
+      size,
+      supportedSizes: variantSupportsSize(variant, 16) ? [6, 9, 16] : [6, 9],
+    });
     return;
   }
   const minClues = req.query.minClues ? Number(req.query.minClues) : undefined;
