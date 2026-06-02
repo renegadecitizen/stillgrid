@@ -72,6 +72,16 @@ const TIER_COLOR: Record<string, { main: string; soft: string }> = {
   hard: { main: "var(--color-hard)", soft: "var(--color-hard-soft)" },
 };
 
+// UI tier options allowed per board size. 16×16 keeps only Any/Easy/Medium —
+// Hard is unreachable at the 47% clue floor (measured 2026-06-02), so offering it
+// would just spin the server's 60-retry loop. X-Sudoku never sends a tier (TierSelect
+// is disabled for non-classic variants).
+const TIERS_BY_SIZE: Record<number, string[]> = {
+  6: ["", "easy", "medium", "hard"],
+  9: ["", "easy", "medium", "hard"],
+  16: ["", "easy", "medium"],
+};
+
 const kbd: React.CSSProperties = {
   background: "var(--color-paper)",
   border: "1px solid var(--color-divider)",
@@ -232,7 +242,9 @@ export function App() {
               dailyActive={dailyTag !== null}
               onVariant={(v) => {
                 setVariant(v);
-                load(v, tier, size);
+                const nextSize: Size = size === 16 && v !== "classic" && v !== "xsudoku" ? 9 : size;
+                if (nextSize !== size) setSize(nextSize);
+                load(v, tier, nextSize);
               }}
               onTier={(t) => {
                 setTier(t);
@@ -240,7 +252,10 @@ export function App() {
               }}
               onSize={(s) => {
                 setSize(s);
-                load(variant, tier, s);
+                const allowed = TIERS_BY_SIZE[s] ?? ["", "easy", "medium", "hard"];
+                const nextTier = allowed.includes(tier) ? tier : "";
+                if (nextTier !== tier) setTier(nextTier);
+                load(variant, nextTier, s);
               }}
               onNew={() => load(variant, tier, size)}
             />
@@ -388,13 +403,13 @@ function Controls({
   return (
     <div className="flex flex-col gap-3">
       <SetupRow label="Size">
-        <SizeSelect value={size} onChange={onSize} disabled={dailyActive} />
+        <SizeSelect value={size} variant={variant} onChange={onSize} disabled={dailyActive} />
       </SetupRow>
       <SetupRow label="Variant">
         <VariantSelect value={variant} onChange={onVariant} />
       </SetupRow>
       <SetupRow label="Difficulty">
-        <TierSelect value={tier} onChange={onTier} disabled={variant !== "classic"} />
+        <TierSelect value={tier} allowed={TIERS_BY_SIZE[size] ?? ["", "easy", "medium", "hard"]} onChange={onTier} disabled={variant !== "classic"} />
       </SetupRow>
       <div className="flex pt-1">
         <button
@@ -424,10 +439,12 @@ function SetupRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function SizeSelect({ value, onChange, disabled }: { value: Size; onChange: (s: Size) => void; disabled?: boolean }) {
+function SizeSelect({ value, variant, onChange, disabled }: { value: Size; variant: Variant; onChange: (s: Size) => void; disabled?: boolean }) {
+  const supports16 = variant === "classic" || variant === "xsudoku";
   const options: { v: Size; label: string }[] = [
     { v: 6, label: "6×6" },
     { v: 9, label: "9×9" },
+    { v: 16, label: "16×16" },
   ];
   return (
     <div
@@ -436,16 +453,19 @@ function SizeSelect({ value, onChange, disabled }: { value: Size; onChange: (s: 
     >
       {options.map(({ v, label }) => {
         const active = v === value;
+        const optDisabled = disabled || (v === 16 && !supports16);
         return (
           <button
             key={v}
-            disabled={disabled}
+            disabled={optDisabled}
+            title={v === 16 && !supports16 ? "16×16 is available for Classic and X-Sudoku" : undefined}
             onClick={() => onChange(v)}
             className="px-3 py-1 text-xs rounded-full transition-colors"
             style={{
               background: active ? "var(--color-ink-soft)" : "transparent",
               color: active ? "white" : "var(--color-ink-soft)",
-              cursor: disabled ? "not-allowed" : "pointer",
+              opacity: optDisabled && !active ? 0.4 : 1,
+              cursor: optDisabled ? "not-allowed" : "pointer",
             }}
           >
             {label}
@@ -478,13 +498,13 @@ function VariantSelect({ value, onChange }: { value: Variant; onChange: (v: Vari
   );
 }
 
-function TierSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+function TierSelect({ value, allowed, onChange, disabled }: { value: string; allowed: string[]; onChange: (v: string) => void; disabled?: boolean }) {
   const options = [
     { v: "", label: "Any" },
     { v: "easy", label: "Easy" },
     { v: "medium", label: "Medium" },
     { v: "hard", label: "Hard" },
-  ];
+  ].filter((o) => allowed.includes(o.v));
   return (
     <div className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)", opacity: disabled ? 0.5 : 1 }}>
       {options.map(({ v, label }) => {
@@ -925,6 +945,11 @@ function PlayCard({
           interactive
         />
       </div>
+      {state.n === 16 && (
+        <p className="sm:hidden mt-3 text-center text-[11px]" style={{ color: "var(--color-ink-mute)" }}>
+          16×16 is best on a larger screen.
+        </p>
+      )}
 
       {isSolved && (
         <div
