@@ -564,7 +564,7 @@ function PlayCard({
 
   const [currentBest, setCurrentBest] = useState<Best | null>(null);
   useEffect(() => {
-    const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
+    const puzzleSize = (puzzle.givens.length === 36 ? 6 : puzzle.givens.length === 256 ? 16 : 9) as Size;
     setCurrentBest(getBest(puzzle.variant, puzzleSize, tierBucket));
   }, [puzzle.variant, puzzle.givens, tierBucket]);
 
@@ -598,7 +598,7 @@ function PlayCard({
   // Strict deps: puzzle.variant, tierBucket, dailyTag change in lockstep
   // with puzzle.givens, so we deliberately omit them to keep this single-fire.
   useEffect(() => {
-    const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
+    const puzzleSize = (puzzle.givens.length === 36 ? 6 : puzzle.givens.length === 256 ? 16 : 9) as Size;
     track("puzzle_started", {
       variant: puzzle.variant,
       size: puzzleSize,
@@ -631,7 +631,7 @@ function PlayCard({
   useEffect(() => {
     if (stateBelongsToRef.current !== puzzle.givens) return;
     if (startedAt !== null && finishedAt === null) {
-      const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
+      const puzzleSize = (puzzle.givens.length === 36 ? 6 : puzzle.givens.length === 256 ? 16 : 9) as Size;
       const cells = puzzleSize * puzzleSize;
       const givenCount = state.givenMask.reduce((a, b) => a + b, 0);
       const userCells = cells - givenCount;
@@ -748,8 +748,8 @@ function PlayCard({
       const r = Math.floor(selected / n);
       const c = selected % n;
 
-      const d = parseInt(e.key, 10);
-      if (Number.isInteger(d) && d >= 1 && d <= n) {
+      const d = charToDigit(e.key);
+      if (d >= 1 && d <= n) {
         // Shift+digit always toggles a note. Otherwise honor notes mode.
         if (e.shiftKey || notesMode) handleToggleNote(selected, d);
         else handlePlace(selected, d);
@@ -792,7 +792,7 @@ function PlayCard({
   useEffect(() => {
     if (!isSolved || finishedAt === null || startedAt === null || outcome) return;
     const seconds = Math.max(1, Math.floor((finishedAt - startedAt) / 1000));
-    const puzzleSize = (puzzle.givens.length === 36 ? 6 : 9) as Size;
+    const puzzleSize = (puzzle.givens.length === 36 ? 6 : puzzle.givens.length === 256 ? 16 : 9) as Size;
     const tierLabel =
       puzzle.grade && puzzle.grade.outcome === "solved" ? puzzle.grade.tier_label : "easy";
     const tierMult: Record<string, number> = {
