@@ -5,24 +5,38 @@
  *   here — they're set from the puzzle's `givens` at init time).
  * - `notes[i]`: bitmask of candidate digits 1..n (bit `d` set ↔ note `d`).
  *   Empty for cells that have a value (we clear notes on placement).
- * - `n`: board size (6 or 9).
+ * - `n`: board size (6, 9, or 16).
  *
  * Undo/redo works by snapshotting the whole state on every change. n*n cells
  * × tiny payload → ~hundreds of bytes per snapshot; cheap.
  */
 
-export type Size = 6 | 9;
+export type Size = 6 | 9 | 16;
+
+/** Digit → display char: 1–9 decimal, 10–16 → 'A'–'G'. Matches engine output. */
+export function digitToChar(d: number): string {
+  return d <= 9 ? String(d) : String.fromCharCode(55 + d); // 10→'A' … 16→'G'
+}
+
+/** Display/wire char → digit (1–16); 0 for empty/invalid. Accepts a–g and A–G. */
+export function charToDigit(ch: string): number {
+  if (ch >= "1" && ch <= "9") return ch.charCodeAt(0) - 48;
+  const up = ch.toUpperCase();
+  if (up >= "A" && up <= "G") return up.charCodeAt(0) - 55; // 'A'→10 … 'G'→16
+  return 0;
+}
 
 export interface BoardState {
   n: Size;
   values: Uint8Array;    // length n*n, 0..n
-  notes: Uint16Array;    // length n*n, bits 1..n (16 bits covers 1–9 and 1–6)
+  notes: Uint32Array;    // length n*n, bits 1..n (32 bits cover digits 1–16)
   givenMask: Uint8Array; // length n*n, 1 if given (immutable), 0 otherwise
 }
 
 // Board box geometry. 6×6 boxes are 2 rows × 3 cols (NOT √n).
 export function boxDims(n: number): { bh: number; bw: number } {
   if (n === 6) return { bh: 2, bw: 3 };
+  if (n === 16) return { bh: 4, bw: 4 };
   return { bh: 3, bw: 3 }; // n === 9
 }
 
@@ -36,15 +50,15 @@ export function defaultBoxOf(n: number): number[] {
 }
 
 export function initialState(givens: string): BoardState {
-  const n = givens.length === 36 ? 6 : 9;
+  const n: Size = givens.length === 36 ? 6 : givens.length === 256 ? 16 : 9;
   const cells = n * n;
   const values = new Uint8Array(cells);
-  const notes = new Uint16Array(cells);
+  const notes = new Uint32Array(cells);
   const givenMask = new Uint8Array(cells);
   for (let i = 0; i < cells; i++) {
-    const ch = givens[i];
-    if (ch && ch >= "1" && ch <= "9") {
-      values[i] = ch.charCodeAt(0) - 48;
+    const d = charToDigit(givens[i] ?? "");
+    if (d !== 0) {
+      values[i] = d;
       givenMask[i] = 1;
     }
   }
@@ -55,7 +69,7 @@ export function cloneState(s: BoardState): BoardState {
   return {
     n: s.n,
     values: new Uint8Array(s.values),
-    notes: new Uint16Array(s.notes),
+    notes: new Uint32Array(s.notes),
     givenMask: s.givenMask, // immutable across the puzzle's lifetime
   };
 }
@@ -93,7 +107,7 @@ export function placeValue(s: BoardState, i: number, v: number): BoardState {
   const { bh, bw } = boxDims(n);
   const br = Math.floor(r / bh) * bh;
   const bc = Math.floor(c / bw) * bw;
-  const mask = ~(1 << v) & 0x3ff;
+  const mask = ~(1 << v) & ((1 << (n + 1)) - 1);
   for (let k = 0; k < n; k++) {
     next.notes[r * n + k]! &= mask;
     next.notes[k * n + c]! &= mask;
@@ -178,7 +192,7 @@ export function isSolved(s: BoardState, solution: string): boolean {
   for (let i = 0; i < cells; i++) {
     const sv = s.values[i] ?? 0;
     if (sv === 0) return false;
-    const expected = solution.charCodeAt(i) - 48;
+    const expected = charToDigit(solution[i] ?? "");
     if (sv !== expected) return false;
   }
   return true;
