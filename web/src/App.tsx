@@ -439,8 +439,25 @@ function SetupRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+// True on phone-width viewports (below Tailwind's `sm` = 640px). Used to gate
+// 16×16 off mobile — a 256-cell grid with letter entry is unworkable on a phone.
+function useIsNarrow(): boolean {
+  const query = "(max-width: 639px)";
+  const [narrow, setNarrow] = useState(
+    typeof window !== "undefined" && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
 function SizeSelect({ value, variant, onChange, disabled }: { value: Size; variant: Variant; onChange: (s: Size) => void; disabled?: boolean }) {
   const supports16 = variant === "classic" || variant === "xsudoku";
+  const isNarrow = useIsNarrow();
   const options: { v: Size; label: string }[] = [
     { v: 6, label: "6×6" },
     { v: 9, label: "9×9" },
@@ -453,12 +470,16 @@ function SizeSelect({ value, variant, onChange, disabled }: { value: Size; varia
     >
       {options.map(({ v, label }) => {
         const active = v === value;
-        const optDisabled = disabled || (v === 16 && !supports16);
+        const block16 = v === 16 && (!supports16 || isNarrow);
+        const optDisabled = disabled || block16;
+        const title16 = isNarrow
+          ? "16×16 is available on larger screens"
+          : "16×16 is available for Classic and X-Sudoku";
         return (
           <button
             key={v}
             disabled={optDisabled}
-            title={v === 16 && !supports16 ? "16×16 is available for Classic and X-Sudoku" : undefined}
+            title={block16 ? title16 : undefined}
             onClick={() => onChange(v)}
             className="px-3 py-1 text-xs rounded-full transition-colors"
             style={{
@@ -1188,6 +1209,54 @@ function NumberPad({
   const ROW_GAP = "gap-2";
   const BTN_H = 44; // px — matches the digit buttons exactly
 
+  const renderDigit = (d: number) => (
+    <button
+      key={d}
+      onClick={() => onDigit(d)}
+      className="rounded-md text-lg transition-colors w-full"
+      style={{
+        height: BTN_H,
+        background: notesMode ? "var(--color-card)" : "var(--color-paper)",
+        border: notesMode ? `1px dashed ${accent}` : "1px solid var(--color-divider)",
+        color: accent,
+        fontFamily: "var(--font-display)",
+        fontWeight: 500,
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.background = "var(--color-divider)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.background = notesMode
+          ? "var(--color-card)"
+          : "var(--color-paper)";
+      }}
+    >
+      {digitToChar(d)}
+    </button>
+  );
+  const renderClear = () => (
+    <button
+      key="clear"
+      onClick={onClear}
+      title="Clear the selected cell (Backspace)"
+      className="rounded-md text-sm transition-colors flex items-center justify-center w-full"
+      style={{
+        height: BTN_H,
+        background: "var(--color-paper)",
+        color: "var(--color-ink-soft)",
+        border: "1px solid var(--color-divider)",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.background = "var(--color-divider)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.background = "var(--color-paper)";
+      }}
+    >
+      ⌫
+    </button>
+  );
+
   return (
     <div className={`mt-6 flex flex-col items-center ${ROW_GAP} w-full`}>
       {/* tool row: Notes (prominent toggle) · Auto-fill · Clear notes · Undo · Redo.
@@ -1240,56 +1309,27 @@ function NumberPad({
         </div>
       </div>
 
-      {/* digit row — n digits + 1 clear = n+1 buttons. Mobile: half-width rows; desktop: single row. */}
-      <div
-        className={`grid w-full sm:max-w-[512px] mx-auto ${ROW_GAP}`}
-        style={{ gridTemplateColumns: `repeat(${n + 1}, 1fr)` }}
-      >
-        {Array.from({ length: n }, (_, k) => k + 1).map((d) => (
-          <button
-            key={d}
-            onClick={() => onDigit(d)}
-            className="rounded-md text-lg transition-colors w-full"
-            style={{
-              height: BTN_H,
-              background: notesMode ? "var(--color-card)" : "var(--color-paper)",
-              border: notesMode ? `1px dashed ${accent}` : "1px solid var(--color-divider)",
-              color: accent,
-              fontFamily: "var(--font-display)",
-              fontWeight: 500,
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "var(--color-divider)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = notesMode
-                ? "var(--color-card)"
-                : "var(--color-paper)";
-            }}
-          >
-            {digitToChar(d)}
-          </button>
-        ))}
-        <button
-          onClick={onClear}
-          title="Clear the selected cell (Backspace)"
-          className="rounded-md text-sm transition-colors flex items-center justify-center w-full"
-          style={{
-            height: BTN_H,
-            background: "var(--color-paper)",
-            color: "var(--color-ink-soft)",
-            border: "1px solid var(--color-divider)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "var(--color-divider)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "var(--color-paper)";
-          }}
+      {/* digit row. n≤9: one row of n digits + clear. 16×16: two rows — 1–9, then
+          A–G + clear — so the letters/digits stay large and tappable. */}
+      {n === 16 ? (
+        <div className={`flex flex-col w-full sm:max-w-[512px] mx-auto ${ROW_GAP}`}>
+          <div className={`grid ${ROW_GAP}`} style={{ gridTemplateColumns: "repeat(9, 1fr)" }}>
+            {Array.from({ length: 9 }, (_, k) => k + 1).map(renderDigit)}
+          </div>
+          <div className={`grid ${ROW_GAP}`} style={{ gridTemplateColumns: "repeat(8, 1fr)" }}>
+            {Array.from({ length: 7 }, (_, k) => k + 10).map(renderDigit)}
+            {renderClear()}
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`grid w-full sm:max-w-[512px] mx-auto ${ROW_GAP}`}
+          style={{ gridTemplateColumns: `repeat(${n + 1}, 1fr)` }}
         >
-          ⌫
-        </button>
-      </div>
+          {Array.from({ length: n }, (_, k) => k + 1).map(renderDigit)}
+          {renderClear()}
+        </div>
+      )}
     </div>
   );
 }
