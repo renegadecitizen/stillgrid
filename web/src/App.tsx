@@ -26,6 +26,8 @@ import {
   getValue,
   boxDims,
   defaultBoxOf,
+  digitToChar,
+  charToDigit,
 } from "./boardState";
 
 type Variant = "classic" | "xsudoku" | "jigsaw" | "killer";
@@ -672,7 +674,7 @@ function PlayCard({
     (i: number, v: number) => {
       if (isGiven(i)) return;
       // mistake counter: did the user place a wrong value?
-      const expected = puzzle.solution.charCodeAt(i) - 48;
+      const expected = charToDigit(puzzle.solution[i] ?? "");
       const current = state.values[i] ?? 0;
       if (v !== expected && current !== v) {
         setMistakes((m) => m + 1);
@@ -1121,7 +1123,7 @@ function NotesGrid({
                 : "transparent",
             }}
           >
-            {d}
+            {digitToChar(d)}
           </span>
         );
       })}
@@ -1240,7 +1242,7 @@ function NumberPad({
                 : "var(--color-paper)";
             }}
           >
-            {d}
+            {digitToChar(d)}
           </button>
         ))}
         <button
@@ -1446,7 +1448,7 @@ function Grid({
         const col = i % n;
         const given = state.givenMask[i] === 1;
         const value = state.values[i] ?? 0;
-        const valueChar = value === 0 ? "" : String(value);
+        const valueChar = value === 0 ? "" : digitToChar(value);
         const notes = value === 0 ? listNotes(state, i) : [];
 
         const sumHere = cageSumAt.get(i);
@@ -1460,7 +1462,7 @@ function Grid({
         const isSameDigit =
           !isSelected && selDigit !== null && value !== 0 && value === selDigit;
 
-        const expected = puzzle.solution.charCodeAt(i) - 48;
+        const expected = charToDigit(puzzle.solution[i] ?? "");
         const isConflict = !given && value !== 0 && value !== expected;
 
         let bg: string | undefined;
