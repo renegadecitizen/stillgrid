@@ -76,7 +76,7 @@ const TIER_COLOR: Record<string, { main: string; soft: string }> = {
 // Hard is unreachable at the 47% clue floor (measured 2026-06-02), so offering it
 // would just spin the server's 60-retry loop. X-Sudoku never sends a tier (TierSelect
 // is disabled for non-classic variants).
-const TIERS_BY_SIZE: Record<number, string[]> = {
+const TIERS_BY_SIZE: Record<Size, string[]> = {
   6: ["", "easy", "medium", "hard"],
   9: ["", "easy", "medium", "hard"],
   16: ["", "easy", "medium"],
@@ -252,7 +252,7 @@ export function App() {
               }}
               onSize={(s) => {
                 setSize(s);
-                const allowed = TIERS_BY_SIZE[s] ?? ["", "easy", "medium", "hard"];
+                const allowed = TIERS_BY_SIZE[s];
                 const nextTier = allowed.includes(tier) ? tier : "";
                 if (nextTier !== tier) setTier(nextTier);
                 load(variant, nextTier, s);
@@ -409,7 +409,7 @@ function Controls({
         <VariantSelect value={variant} onChange={onVariant} />
       </SetupRow>
       <SetupRow label="Difficulty">
-        <TierSelect value={tier} allowed={TIERS_BY_SIZE[size] ?? ["", "easy", "medium", "hard"]} onChange={onTier} disabled={variant !== "classic"} />
+        <TierSelect value={tier} allowed={TIERS_BY_SIZE[size]} onChange={onTier} disabled={variant !== "classic"} />
       </SetupRow>
       <div className="flex pt-1">
         <button
