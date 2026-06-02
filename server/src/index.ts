@@ -102,7 +102,7 @@ app.get("/api/puzzle", async (req, res) => {
       error: "unsupported size for variant",
       variant,
       size,
-      supportedSizes: variantSupportsSize(variant, 16) ? [6, 9, 16] : [6, 9],
+      supportedSizes: SIZE_16_VARIANTS.has(variant) ? [6, 9, 16] : [6, 9],
     });
     return;
   }
