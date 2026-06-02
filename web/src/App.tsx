@@ -427,14 +427,17 @@ function Controls({
 // Label-left setup row: a small fixed-width category label + its control.
 function SetupRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-4">
+    // Mobile: stack the label above the control so the pill row gets the full
+    // width (the side-by-side label squeezed the pills off-screen on phones).
+    // Desktop (sm+): label beside the control as before.
+    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-4">
       <span
         className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-[0.08em]"
         style={{ color: "var(--color-ink-mute)" }}
       >
         {label}
       </span>
-      {children}
+      <div className="max-w-full overflow-x-auto sm:overflow-visible">{children}</div>
     </div>
   );
 }
