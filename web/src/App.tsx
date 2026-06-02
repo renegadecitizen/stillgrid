@@ -1139,7 +1139,7 @@ function NotesGrid({
             className="flex items-center justify-center leading-none"
             style={{
               fontFamily: "var(--font-body)",
-              fontSize: 9,
+              fontSize: n === 16 ? 6 : 9,
               fontWeight: hl ? 700 : 500,
               color: present
                 ? hl
@@ -1437,6 +1437,9 @@ function Grid({
 }) {
   const n = state.n;
   const cells = n * n;
+  const cellMin = n === 16 ? 18 : 34;
+  const cellMax = n === 16 ? 34 : 46;
+  const valueFont = n === 16 ? 15 : 22;
   const cageOf: (number | null)[] = Array(cells).fill(null);
   if (puzzle.cages) {
     puzzle.cages.forEach((cage, ci) => cage.cells.forEach((c) => (cageOf[c] = ci)));
@@ -1459,8 +1462,8 @@ function Grid({
     <div
       className="grid"
       style={{
-        gridTemplateColumns: `repeat(${n}, minmax(34px, 46px))`,
-        gridTemplateRows: `repeat(${n}, minmax(34px, 46px))`,
+        gridTemplateColumns: `repeat(${n}, minmax(${cellMin}px, ${cellMax}px))`,
+        gridTemplateRows: `repeat(${n}, minmax(${cellMin}px, ${cellMax}px))`,
         border: "2px solid var(--color-box-line)",
         borderRadius: 4,
         overflow: "hidden",
@@ -1556,7 +1559,7 @@ function Grid({
               borderBottom,
               boxShadow: allInsets.join(", ") || undefined,
               fontFamily: "var(--font-grid)",
-              fontSize: 22,
+              fontSize: valueFont,
               fontWeight: given ? 500 : 600,
               color: textColor,
               cursor: interactive ? "pointer" : "default",
