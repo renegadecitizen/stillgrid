@@ -29,14 +29,42 @@ pub struct Puzzle {
 pub fn random_solution(rng: &mut Rng, variant: &Variant) -> Option<Board> {
     let n = variant.n as usize;
     let mut b = Board::empty_n(n);
-    if fill_random(&mut b, variant, rng) {
+    // Unbounded fill — classic/X/Killer-classic always complete near-linearly,
+    // so behaviour here is unchanged. Jigsaw uses `random_solution_budgeted`.
+    let mut budget = u64::MAX;
+    if fill_random(&mut b, variant, rng, &mut budget) {
         Some(b)
     } else {
         None
     }
 }
 
-fn fill_random(board: &mut Board, variant: &Variant, rng: &mut Rng) -> bool {
+/// Node budget for a single budgeted jigsaw fill attempt. A good 9×9 jigsaw
+/// solution fills in well under 1k search nodes; pathological irregular
+/// partitions blow past millions. 100k sits deep in that gap — legitimate
+/// partitions never reach it, and a bad partition aborts in a few tens of ms.
+const JIGSAW_FILL_BUDGET: u64 = 100_000;
+
+/// Like `random_solution` but abandons the fill after `budget` search nodes,
+/// returning None. For jigsaw: certain irregular partitions send MRV
+/// backtracking into a multi-second (occasionally multi-minute) tail, so the
+/// caller discards the partition and retries with a fresh one.
+fn random_solution_budgeted(rng: &mut Rng, variant: &Variant, budget: u64) -> Option<Board> {
+    let n = variant.n as usize;
+    let mut b = Board::empty_n(n);
+    let mut remaining = budget;
+    if fill_random(&mut b, variant, rng, &mut remaining) {
+        Some(b)
+    } else {
+        None
+    }
+}
+
+fn fill_random(board: &mut Board, variant: &Variant, rng: &mut Rng, budget: &mut u64) -> bool {
+    if *budget == 0 {
+        return false; // node budget exhausted — abandon this fill
+    }
+    *budget -= 1;
     let n = variant.n as usize;
     // MRV: choose the empty cell with the fewest legal candidates. This collapses
     // the 256-cell search from catastrophic backtracking (naive first-empty) to
@@ -83,10 +111,13 @@ fn fill_random(board: &mut Board, variant: &Variant, rng: &mut Rng) -> bool {
     rng.shuffle(&mut digits[..k]);
     for &val in &digits[..k] {
         board.set(r, c, val);
-        if fill_random(board, variant, rng) {
+        if fill_random(board, variant, rng, budget) {
             return true;
         }
         board.set(r, c, 0);
+        if *budget == 0 {
+            return false; // exhausted mid-branch — unwind without more work
+        }
     }
     false
 }
@@ -95,10 +126,16 @@ fn fill_random(board: &mut Board, variant: &Variant, rng: &mut Rng) -> bool {
 /// For Killer use `generate_killer` instead — this function returns a
 /// classic-style puzzle even if you pass a killer variant.
 pub fn generate_variant(rng: &mut Rng, variant: &Variant, min_clues: usize) -> Puzzle {
-    let n = variant.n as usize;
-    let cells = n * n;
     let solution =
         random_solution(rng, variant).expect("solution always exists for non-degenerate variants");
+    carve_puzzle(rng, variant, solution, min_clues)
+}
+
+/// Carve a unique-solution puzzle from a complete `solution` by removing cells
+/// in random order, keeping a removal only while the puzzle stays unique.
+fn carve_puzzle(rng: &mut Rng, variant: &Variant, solution: Board, min_clues: usize) -> Puzzle {
+    let n = variant.n as usize;
+    let cells = n * n;
     let mut givens = solution;
 
     let mut order: Vec<usize> = (0..cells).collect();
@@ -333,8 +370,17 @@ pub fn generate_for_n(rng: &mut Rng, n: usize, kind: VariantKind, min_clues: usi
         VariantKind::Classic => generate_variant(rng, &Variant::classic_n(n), min_clues),
         VariantKind::XSudoku => generate_variant(rng, &Variant::xsudoku_n(n), min_clues),
         VariantKind::Jigsaw => {
-            let v = random_jigsaw_variant_n(rng, n);
-            generate_variant(rng, &v, min_clues)
+            // Some irregular partitions drive MRV fill into a multi-second
+            // (rarely multi-minute) backtracking tail. Bound each fill and, if a
+            // partition blows the budget, discard it for a fresh one — a random
+            // restart that turns the pathological tail into a sub-second retry.
+            // The carve itself is cheap (~1–4 ms) and stays unbounded.
+            loop {
+                let v = random_jigsaw_variant_n(rng, n);
+                if let Some(sol) = random_solution_budgeted(rng, &v, JIGSAW_FILL_BUDGET) {
+                    break carve_puzzle(rng, &v, sol, min_clues);
+                }
+            }
         }
         VariantKind::Killer => generate_killer_n(rng, n),
     }
@@ -452,6 +498,28 @@ mod tests {
             let b = Board::from_str(&p.givens.to_string_dotted()).unwrap();
             assert_eq!(b.n(), n);
             assert!(matches!(solve_variant(&b, &v), SolveOutcome::Unique(_)), "n={n} not unique");
+        }
+    }
+
+    // Regression guard for the jigsaw generation tail (roadmap #1). Before the
+    // budgeted-fill + partition-restart fix, seeds 23 and 34 took 3.5 s / 5.3 s
+    // and one seed in 1..=40 took ~845 s — all in `fill_random`. With the fix
+    // every seed must generate quickly and stay a valid unique jigsaw.
+    #[test]
+    fn jigsaw_generation_has_no_tail() {
+        use crate::solver::{solve_variant, SolveOutcome};
+        use std::time::Instant;
+        for seed in 1..=40u64 {
+            let mut rng = Rng::new(seed);
+            let t = Instant::now();
+            let p = generate_for_n(&mut rng, 9, VariantKind::Jigsaw, 28);
+            let dt = t.elapsed();
+            assert!(dt.as_millis() < 1000, "seed {seed}: jigsaw generation took {dt:?}");
+            let b = Board::from_str(&p.givens.to_string_dotted()).unwrap();
+            assert!(
+                matches!(solve_variant(&b, &p.variant), SolveOutcome::Unique(_)),
+                "seed {seed}: generated jigsaw is not unique"
+            );
         }
     }
 
