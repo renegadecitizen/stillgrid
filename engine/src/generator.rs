@@ -454,4 +454,93 @@ mod tests {
             assert!(matches!(solve_variant(&b, &v), SolveOutcome::Unique(_)), "n={n} not unique");
         }
     }
+
+    // Profiling harness for the jigsaw@9 generation tail (roadmap #1). Splits one
+    // `generate_for_n(Jigsaw)` into its three cost centers — partition search,
+    // solution fill, and the uniqueness carve — and reports per-seed timings plus
+    // carve internals (solve_variant call count + slowest single check). The carve
+    // is replicated from `generate_variant` so each `solve_variant` can be timed
+    // individually; partition + solution use the real functions. Ignored (slow,
+    // diagnostic). Run: cargo test --release profile_jigsaw_generation_tail -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn profile_jigsaw_generation_tail() {
+        use crate::solver::{solve_variant, SolveOutcome};
+        use std::time::Instant;
+
+        const SEEDS: u64 = 40;
+        const MIN_CLUES: usize = 28; // server default for jigsaw
+
+        let mut totals = Vec::new();
+        println!(
+            "\nseed |   total |   partn |    soln |   carve | carve_calls | slowest_check | clues"
+        );
+        println!(
+            "-----+---------+---------+---------+---------+-------------+---------------+------"
+        );
+        for seed in 1..=SEEDS {
+            let mut rng = Rng::new(seed);
+
+            let t0 = Instant::now();
+            let v = random_jigsaw_variant_n(&mut rng, 9);
+            let t_partition = t0.elapsed();
+
+            let t1 = Instant::now();
+            let solution = random_solution(&mut rng, &v).expect("jigsaw solution exists");
+            let t_solution = t1.elapsed();
+
+            // Replicate generate_variant's carve, timing each uniqueness check.
+            let cells = 81;
+            let mut givens = solution;
+            let mut order: Vec<usize> = (0..cells).collect();
+            rng.shuffle(&mut order);
+            let mut clue_count = cells;
+            let mut carve_calls = 0usize;
+            let mut slowest_check = std::time::Duration::ZERO;
+            let t2 = Instant::now();
+            for &idx in &order {
+                if clue_count <= MIN_CLUES {
+                    break;
+                }
+                let saved = givens.0[idx];
+                if saved == 0 {
+                    continue;
+                }
+                givens.0[idx] = 0;
+                let tc = Instant::now();
+                let outcome = solve_variant(&givens, &v);
+                let dt = tc.elapsed();
+                carve_calls += 1;
+                if dt > slowest_check {
+                    slowest_check = dt;
+                }
+                match outcome {
+                    SolveOutcome::Unique(_) => clue_count -= 1,
+                    _ => givens.0[idx] = saved,
+                }
+            }
+            let t_carve = t2.elapsed();
+            let total = t_partition + t_solution + t_carve;
+            totals.push(total);
+
+            println!(
+                "{seed:>4} | {:>6.1}ms | {:>6.2}ms | {:>6.2}ms | {:>6.1}ms | {carve_calls:>11} | {:>11.1}ms | {clue_count:>4}",
+                total.as_secs_f64() * 1e3,
+                t_partition.as_secs_f64() * 1e3,
+                t_solution.as_secs_f64() * 1e3,
+                t_carve.as_secs_f64() * 1e3,
+                slowest_check.as_secs_f64() * 1e3,
+            );
+        }
+        totals.sort();
+        let p50 = totals[totals.len() / 2];
+        let p95 = totals[totals.len() * 95 / 100];
+        let max = *totals.last().unwrap();
+        println!(
+            "\nsummary: p50={:.1}ms  p95={:.1}ms  max={:.1}ms  (n={SEEDS})",
+            p50.as_secs_f64() * 1e3,
+            p95.as_secs_f64() * 1e3,
+            max.as_secs_f64() * 1e3,
+        );
+    }
 }
