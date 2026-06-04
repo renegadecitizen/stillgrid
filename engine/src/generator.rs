@@ -523,6 +523,122 @@ mod tests {
         }
     }
 
+    // Measures the tier distribution the generator actually produces per
+    // (variant, size), at the production default min_clues (28). Drives the
+    // decision of which difficulty options to expose per variant×size in the UI.
+    // Ignored (slow). Run: cargo test --release measure_tier_distribution -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn measure_tier_distribution() {
+        use crate::techniques::{grade_variant, GradeOutcome, Tier};
+        const N: u64 = 80;
+        const MIN_CLUES: usize = 28;
+
+        fn label(t: Tier) -> usize {
+            match t {
+                Tier::T1Easy => 0,
+                Tier::T2Medium => 1,
+                Tier::T3Hard => 2,
+                Tier::T4Diabolical => 3,
+                Tier::T5Nightmare => 4,
+            }
+        }
+        let combos: &[(&str, VariantKind, usize)] = &[
+            ("classic", VariantKind::Classic, 6),
+            ("classic", VariantKind::Classic, 9),
+            ("classic", VariantKind::Classic, 16),
+            ("xsudoku", VariantKind::XSudoku, 6),
+            ("xsudoku", VariantKind::XSudoku, 9),
+            ("xsudoku", VariantKind::XSudoku, 16),
+            ("jigsaw", VariantKind::Jigsaw, 6),
+            ("jigsaw", VariantKind::Jigsaw, 9),
+            ("killer", VariantKind::Killer, 6),
+            ("killer", VariantKind::Killer, 9),
+        ];
+
+        println!("\nvariant   size |   easy medium   hard diabol  night | stuck  (N={N}, min_clues={MIN_CLUES})");
+        println!("---------------+--------------------------------------+------");
+        for &(name, kind, n) in combos {
+            let mut counts = [0usize; 5];
+            let mut stuck = 0usize;
+            for seed in 0..N {
+                let mut rng = Rng::new(seed * 131 + n as u64);
+                let p = generate_for_n(&mut rng, n, kind, MIN_CLUES);
+                match grade_variant(&p.givens, &p.variant) {
+                    GradeOutcome::Solved { tier, .. } => counts[label(tier)] += 1,
+                    GradeOutcome::Stuck { .. } => stuck += 1,
+                }
+            }
+            let pct = |c: usize| (c as f64) * 100.0 / (N as f64);
+            println!(
+                "{name:<8} {n:>4} | {:>5.0}% {:>5.0}% {:>5.0}% {:>5.0}% {:>5.0}% | {:>4}",
+                pct(counts[0]),
+                pct(counts[1]),
+                pct(counts[2]),
+                pct(counts[3]),
+                pct(counts[4]),
+                stuck,
+            );
+        }
+    }
+
+    // Sweeps the clue floor (min_clues) per variant at 9×9 and reports the tier
+    // distribution at each floor. Drives the (variant, tier) → min_clues mapping:
+    // harder tiers want a lower floor. Killer is excluded — generate_killer_n
+    // ignores min_clues, so its difficulty isn't tunable this way.
+    // Ignored (slow). Run: cargo test --release sweep_min_clues_tiers -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn sweep_min_clues_tiers() {
+        use crate::techniques::{grade_variant, GradeOutcome, Tier};
+        const N: u64 = 60;
+        let floors = [18usize, 20, 22, 24, 26, 28, 30, 32];
+
+        fn label(t: Tier) -> usize {
+            match t {
+                Tier::T1Easy => 0,
+                Tier::T2Medium => 1,
+                Tier::T3Hard => 2,
+                Tier::T4Diabolical => 3,
+                Tier::T5Nightmare => 4,
+            }
+        }
+
+        for (name, kind) in [
+            ("classic", VariantKind::Classic),
+            ("xsudoku", VariantKind::XSudoku),
+            ("jigsaw", VariantKind::Jigsaw),
+        ] {
+            println!("\n=== {name} @ 9×9 (N={N}) ===");
+            println!("floor |   easy medium   hard diabol  night | stuck | avg_clues");
+            println!("------+--------------------------------------+-------+----------");
+            for &floor in &floors {
+                let mut counts = [0usize; 5];
+                let mut stuck = 0usize;
+                let mut total_clues = 0usize;
+                for seed in 0..N {
+                    let mut rng = Rng::new(seed * 97 + floor as u64);
+                    let p = generate_for_n(&mut rng, 9, kind, floor);
+                    total_clues += p.clue_count;
+                    match grade_variant(&p.givens, &p.variant) {
+                        GradeOutcome::Solved { tier, .. } => counts[label(tier)] += 1,
+                        GradeOutcome::Stuck { .. } => stuck += 1,
+                    }
+                }
+                let pct = |c: usize| (c as f64) * 100.0 / (N as f64);
+                println!(
+                    "{floor:>5} | {:>5.0}% {:>5.0}% {:>5.0}% {:>5.0}% {:>5.0}% | {stuck:>5} | {:>8.1}",
+                    pct(counts[0]),
+                    pct(counts[1]),
+                    pct(counts[2]),
+                    pct(counts[3]),
+                    pct(counts[4]),
+                    total_clues as f64 / N as f64,
+                );
+            }
+        }
+    }
+
     // Profiling harness for the jigsaw@9 generation tail (roadmap #1). Splits one
     // `generate_for_n(Jigsaw)` into its three cost centers — partition search,
     // solution fill, and the uniqueness carve — and reports per-seed timings plus
