@@ -84,6 +84,7 @@ To add a new event:
 - **No comments on the obvious.** Don't add JSDoc/docstrings to code that's already clear from names + types. Only comment hidden invariants or workarounds.
 - **No new files unless necessary.** Prefer editing.
 - TypeScript strict mode is on, including `noUncheckedIndexedAccess`. Array index access returns `T | undefined` — use `!` or guards.
+- **Accessibility is a first-class goal** (a maintainer relies on screen reader + keyboard + high contrast). Don't regress it. The board is an ARIA grid: `role="grid"` → `role="row"` (via `display:contents`, so the CSS grid layout is untouched) → `role="gridcell"` with `aria-rowindex`/`aria-colindex`, per-cell `aria-label` ("row R, column C, …, given/conflicts"), `aria-selected`, `aria-readonly` for givens, and roving `tabindex` where focus follows selection (`onFocus`→select). Board actions are announced through an `aria-live="polite"` region in `PlayCard` (the `say()` helper). Keep colour from being the only signal (conflicts also get a wavy underline); keep `:focus-visible` rings visible (see `index.css`); honour `prefers-reduced-motion`; keep muted text ≥ WCAG AA (the `--color-ink-soft`/`-mute` tokens were darkened for this). Segmented controls are `role="group"` + `aria-pressed`. A "Skip to puzzle" link targets `#main-content`.
 
 ## Roadmap (Phase 2 remaining)
 
