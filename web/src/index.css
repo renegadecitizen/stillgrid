@@ -31,16 +31,16 @@
   --color-plum: #7a4d6b;
   --color-plum-soft: #f3e9ee;
 
-  /* Killer — terracotta */
-  --color-terracotta: #b35c3b;
+  /* Killer — terracotta (darkened from #b35c3b to clear WCAG AA as text/fill). */
+  --color-terracotta: #a14a2a;
   --color-terracotta-soft: #fbe7dd;
 
   /* Difficulty colors */
   --color-easy: #3d5a4e;       /* sage */
   --color-easy-soft: #e6ede7;
-  --color-medium: #c89b5a;     /* ochre */
+  --color-medium: #97681e;     /* deep ochre (darkened from #c89b5a for WCAG AA) */
   --color-medium-soft: #faf0db;
-  --color-hard: #b35c3b;       /* terracotta */
+  --color-hard: #a14a2a;       /* deep terracotta (darkened from #b35c3b for WCAG AA) */
   --color-hard-soft: #fbe7dd;
   --color-diabolical: #8c4a6b; /* mulberry */
   --color-diabolical-soft: #f3e3ec;
@@ -107,6 +107,14 @@ body {
   outline: 3px solid var(--color-ink);
   outline-offset: -3px;
   border-radius: 0;
+}
+
+/* The Feedletter widget recolours our own #feedletter-widget-button to a green
+   that fails contrast (white on #4bbf73 ≈ 2.3:1). Override it to a darker,
+   AA-passing green — !important to beat the vendor's injected styling. */
+#feedletter-widget-button {
+  background-color: #2e7d4f !important;
+  color: #ffffff !important;
 }
 
 /* Respect the OS "reduce motion" preference. */
