@@ -549,7 +549,6 @@ function SizeSelect({ value, variant, onChange, disabled }: { value: Size; varia
             key={v}
             disabled={optDisabled}
             aria-pressed={active}
-            aria-label={`${v} by ${v}${block16 ? ", unavailable" : ""}`}
             title={block16 ? title16 : undefined}
             onClick={() => onChange(v)}
             className="px-3 py-1 text-xs rounded-full transition-colors"
@@ -1175,7 +1174,7 @@ function PlayCard({
       </div>
 
       {elapsedMs !== null && (
-        <div className="mt-1 text-[10px] opacity-50" style={{ color: "var(--color-ink-mute)" }}>
+        <div className="mt-1 text-[10px]" style={{ color: "var(--color-ink-mute)" }}>
           generated in {elapsedMs} ms
         </div>
       )}
@@ -1238,7 +1237,7 @@ function TierBadge({ tier, steps }: { tier: string; steps: number }) {
   return (
     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ background: c.soft, color: c.main }}>
       <span className="capitalize">{tier}</span>
-      <span style={{ opacity: 0.7 }}>· {steps} steps</span>
+      <span>· {steps} steps</span>
     </span>
   );
 }
@@ -1322,7 +1321,7 @@ function NumberPad({
     <button
       key={d}
       onClick={() => onDigit(d)}
-      aria-label={notesMode ? `Toggle note ${d}` : `Enter ${d}`}
+      aria-label={notesMode ? `Toggle note ${digitToChar(d)}` : `Enter ${digitToChar(d)}`}
       className="rounded-md text-lg transition-colors w-full"
       style={{
         height: BTN_H,
@@ -1377,7 +1376,6 @@ function NumberPad({
         <button
           onClick={onToggleNotes}
           aria-pressed={notesMode}
-          aria-label="Notes mode"
           title={`Toggle notes mode (N). When on, 1-${n} writes small candidate digits instead of placing a value.`}
           className="inline-flex items-center justify-center gap-2 px-2 sm:px-4 rounded-lg text-sm transition-colors w-full sm:w-auto"
           style={{
@@ -1394,7 +1392,7 @@ function NumberPad({
             className="text-[9px] px-1.5 py-0.5 rounded-md uppercase tracking-wider"
             style={{
               background: notesMode ? "rgba(255,255,255,0.25)" : "var(--color-divider)",
-              color: notesMode ? "white" : "var(--color-ink-mute)",
+              color: notesMode ? "white" : "var(--color-ink-soft)",
               fontWeight: 600,
             }}
           >
@@ -1403,19 +1401,19 @@ function NumberPad({
         </button>
 
         <div className={`grid grid-cols-4 sm:contents ${ROW_GAP}`}>
-          <ToolButton h={BTN_H} accent={accent} onClick={onAutoPencil} title="Fill every empty cell with valid candidates">
+          <ToolButton h={BTN_H} accent={accent} onClick={onAutoPencil} label="Auto-fill" title="Fill every empty cell with valid candidates">
             <SparkleIcon />
             <span className="hidden sm:inline">Auto-fill</span>
           </ToolButton>
-          <ToolButton h={BTN_H} accent={accent} onClick={onClearAllNotes} title="Erase all notes from every cell (values stay)">
+          <ToolButton h={BTN_H} accent={accent} onClick={onClearAllNotes} label="Clear notes" title="Erase all notes from every cell (values stay)">
             <EraserIcon />
             <span className="hidden sm:inline">Clear notes</span>
           </ToolButton>
-          <ToolButton h={BTN_H} accent={accent} onClick={onUndo} disabled={!canUndo} title="Undo last move (⌘Z)">
+          <ToolButton h={BTN_H} accent={accent} onClick={onUndo} disabled={!canUndo} label="Undo" title="Undo last move (⌘Z)">
             <UndoIcon />
             <span className="hidden sm:inline">Undo</span>
           </ToolButton>
-          <ToolButton h={BTN_H} accent={accent} onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+          <ToolButton h={BTN_H} accent={accent} onClick={onRedo} disabled={!canRedo} label="Redo" title="Redo (⌘⇧Z)">
             <RedoIcon />
             <span className="hidden sm:inline">Redo</span>
           </ToolButton>
@@ -1453,6 +1451,7 @@ function ToolButton({
   onClick,
   disabled,
   title,
+  label,
   h = 36,
   children,
 }: {
@@ -1461,6 +1460,10 @@ function ToolButton({
   onClick: () => void;
   disabled?: boolean;
   title: string;
+  // Short visible label; also the accessible name so it satisfies Label-in-Name
+  // (WCAG 2.5.3) and gives the icon-only mobile layout a name. `title` is the
+  // longer hover tooltip.
+  label: string;
   h?: number;
   children: React.ReactNode;
 }) {
@@ -1468,7 +1471,7 @@ function ToolButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      aria-label={title}
+      aria-label={label}
       title={title}
       className="inline-flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-lg text-sm transition-colors w-full sm:w-auto"
       style={{
@@ -1816,7 +1819,7 @@ function SidebarCard({
       <div className="flex items-baseline justify-between mb-2">
         <h3 className="text-sm" style={{ fontFamily: "var(--font-display)", fontWeight: 600, color: accent }}>{title}</h3>
         {tag && (
-          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--color-paper)", color: "var(--color-ink-mute)" }}>
+          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--color-paper)", color: "var(--color-ink-soft)" }}>
             {tag}
           </span>
         )}
@@ -2028,7 +2031,7 @@ function Footer({ isDemo }: { isDemo: boolean }) {
   useFeedletterWidget();
   return (
     <footer className="border-t mt-8" style={{ borderColor: "var(--color-divider)" }}>
-      <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-mute)" }}>
+      <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-soft)" }}>
         <span>© {new Date().getFullYear()} Stillgrid. Made with patience.</span>
         <div className="flex items-center gap-4">
           {isDemo && <span className="italic">Demo build · pool of pre-baked puzzles</span>}
