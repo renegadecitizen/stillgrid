@@ -70,17 +70,34 @@ const TIER_COLOR: Record<string, { main: string; soft: string }> = {
   easy: { main: "var(--color-easy)", soft: "var(--color-easy-soft)" },
   medium: { main: "var(--color-medium)", soft: "var(--color-medium-soft)" },
   hard: { main: "var(--color-hard)", soft: "var(--color-hard-soft)" },
+  diabolical: { main: "var(--color-diabolical)", soft: "var(--color-diabolical-soft)" },
+  nightmare: { main: "var(--color-nightmare)", soft: "var(--color-nightmare-soft)" },
 };
 
-// UI tier options allowed per board size. 16×16 keeps only Any/Easy/Medium —
-// Hard is unreachable at the 47% clue floor (measured 2026-06-02), so offering it
-// would just spin the server's 60-retry loop. X-Sudoku never sends a tier (TierSelect
-// is disabled for non-classic variants).
-const TIERS_BY_SIZE: Record<Size, string[]> = {
-  6: ["", "easy", "medium", "hard"],
-  9: ["", "easy", "medium", "hard"],
-  16: ["", "easy", "medium"],
-};
+// Difficulty options offered per (variant, size), derived from the measured tier
+// distribution (engine `measure_tier_distribution` / `sweep_min_clues_tiers`,
+// 2026-06-04). The grader's natural gradient is Easy → Medium → Nightmare:
+// Hard/Diabolical (X-Wing/Swordfish-terminal) are too rare to offer reliably, so
+// we surface honest grader labels and skip them. The server maps the requested
+// tier → a clue floor (see TIER_FLOORS in server/src/index.ts) and retries until
+// the grade matches. Constraints from the data:
+//  - 6×6 is single-difficulty for every variant (grader solves all with singles).
+//  - Killer never grades Easy (cage logic is inherently T2+).
+//  - 16×16 can't carve below the 47% floor, so its distribution is fixed:
+//    classic reaches Easy/Medium; xsudoku is ~all-easy (Any only).
+function tiersFor(variant: Variant, size: Size): string[] {
+  if (size === 6) return [""];
+  if (size === 16) return variant === "classic" ? ["", "easy", "medium"] : [""];
+  // 9×9
+  if (variant === "killer") return ["", "medium", "nightmare"];
+  return ["", "easy", "medium", "nightmare"];
+}
+
+// Snap a tier to one the (variant, size) actually offers — used on every
+// variant/size transition so a stale selection can't request an unreachable tier.
+function snapTier(tier: string, variant: Variant, size: Size): string {
+  return tiersFor(variant, size).includes(tier) ? tier : "";
+}
 
 const kbd: React.CSSProperties = {
   background: "var(--color-paper)",
@@ -146,7 +163,7 @@ export function App() {
     }
 
     const params = new URLSearchParams({ variant: vArg });
-    if (tArg && vArg === "classic") params.set("tier", tArg);
+    if (tArg) params.set("tier", tArg);
     params.set("size", String(sArg));
     fetch(`/api/puzzle?${params}`)
       .then((r) => r.json())
@@ -244,7 +261,9 @@ export function App() {
                 setVariant(v);
                 const nextSize: Size = size === 16 && v !== "classic" && v !== "xsudoku" ? 9 : size;
                 if (nextSize !== size) setSize(nextSize);
-                load(v, tier, nextSize);
+                const nextTier = snapTier(tier, v, nextSize);
+                if (nextTier !== tier) setTier(nextTier);
+                load(v, nextTier, nextSize);
               }}
               onTier={(t) => {
                 setTier(t);
@@ -252,8 +271,7 @@ export function App() {
               }}
               onSize={(s) => {
                 setSize(s);
-                const allowed = TIERS_BY_SIZE[s];
-                const nextTier = allowed.includes(tier) ? tier : "";
+                const nextTier = snapTier(tier, variant, s);
                 if (nextTier !== tier) setTier(nextTier);
                 load(variant, nextTier, s);
               }}
@@ -300,7 +318,14 @@ export function App() {
           <aside className="lg:col-span-1 space-y-4">
             <DailyCard onPlay={loadDaily} />
             <StreakCard />
-            <VariantsCard active={variant} onPick={(v) => { setVariant(v); load(v, tier, size); }} />
+            <VariantsCard active={variant} onPick={(v) => {
+              setVariant(v);
+              const nextSize: Size = size === 16 && v !== "classic" && v !== "xsudoku" ? 9 : size;
+              if (nextSize !== size) setSize(nextSize);
+              const nextTier = snapTier(tier, v, nextSize);
+              if (nextTier !== tier) setTier(nextTier);
+              load(v, nextTier, nextSize);
+            }} />
             <RoadmapCard />
           </aside>
         </div>
@@ -409,7 +434,7 @@ function Controls({
         <VariantSelect value={variant} onChange={onVariant} />
       </SetupRow>
       <SetupRow label="Difficulty">
-        <TierSelect value={tier} allowed={TIERS_BY_SIZE[size]} onChange={onTier} disabled={variant !== "classic"} />
+        <TierSelect value={tier} allowed={tiersFor(variant, size)} onChange={onTier} disabled={dailyActive} />
       </SetupRow>
       <div className="flex pt-1">
         <button
@@ -528,6 +553,7 @@ function TierSelect({ value, allowed, onChange, disabled }: { value: string; all
     { v: "easy", label: "Easy" },
     { v: "medium", label: "Medium" },
     { v: "hard", label: "Hard" },
+    { v: "nightmare", label: "Nightmare" },
   ].filter((o) => allowed.includes(o.v));
   return (
     <div className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)", opacity: disabled ? 0.5 : 1 }}>

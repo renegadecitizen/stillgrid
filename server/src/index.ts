@@ -86,6 +86,23 @@ app.post("/api/solve", async (req, res) => {
 // generation off the request path entirely.
 const VARIANTS: ReadonlySet<string> = new Set(["classic", "xsudoku", "jigsaw", "killer"]);
 
+// Per-(variant,tier) clue floor at 9×9, from the engine sweep (2026-06-04):
+// harder tiers carve fewer clues so the requested grade actually occurs, then
+// the retry loop matches grade.tier_label. Only meaningful at 9×9 — 6×6 is
+// single-difficulty and 16×16 clamps to the 47% floor regardless. Killer is
+// absent: generate_killer ignores min_clues, so its tiers are matched by grade
+// alone (never Easy; Medium is the bulk, Nightmare the rare hard ones).
+const TIER_FLOORS: Record<string, Record<string, number>> = {
+  classic: { easy: 32, medium: 28, nightmare: 22 },
+  xsudoku: { easy: 32, medium: 26, nightmare: 24 },
+  jigsaw: { easy: 32, medium: 28, nightmare: 26 },
+};
+
+function tierFloorFor(variant: string, size: number, tier: string): number | undefined {
+  if (size !== 9) return undefined;
+  return TIER_FLOORS[variant]?.[tier];
+}
+
 app.get("/api/puzzle", async (req, res) => {
   const variant = String(req.query.variant ?? "classic");
   if (!VARIANTS.has(variant)) {
@@ -106,9 +123,14 @@ app.get("/api/puzzle", async (req, res) => {
     });
     return;
   }
-  const minClues = req.query.minClues ? Number(req.query.minClues) : undefined;
   const seed = req.query.seed ? Number(req.query.seed) : undefined;
   const wantTier = req.query.tier ? String(req.query.tier) : null;
+  // Explicit ?minClues wins; otherwise derive the floor from the requested tier.
+  const minClues = req.query.minClues
+    ? Number(req.query.minClues)
+    : wantTier
+      ? tierFloorFor(variant, size, wantTier)
+      : undefined;
 
   const MAX_RETRIES = wantTier ? 60 : 1;
   try {
