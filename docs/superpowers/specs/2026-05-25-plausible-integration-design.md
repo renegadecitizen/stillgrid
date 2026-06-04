@@ -20,7 +20,7 @@ Session length, DAU, bounce rate, devices, referrers, and geographic distributio
 | Hosted vs self-hosted | Hosted plausible.io ($9/mo) | PRD targets <$300/mo infra at 100K sessions; self-hosting ClickHouse on Render is operationally heavier and likely more expensive at our scale. |
 | Consent banner | None for Plausible | Plausible is cookieless, no PII, no cross-site tracking. UK ICO + EDPB consistently cite this model as not requiring consent. PRD's "deferred until consent" applies to GA4 (Sourcepoint Week 18), not Plausible. |
 | Integration style | Vanilla script tag + typed helper | Matches Plausible's recommended setup. Zero npm deps. Smallest footprint. |
-| Event scope | Pageviews + 5 custom events | Smallest set that answers ULTRAPLAN Week 18's questions + new-vs-returning visitor split. Avoids YAGNI expansion. |
+| Event scope | Pageviews + 6 custom events | Smallest set that answers ULTRAPLAN Week 18's questions + new-vs-returning visitor split. Avoids YAGNI expansion. |
 | Script variant | Plausible v2 per-site snippet | Plausible's onboarding now issues a unique script ID per site (e.g. `pa-HB79xhSO4XQqtCrZGd-vn.js`). Outbound-link tracking and file-download tracking are toggled in the Plausible dashboard's site settings, not via URL suffix. |
 
 ## Architecture & file changes
@@ -56,7 +56,7 @@ Outbound-link tracking and file-download tracking are toggled in the Plausible d
 
 ## Event taxonomy
 
-Five custom events. Snake_case per Plausible convention. Each has a strict prop schema enforced by the TypeScript helper.
+Six custom events. Snake_case per Plausible convention. Each has a strict prop schema enforced by the TypeScript helper. (`tier_unmatched` added 2026-06-04 with the all-variant difficulty system.)
 
 ### `puzzle_started`
 Fires when a puzzle is loaded/begun.
@@ -110,6 +110,18 @@ Fires once per browser, ever. Uses a localStorage flag to ensure single-fire.
 - Private/incognito browsing: localStorage is per-session, so each new incognito session will fire the event. Acceptable — incognito users are by definition transient and rare.
 - localStorage flag key: `stillgrid:plausible_first_visit_fired`. Versioned with the prefix per stillgrid's storage conventions.
 
+### `tier_unmatched`
+Fires when `/api/puzzle` couldn't generate the requested difficulty within the 60-retry loop (`tier_matched:false`) and shipped the closest puzzle instead. Added 2026-06-04 with the all-variant difficulty system. Quantifies how often live generation fails to hit a tier — i.e. how much a pre-generated puzzle pool (roadmap #5) would help.
+
+| Prop | Type | Values |
+|---|---|---|
+| `variant` | string | `classic` / `killer` / `jigsaw` / `xsudoku` |
+| `size` | number | 6 / 9 / 16 |
+| `requested_tier` | string | the tier the user asked for |
+| `got_tier` | string | the grade actually shipped (`easy`…`nightmare`, or `stuck`) |
+
+Derived from the puzzle response (not the selector) so the props are race-safe. Dev-mode no-ops via the `track()` PROD guard like every other event.
+
 ## What Plausible tracks automatically
 
 Just from the script tag deployed on all 5 pages, Plausible auto-tracks the following — no code, no events, no setup beyond signing up at plausible.io:
@@ -139,7 +151,8 @@ type EventName =
   | "puzzle_completed"
   | "puzzle_abandoned"
   | "daily_streak_milestone"
-  | "first_visit_ever";
+  | "first_visit_ever"
+  | "tier_unmatched";
 
 type EventProps = Record<string, string | number | boolean>;
 
@@ -171,6 +184,7 @@ Conceptual — exact line numbers will be confirmed during the implementation-pl
 | `puzzle_abandoned` | At the TOP of `newGame()` — if a previous puzzle exists with `progress > 0%` and isn't complete, fire abandon first, then proceed to load the new one |
 | `daily_streak_milestone` | In `web/src/storage.ts` where streak is updated — if new streak length is in the milestone list, fire event |
 | `first_visit_ever` | In `App.tsx` mount effect (or `main.tsx`) — check localStorage for `stillgrid:plausible_first_visit_fired`; if absent, call `track("first_visit_ever")` and write the flag |
+| `tier_unmatched` | In `load()`'s `/api/puzzle` response handler — when `data.tier_matched === false`, fire with variant/size/requested/got from the response |
 
 If the storage.ts streak update is wired up as a pure function that returns the new streak (rather than firing side effects), we wrap the call site in App.tsx rather than reaching into storage.ts.
 
