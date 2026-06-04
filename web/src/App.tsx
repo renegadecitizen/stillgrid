@@ -56,6 +56,7 @@ interface PuzzleResponse {
       }
     | { outcome: "stuck"; steps_taken: number };
   tier_matched?: boolean;
+  requested_tier?: string;
   note?: string;
 }
 
@@ -172,6 +173,20 @@ export function App() {
         else {
           setPuzzle(data);
           setElapsedMs(Math.round(performance.now() - t0));
+          // The 60-retry loop couldn't hit the requested tier — track it to
+          // quantify how much a pre-generated pool (#5) would help, and derive
+          // facts (size/requested/got) from the response so they're race-safe.
+          if (data.tier_matched === false) {
+            track("tier_unmatched", {
+              variant: data.variant,
+              size: data.size ?? 9,
+              requested_tier: data.requested_tier ?? tArg,
+              got_tier:
+                data.grade && data.grade.outcome === "solved"
+                  ? data.grade.tier_label
+                  : "stuck",
+            });
+          }
         }
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
@@ -297,6 +312,23 @@ export function App() {
             {!puzzle && !error && (
               <p className="mt-8 text-sm" style={{ color: "var(--color-ink-mute)" }}>
                 generating…
+              </p>
+            )}
+
+            {puzzle && puzzle.tier_matched === false && (
+              <p
+                className="mt-4 text-sm rounded-lg px-4 py-3"
+                style={{ background: "var(--color-paper)", color: "var(--color-ink-soft)", border: "1px solid var(--color-divider)" }}
+              >
+                Couldn't find an exact{" "}
+                <span className="capitalize" style={{ fontWeight: 600 }}>
+                  {puzzle.requested_tier ?? tier}
+                </span>{" "}
+                puzzle this time — here's the closest{" "}
+                <span className="capitalize" style={{ fontWeight: 600 }}>
+                  {puzzle.grade && puzzle.grade.outcome === "solved" ? puzzle.grade.tier_label : "available"}
+                </span>
+                .
               </p>
             )}
 

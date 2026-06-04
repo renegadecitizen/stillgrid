@@ -3,7 +3,8 @@ type EventName =
   | "puzzle_completed"
   | "puzzle_abandoned"
   | "daily_streak_milestone"
-  | "first_visit_ever";
+  | "first_visit_ever"
+  | "tier_unmatched";
 
 type EventProps = Record<string, string | number | boolean>;
 
