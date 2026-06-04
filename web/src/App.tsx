@@ -260,8 +260,15 @@ export function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:rounded-md focus:px-3 focus:py-2 focus:text-sm"
+        style={{ background: "var(--color-ink)", color: "white" }}
+      >
+        Skip to puzzle
+      </a>
       <Topbar />
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-20">
+      <main id="main-content" className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-20">
         <Hero />
 
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -374,12 +381,12 @@ function Topbar() {
     <div className="border-b" style={{ borderColor: "var(--color-divider)", background: "rgba(250, 247, 242, 0.7)" }}>
       <div className="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between text-xs">
         <span style={{ color: "var(--color-ink-mute)" }}>stillgrid.app</span>
-        <div className="flex items-center gap-5" style={{ color: "var(--color-ink-soft)" }}>
+        <nav aria-label="Primary" className="flex items-center gap-5" style={{ color: "var(--color-ink-soft)" }}>
           <a href="#" className="hover:text-ink transition-colors">Play</a>
           <a href="#" className="hover:text-ink transition-colors">Daily</a>
           <a href="#" className="hover:text-ink transition-colors">Learn</a>
           <a href="#" className="hover:text-ink transition-colors">About</a>
-        </div>
+        </nav>
       </div>
     </div>
   );
@@ -525,6 +532,8 @@ function SizeSelect({ value, variant, onChange, disabled }: { value: Size; varia
   ];
   return (
     <div
+      role="group"
+      aria-label="Board size"
       className="inline-flex rounded-full p-0.5 gap-0.5"
       style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)", opacity: disabled ? 0.5 : 1 }}
     >
@@ -539,6 +548,8 @@ function SizeSelect({ value, variant, onChange, disabled }: { value: Size; varia
           <button
             key={v}
             disabled={optDisabled}
+            aria-pressed={active}
+            aria-label={`${v} by ${v}${block16 ? ", unavailable" : ""}`}
             title={block16 ? title16 : undefined}
             onClick={() => onChange(v)}
             className="px-3 py-1 text-xs rounded-full transition-colors"
@@ -560,13 +571,15 @@ function SizeSelect({ value, variant, onChange, disabled }: { value: Size; varia
 function VariantSelect({ value, onChange }: { value: Variant; onChange: (v: Variant) => void }) {
   const options: Variant[] = ["classic", "xsudoku", "jigsaw", "killer"];
   return (
-    <div className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)" }}>
+    <div role="group" aria-label="Variant" className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)" }}>
       {options.map((v) => {
         const active = v === value;
         const c = VARIANT_COLOR[v];
         return (
           <button
             key={v}
+            aria-pressed={active}
+            aria-label={c.label}
             onClick={() => onChange(v)}
             className="px-3 py-1 text-xs rounded-full transition-colors"
             style={{ background: active ? c.main : "transparent", color: active ? "white" : "var(--color-ink-soft)" }}
@@ -588,7 +601,7 @@ function TierSelect({ value, allowed, onChange, disabled }: { value: string; all
     { v: "nightmare", label: "Nightmare" },
   ].filter((o) => allowed.includes(o.v));
   return (
-    <div className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)", opacity: disabled ? 0.5 : 1 }}>
+    <div role="group" aria-label="Difficulty" className="inline-flex rounded-full p-0.5 gap-0.5" style={{ background: "var(--color-card)", border: "1px solid var(--color-divider)", opacity: disabled ? 0.5 : 1 }}>
       {options.map(({ v, label }) => {
         const active = v === value;
         const tc = TIER_COLOR[v];
@@ -596,6 +609,8 @@ function TierSelect({ value, allowed, onChange, disabled }: { value: string; all
           <button
             key={v}
             disabled={disabled}
+            aria-pressed={active}
+            aria-label={label}
             onClick={() => onChange(v)}
             className="px-3 py-1 text-xs rounded-full transition-colors"
             style={{ background: active ? (tc?.main ?? "var(--color-ink-soft)") : "transparent", color: active ? "white" : "var(--color-ink-soft)", cursor: disabled ? "not-allowed" : "pointer" }}
@@ -633,6 +648,17 @@ function PlayCard({
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [notesMode, setNotesMode] = useState(false);
+  // Screen-reader announcement of the latest action, rendered into an
+  // aria-live="polite" region. A trailing counter forces re-announcement even
+  // when the text repeats (e.g. clearing two cells in a row).
+  const [announce, setAnnounce] = useState("");
+  const announceSeq = useRef(0);
+  const say = useCallback((msg: string) => {
+    announceSeq.current += 1;
+    // Zero-width-space × seq keeps the string visually identical but distinct,
+    // so identical consecutive messages still trigger the live region.
+    setAnnounce(msg + "​".repeat(announceSeq.current % 2));
+  }, []);
   // Snapshot-based history. history[historyIdx] is the current state.
   const [history, setHistory] = useState<BoardState[]>(() => [initialState(puzzle.givens)]);
   const [historyIdx, setHistoryIdx] = useState(0);
@@ -782,26 +808,39 @@ function PlayCard({
         setMistakes((m) => m + 1);
       }
       // Tapping the same digit clears it (familiar UX).
-      const next = current === v ? clearCell(state, i) : placeValue(state, i, v);
+      const clearing = current === v;
+      const next = clearing ? clearCell(state, i) : placeValue(state, i, v);
       pushState(next);
+      const r = Math.floor(i / state.n) + 1;
+      const c = (i % state.n) + 1;
+      say(
+        clearing
+          ? `Cleared row ${r}, column ${c}`
+          : `${digitToChar(v)} at row ${r}, column ${c}${v !== expected ? ", conflicts" : ""}`,
+      );
     },
-    [isGiven, puzzle.solution, state, pushState],
+    [isGiven, puzzle.solution, state, pushState, say],
   );
 
   const handleToggleNote = useCallback(
     (i: number, d: number) => {
       if (isGiven(i)) return;
+      const had = listNotes(state, i).includes(d);
       pushState(toggleNote(state, i, d));
+      const r = Math.floor(i / state.n) + 1;
+      const c = (i % state.n) + 1;
+      say(`Note ${digitToChar(d)} ${had ? "removed" : "added"} at row ${r}, column ${c}`);
     },
-    [isGiven, state, pushState],
+    [isGiven, state, pushState, say],
   );
 
   const handleClear = useCallback(
     (i: number) => {
       if (isGiven(i)) return;
       pushState(clearCell(state, i));
+      say(`Cleared row ${Math.floor(i / state.n) + 1}, column ${(i % state.n) + 1}`);
     },
-    [isGiven, state, pushState],
+    [isGiven, state, pushState, say],
   );
 
   const handleAutoPencil = useCallback(() => {
@@ -887,9 +926,14 @@ function PlayCard({
   // Lock the clock when solved
   useEffect(() => {
     if (isSolved && finishedAt === null && startedAt !== null) {
+      const elapsed = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
       setFinishedAt(Date.now());
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      const timeStr = mins > 0 ? `${mins} minute${mins === 1 ? "" : "s"} ${secs} seconds` : `${secs} seconds`;
+      say(`Puzzle solved in ${timeStr}.`);
     }
-  }, [isSolved, finishedAt, startedAt]);
+  }, [isSolved, finishedAt, startedAt, say]);
 
   useEffect(() => {
     if (!isSolved || finishedAt === null || startedAt === null || outcome) return;
@@ -978,6 +1022,10 @@ function PlayCard({
       className="rounded-2xl p-3 sm:p-8 mt-6"
       style={{ background: "var(--color-card)", boxShadow: "var(--shadow-paper)", borderTop: `3px solid ${variantAccent}` }}
     >
+      {/* Screen-reader-only running commentary of board actions. */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {announce}
+      </div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-lg" style={{ fontFamily: "var(--font-display)", fontWeight: 500, color: variantAccent }}>
@@ -1274,6 +1322,7 @@ function NumberPad({
     <button
       key={d}
       onClick={() => onDigit(d)}
+      aria-label={notesMode ? `Toggle note ${d}` : `Enter ${d}`}
       className="rounded-md text-lg transition-colors w-full"
       style={{
         height: BTN_H,
@@ -1299,6 +1348,7 @@ function NumberPad({
     <button
       key="clear"
       onClick={onClear}
+      aria-label="Clear selected cell"
       title="Clear the selected cell (Backspace)"
       className="rounded-md text-sm transition-colors flex items-center justify-center w-full"
       style={{
@@ -1326,6 +1376,8 @@ function NumberPad({
       <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-center sm:flex-wrap w-full mx-auto ${ROW_GAP}`}>
         <button
           onClick={onToggleNotes}
+          aria-pressed={notesMode}
+          aria-label="Notes mode"
           title={`Toggle notes mode (N). When on, 1-${n} writes small candidate digits instead of placing a value.`}
           className="inline-flex items-center justify-center gap-2 px-2 sm:px-4 rounded-lg text-sm transition-colors w-full sm:w-auto"
           style={{
@@ -1416,6 +1468,7 @@ function ToolButton({
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={title}
       title={title}
       className="inline-flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-lg text-sm transition-colors w-full sm:w-auto"
       style={{
@@ -1574,6 +1627,14 @@ function Grid({
   return (
     <div
       className="grid w-full"
+      role={interactive ? "grid" : "img"}
+      aria-label={
+        interactive
+          ? `Sudoku board, ${n} by ${n}. Arrow keys move between cells; 1 to ${n} fills the selected cell; 0 or Backspace clears it; N toggles notes.`
+          : "Completed solution"
+      }
+      aria-rowcount={interactive ? n : undefined}
+      aria-colcount={interactive ? n : undefined}
       style={{
         maxWidth: n * maxCell,
         // minmax(0,1fr) — NOT plain 1fr (= minmax(auto,1fr)), whose content-size
@@ -1587,9 +1648,17 @@ function Grid({
         userSelect: "none",
       }}
     >
-      {Array.from({ length: cells }, (_, i) => {
-        const row = Math.floor(i / n);
-        const col = i % n;
+      {Array.from({ length: n }, (_, r) => (
+        <div
+          key={`row-${r}`}
+          role={interactive ? "row" : "presentation"}
+          aria-rowindex={interactive ? r + 1 : undefined}
+          style={{ display: "contents" }}
+        >
+          {Array.from({ length: n }, (_, c) => {
+            const i = r * n + c;
+            const row = Math.floor(i / n);
+            const col = i % n;
         const given = state.givenMask[i] === 1;
         const value = state.values[i] ?? 0;
         const valueChar = value === 0 ? "" : digitToChar(value);
@@ -1608,6 +1677,14 @@ function Grid({
 
         const expected = charToDigit(puzzle.solution[i] ?? "");
         const isConflict = !given && value !== 0 && value !== expected;
+
+        // Screen-reader label: position + content + state.
+        let contentLabel: string;
+        if (value !== 0)
+          contentLabel = given ? `${valueChar}, given` : `${valueChar}${isConflict ? ", conflicts" : ""}`;
+        else if (notes.length > 0)
+          contentLabel = `empty, notes ${notes.map((d) => digitToChar(d)).join(" ")}`;
+        else contentLabel = "empty";
 
         let bg: string | undefined;
         if (puzzle.diagonals && (row === col || row + col === n - 1)) {
@@ -1667,9 +1744,15 @@ function Grid({
           <div
             key={i}
             ref={isSelected ? selectedRef : undefined}
-            role={interactive ? "button" : undefined}
-            tabIndex={interactive && isSelected ? 0 : undefined}
+            role={interactive ? "gridcell" : undefined}
+            aria-hidden={interactive ? undefined : true}
+            aria-colindex={interactive ? col + 1 : undefined}
+            aria-selected={interactive ? isSelected : undefined}
+            aria-readonly={interactive && given ? true : undefined}
+            aria-label={interactive ? `row ${row + 1}, column ${col + 1}, ${contentLabel}` : undefined}
+            tabIndex={interactive ? (isSelected || (selected === null && i === 0) ? 0 : -1) : undefined}
             onClick={interactive ? () => onSelect(i) : undefined}
+            onFocus={interactive ? () => onSelect(i) : undefined}
             className="relative flex items-center justify-center transition-colors"
             style={{
               aspectRatio: "1 / 1",
@@ -1682,7 +1765,10 @@ function Grid({
               fontWeight: given ? 500 : 600,
               color: textColor,
               cursor: interactive ? "pointer" : "default",
-              outline: "none",
+              // Non-color cue for wrong entries (colorblind / low-vision): a wavy
+              // underline in addition to the error color + background wash.
+              textDecoration: isConflict ? "underline" : undefined,
+              textDecorationStyle: isConflict ? "wavy" : undefined,
             }}
           >
             {sumHere !== undefined && (
@@ -1704,8 +1790,10 @@ function Grid({
               <NotesGrid n={n} notes={notes} highlightDigit={selDigit} />
             ) : null}
           </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

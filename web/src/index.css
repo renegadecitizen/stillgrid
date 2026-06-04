@@ -8,8 +8,11 @@
   --color-card: #ffffff;
   --color-paper: #f5f1e8;
   --color-ink: #1f2937;
-  --color-ink-soft: #6b7280;
-  --color-ink-mute: #9ca3af;
+  /* Darkened from #6b7280 / #9ca3af so muted/secondary text clears WCAG AA
+     (≥4.5:1) on the cream page — the old ink-mute (~2.6:1) failed for the small
+     functional labels that use it. */
+  --color-ink-soft: #4b5563;
+  --color-ink-mute: #6b7280;
   --color-divider: #e7e2d6;
   --color-cell-line: #e5e0d3;
   --color-box-line: #1f2937;
@@ -83,4 +86,37 @@ body {
 @keyframes stillgrid-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
+}
+
+/* --- Accessibility ------------------------------------------------------- */
+
+/* Visible keyboard-focus ring for keyboard/AT users, suppressed for pointer
+   focus so clicks/taps don't add visual noise. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+/* Grid cells: an inset ring so it isn't clipped by the board's overflow:hidden,
+   and stronger than the accent selection ring so keyboard focus clearly stands
+   out from a plain (mouse) selection. */
+[role="gridcell"]:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: -3px;
+  border-radius: 0;
+}
+
+/* Respect the OS "reduce motion" preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
