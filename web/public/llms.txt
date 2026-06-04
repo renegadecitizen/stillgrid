@@ -1,0 +1,19 @@
+# Stillgrid
+
+> Stillgrid is a free online sudoku site — classic 9×9 plus the X-Sudoku, Jigsaw,
+> and Killer variants. Difficulty is graded by the solving technique each puzzle
+> actually requires (singles, pairs, X-Wing, Swordfish, chains), not by clue count
+> or a timer. There is a daily challenge with streak tracking. No signup, no ads,
+> no in-app purchases. Made in a "quiet, meditative" style — sudoku, the quiet way.
+
+## Variants
+
+- [Classic Sudoku](https://stillgrid.app/classic): The original 9×9. Each row, column, and 3×3 box contains the digits 1–9 exactly once.
+- [X-Sudoku](https://stillgrid.app/xsudoku): Classic rules plus both main diagonals must also contain 1–9. Also called diagonal sudoku.
+- [Jigsaw Sudoku](https://stillgrid.app/jigsaw): Nine irregular connected regions replace the 3×3 boxes. Also called irregular or squiggly sudoku.
+- [Killer Sudoku](https://stillgrid.app/killer): Dashed cages with target sums replace given digits; cage cells sum to the target with no repeats, on top of classic rules.
+
+## About
+
+- [Stillgrid home](https://stillgrid.app/): Play any variant, the daily challenge, and track personal bests and streaks.
+- [Privacy](https://stillgrid.app/privacy): No accounts and no tracking beyond privacy-friendly aggregate analytics; all game state stays in your browser.

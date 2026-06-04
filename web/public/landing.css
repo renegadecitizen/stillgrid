@@ -96,3 +96,10 @@ footer {
   color: var(--color-ink-soft);
 }
 footer a { color: var(--color-ink-soft); }
+.faq h3 {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--color-ink);
+}
