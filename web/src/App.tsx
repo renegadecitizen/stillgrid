@@ -1502,6 +1502,17 @@ function Grid({
   const selBox = selected !== null ? boxOf[selected] : -1;
   const selDigit = selected !== null ? getValue(state, selected) || null : null;
 
+  // Focus the selected cell. iPadOS Safari only delivers hardware-keyboard
+  // keydown to the page when a focusable element has focus — without this the
+  // window arrow-key handler never fires on iPad (it works on desktop, which
+  // delivers keydown to window regardless of focus).
+  const selectedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (interactive && selected !== null) {
+      selectedRef.current?.focus({ preventScroll: true });
+    }
+  }, [interactive, selected]);
+
   return (
     <div
       className="grid w-full"
@@ -1597,7 +1608,9 @@ function Grid({
         return (
           <div
             key={i}
+            ref={isSelected ? selectedRef : undefined}
             role={interactive ? "button" : undefined}
+            tabIndex={interactive && isSelected ? 0 : undefined}
             onClick={interactive ? () => onSelect(i) : undefined}
             className="relative flex items-center justify-center transition-colors"
             style={{
@@ -1611,6 +1624,7 @@ function Grid({
               fontWeight: given ? 500 : 600,
               color: textColor,
               cursor: interactive ? "pointer" : "default",
+              outline: "none",
             }}
           >
             {sumHere !== undefined && (
