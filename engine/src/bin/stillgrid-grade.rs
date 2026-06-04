@@ -378,6 +378,25 @@ fn build_variant(input: &Input, n: usize) -> Result<Variant, String> {
         }
         VariantKind::Killer => {
             let cages = input.cages.as_ref().ok_or("killer requires cages")?;
+            // Validate the cage partition here so malformed payloads return a
+            // clean JSON error — `killer_n` only `assert!`s these (cell in range,
+            // no overlap, full coverage) and would otherwise panic the binary.
+            let cells = n * n;
+            let mut seen = vec![false; cells];
+            for cage in cages {
+                for &i in &cage.cells {
+                    if i >= cells {
+                        return Err(format!("cage cell {i} out of range for {n}×{n}"));
+                    }
+                    if seen[i] {
+                        return Err(format!("cell {i} appears in two cages"));
+                    }
+                    seen[i] = true;
+                }
+            }
+            if !seen.iter().all(|&x| x) {
+                return Err(format!("cages do not cover all {cells} cells"));
+            }
             Ok(Variant::killer_n(n, cages.clone()))
         }
     }
@@ -418,5 +437,38 @@ fn main() {
             println!(r#"{{"outcome":"error","error":"{escaped}"}}"#);
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn killer_input(cages: Vec<Cage>) -> Input {
+        Input { variant_kind: Some("killer".into()), cages: Some(cages), ..Default::default() }
+    }
+
+    // A well-formed killer payload still builds.
+    #[test]
+    fn build_variant_accepts_valid_killer_cages() {
+        let cages = (0..81).map(|i| Cage { cells: vec![i], sum: 1 }).collect();
+        assert!(build_variant(&killer_input(cages), 9).is_ok());
+    }
+
+    // Malformed cage payloads must return Err (clean JSON error), never panic.
+    #[test]
+    fn build_variant_rejects_malformed_killer_cages() {
+        // Cell index out of range for 9×9 (would panic indexing `seen` in killer_n).
+        let oob = vec![Cage { cells: vec![100], sum: 1 }];
+        assert!(build_variant(&killer_input(oob), 9).is_err());
+
+        // Same cell in two cages.
+        let mut overlap: Vec<Cage> = (0..81).map(|i| Cage { cells: vec![i], sum: 1 }).collect();
+        overlap.push(Cage { cells: vec![0], sum: 1 });
+        assert!(build_variant(&killer_input(overlap), 9).is_err());
+
+        // Incomplete coverage (only one cell caged).
+        let partial = vec![Cage { cells: vec![0], sum: 1 }];
+        assert!(build_variant(&killer_input(partial), 9).is_err());
     }
 }
