@@ -407,14 +407,14 @@ function Hero() {
           Sudoku, the quiet way.
         </p>
         <p className="text-sm max-w-md leading-relaxed mt-1" style={{ color: "var(--color-ink-soft)" }}>
-          A modern sudoku site with variants, technique-graded difficulty, and no signup.
+          A modern sudoku site with variants, technique-graded difficulty, and no signup needed to play.
           Made for the morning cup of coffee.
         </p>
       </div>
       <div className="text-right text-xs flex flex-col items-end gap-1" style={{ color: "var(--color-ink-mute)" }}>
         <Badge color="var(--color-sage)" text="100% solvable" />
         <Badge color="var(--color-teal)" text="4 variants live" />
-        <Badge color="var(--color-plum)" text="No signup, ever" />
+        <Badge color="var(--color-plum)" text="No signup to play" />
       </div>
     </header>
   );

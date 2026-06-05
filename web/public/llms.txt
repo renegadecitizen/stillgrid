@@ -3,8 +3,8 @@
 > Stillgrid is a free online sudoku site — classic 9×9 plus the X-Sudoku, Jigsaw,
 > and Killer variants. Difficulty is graded by the solving technique each puzzle
 > actually requires (singles, pairs, X-Wing, Swordfish, chains), not by clue count
-> or a timer. There is a daily challenge with streak tracking. No signup, no ads,
-> no in-app purchases. Made in a "quiet, meditative" style — sudoku, the quiet way.
+> or a timer. There is a daily challenge with streak tracking. Free to play,
+> with no signup needed to start a puzzle. Made in a "quiet, meditative" style — sudoku, the quiet way.
 
 ## Variants
 
