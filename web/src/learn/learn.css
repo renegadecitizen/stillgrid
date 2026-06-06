@@ -34,6 +34,13 @@
   color: var(--color-ink-soft);
   letter-spacing: 0.04em;
 }
+/* landing.css --color-ink-soft (#6a6a6a) fails WCAG AA at 0.55rem on the highlight
+   backgrounds; darken candidate text only where it sits on a highlight. */
+.lesson-cell.cands.hl-unit,
+.lesson-cell.cands.hl-target,
+.lesson-cell.cands.hl-elim {
+  color: #4b5563;
+}
 .lesson-cell.hl-unit { background: #efe7d6; }
 .lesson-cell.hl-target { background: #d9e6dd; outline: 2px solid var(--color-sage); outline-offset: -2px; }
 .lesson-cell.hl-elim { background: #f0dcd2; text-decoration: line-through; }

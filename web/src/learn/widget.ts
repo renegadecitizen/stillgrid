@@ -18,7 +18,6 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
   const board = document.createElement("div");
   board.className = "lesson-board";
   board.style.setProperty("--n", String(lesson.size));
-  board.setAttribute("role", "img");
 
   const caption = document.createElement("p");
   caption.className = "lesson-caption";
@@ -26,6 +25,8 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
 
   const controls = document.createElement("div");
   controls.className = "lesson-controls";
+  controls.setAttribute("role", "group");
+  controls.setAttribute("aria-label", "Lesson controls");
   const prev = button("‹ Back");
   const next = button("Next ›");
   const restart = button("Restart");
@@ -41,6 +42,7 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "lesson-cell";
+    cell.tabIndex = -1; // decorative by default; only interactive-step targets join the tab order
     cell.dataset.idx = String(i);
     cellEls.push(cell);
     board.append(cell);
@@ -68,7 +70,6 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
       }
     });
     caption.textContent = step.caption;
-    board.setAttribute("aria-label", `${lesson.title}: ${step.caption}`);
     prev.disabled = stepper.atStart;
     next.disabled = stepper.atEnd;
     wireInteractive(step);
@@ -76,12 +77,30 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
 
   function wireInteractive(step: Step) {
     const inter = lesson.interactive;
-    const active = inter && lesson.steps[inter.stepIndex] === step;
-    cellEls.forEach((el) => {
-      el.classList.toggle("clickable", Boolean(active));
-      el.onclick = active
+    const active = Boolean(inter && lesson.steps[inter.stepIndex] === step);
+    // role="img" collapses the decorative board into one announced label; on the
+    // interactive step we switch to a group so the clickable cells are exposed to AT.
+    board.setAttribute("role", active ? "group" : "img");
+    board.setAttribute("aria-label", `${lesson.title}: ${step.caption}`);
+    cellEls.forEach((el, i) => {
+      const cell = step.grid[i]!;
+      const filled = (cell.value ?? cell.given) !== undefined;
+      const target = active && !filled; // the learner places into an empty cell
+      el.classList.toggle("clickable", target);
+      if (active) {
+        const r = Math.floor(i / lesson.size) + 1;
+        const c = (i % lesson.size) + 1;
+        el.setAttribute(
+          "aria-label",
+          filled ? `row ${r}, column ${c}, ${el.textContent}` : `row ${r}, column ${c}, empty`,
+        );
+      } else {
+        el.removeAttribute("aria-label");
+      }
+      el.tabIndex = target ? 0 : -1;
+      el.onclick = target
         ? () => {
-            const res = checkAnswer(inter!, Number(el.dataset.idx));
+            const res = checkAnswer(inter!, i);
             if (res.correct) {
               caption.textContent = `Correct — it must be ${digitChar(res.digit)}.`;
               if (stepper.next()) paint(stepper.current());
@@ -106,7 +125,8 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
 
   paint(stepper.current());
 
-  // Gentle auto-advance for non-interactive lessons, motion allowed only.
+  // Auto-advance non-interactive lessons when motion is allowed. Any manual
+  // control click cancels it for good (it does not resume after Restart).
   if (!reduce && !lesson.interactive) {
     const timer = setInterval(() => {
       if (!stepper.next()) {
@@ -115,7 +135,6 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
       }
       paint(stepper.current());
     }, 2600);
-    // Stop auto-play as soon as the learner takes manual control.
     controls.addEventListener("click", () => clearInterval(timer), { once: true });
   }
 }
