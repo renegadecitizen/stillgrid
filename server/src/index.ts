@@ -29,7 +29,24 @@ function puzzleToGradeInput(p: GeneratedPuzzle): GradeInput {
 
 const PORT = Number(process.env.PORT ?? 3001);
 
+export function canonicalTrailingSlash(path: string): string | null {
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : null;
+}
+
 const app = express();
+
+// Canonicalize trailing slashes (e.g. /learn/ -> /learn) with a 301. Prevents
+// duplicate URLs and fixes relative-asset resolution on Vite-built pages.
+app.use((req, res, next) => {
+  const canon = canonicalTrailingSlash(req.path);
+  if (req.method === "GET" && canon !== null) {
+    const query = req.originalUrl.slice(req.path.length);
+    res.redirect(301, canon + query);
+    return;
+  }
+  next();
+});
+
 app.use(express.json());
 
 // In production, serve the built React SPA from /app/web/dist (set by the
