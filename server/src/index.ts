@@ -239,10 +239,22 @@ app.get("/api/daily", async (req, res) => {
 // Prerendered HTML pages for SEO. Must be registered before the 404 handler
 // so /killer, /privacy, etc. resolve to their pages rather than the catch-all.
 export const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "privacy", "learn"] as const;
+
+export const LEARN_SUBPAGES = {
+  "/learn/core": "learn-core.html",
+  "/learn/advanced": "learn-advanced.html",
+  "/learn/variants": "learn-variants.html",
+} as const;
 if (SERVE_STATIC) {
   for (const slug of LANDING_ROUTES) {
     app.get(`/${slug}`, (_req, res) => {
       res.sendFile(resolve(WEB_DIST, `${slug}.html`));
+    });
+  }
+
+  for (const [path, file] of Object.entries(LEARN_SUBPAGES)) {
+    app.get(path, (_req, res) => {
+      res.sendFile(resolve(WEB_DIST, file));
     });
   }
 
