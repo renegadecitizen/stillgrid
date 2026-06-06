@@ -69,15 +69,19 @@ type Highlight = { cells: number[]; kind: 'unit' | 'target' | 'elim' | 'place' }
 type Step = { caption: string; grid: Cell[]; highlights: Highlight[] };
 type Lesson = {
   id: string;          // e.g. 'naked-single'
-  size: 4 | 6 | 9;     // most lessons use a small 4×4/6×6 grid for clarity
+  size: 6 | 9 | 16;    // core ladder = 9; Variants & sizes section uses 6/9/16
   steps: Step[];
   interactive?: { stepIndex: number; answerCell: number; answerDigit: number };
 };
 ```
 
 Lessons are authored as plain data (a `lessons.ts` table), keeping the renderer
-generic. Small grids (4×4 / 6×6) are preferred for teaching clarity — they show
-the same logic with far less visual noise than a full 9×9.
+generic. **The core ladder teaches on the canonical 9×9 board** (the default game).
+To keep a full 9×9 from feeling busy, the renderer spotlights just the relevant
+unit(s) for a step — the active row/column/box/diagonal/cage is highlighted and
+the rest of the grid is dimmed — so the learner's eye lands on the pattern. The
+size field still exists because the Variants & sizes section uses smaller/larger
+boards (see below).
 
 ### Rendering & animation
 
@@ -135,14 +139,25 @@ full animated step-through, **S** = static highlighted diagram + caption.
 - Swordfish (S), XY-Wing (S), a taste of chains/coloring (S).
 - Honest note: these are rare; most graded puzzles never need them.
 
-### 4. Variants — *what changes per variant*
+### 4. Variants & sizes — *what changes beyond the default 9×9 classic*
+
+**Rule variants** (same core logic, different/extra units):
 - X-Sudoku — the two diagonals are extra units (A).
 - Jigsaw — irregular regions replace the 3×3 boxes; same logic, new unit shapes (A).
 - Killer — cages with target sums; intro to cage-sum combination logic (A);
   deeper combos (S). Links to the killer landing page for rules detail.
 
+**Board sizes** (cover only shipped sizes — every link must be playable):
+- 6×6 — 2×3 boxes, digits 1–6; a gentle, single-difficulty board (S, small grid).
+- 9×9 — the default everything else teaches on (referenced, not re-taught).
+- 16×16 — 4×4 boxes, digits 1–16 rendered as 1–9 then A–G (S, large grid). Note
+  honestly that 16×16 is currently **Classic and X-Sudoku only** (Jigsaw/Killer
+  at 16×16 are not yet available). Best on a larger screen.
+- **4×4 is intentionally omitted** — it is not a shipped size, so the page never
+  teaches a board a reader can't open. (Revisit if roadmap #13 ships 4×4.)
+
 Each section ends with a one-line "this is what '<Tier>' means on Stillgrid" and a
-link to play that tier/variant.
+link to play that tier/variant/size.
 
 ## SEO / GEO & site wiring
 
@@ -197,7 +212,8 @@ link to play that tier/variant.
 
 ## Open items deferred to the plan
 
-- Exact lesson grids (the 4×4 / 6×6 / 9×9 states per technique) — authored during
+- Exact lesson grids (the per-step 9×9 states for each core technique, plus the
+  6×6 and 16×16 example boards in the sizes section) — authored during
   implementation; the renderer and data shape are fixed here.
 - Final FAQ question wording.
 - Whether the Variants section reuses each variant's accent colour per sub-block
