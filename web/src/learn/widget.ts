@@ -37,13 +37,22 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
   const stepper = createStepper(lesson);
   const reduce = prefersReducedMotion();
 
+  const box = lesson.size === 6 ? { h: 2, w: 3 } : lesson.size === 16 ? { h: 4, w: 4 } : { h: 3, w: 3 };
+
   const cellEls: HTMLButtonElement[] = [];
   for (let i = 0; i < lesson.size * lesson.size; i++) {
     const cell = document.createElement("button");
     cell.type = "button";
-    cell.className = "lesson-cell";
     cell.tabIndex = -1; // decorative by default; only interactive-step targets join the tab order
     cell.dataset.idx = String(i);
+    const r = Math.floor(i / lesson.size);
+    const c = i % lesson.size;
+    // bold dividers on interior box boundaries (not the outer edge, which the board border covers)
+    let boxCls = "";
+    if ((c + 1) % box.w === 0 && c < lesson.size - 1) boxCls += " box-r";
+    if ((r + 1) % box.h === 0 && r < lesson.size - 1) boxCls += " box-b";
+    cell.dataset.box = boxCls;
+    cell.className = "lesson-cell" + boxCls;
     cellEls.push(cell);
     board.append(cell);
   }
@@ -54,7 +63,7 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
     for (const h of step.highlights) for (const c of h.cells) hl.set(c, h.kind);
     cellEls.forEach((el, i) => {
       const cell = step.grid[i]!;
-      el.className = "lesson-cell";
+      el.className = "lesson-cell" + (el.dataset.box ?? "");
       const kind = hl.get(i);
       if (kind) el.classList.add(`hl-${kind}`);
       const digit = cell.value ?? cell.given;
