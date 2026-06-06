@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { LESSONS } from "./lessons";
 
 const REQUIRED_IDS = [
-  "intro",
   "naked-single",
   "hidden-single",
   "naked-pair",

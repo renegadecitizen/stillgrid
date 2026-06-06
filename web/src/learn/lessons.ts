@@ -22,36 +22,6 @@ function grid9Cands(
   return g;
 }
 
-// --- intro: cell (0,0) sees 2,3,4 (row), 5,6,7 (col), 8,9 (box) → only 1 is left ---
-const introGivens: Record<number, number> = {
-  [ix(0, 1)]: 2, [ix(0, 2)]: 3, [ix(0, 3)]: 4, // row 0
-  [ix(1, 0)]: 5, [ix(2, 0)]: 6, [ix(3, 0)]: 7, // col 0
-  [ix(1, 1)]: 8, [ix(2, 2)]: 9,                // top-left box
-};
-
-const intro: Lesson = {
-  id: "intro",
-  title: "Your first move",
-  size: 9,
-  steps: [
-    {
-      caption: "Click the only cell that can be a 1.",
-      grid: grid9(introGivens),
-      highlights: [
-        { cells: [ix(0, 1), ix(0, 2), ix(0, 3), ix(1, 0), ix(2, 0), ix(3, 0), ix(1, 1), ix(2, 2)], kind: "unit" },
-        { cells: [ix(0, 0)], kind: "target" },
-      ],
-    },
-    {
-      caption: "Right — 2–9 all appear in its row, column, or box, so the top-left cell must be 1.",
-      // place step: mutate a copy so the digit renders as an animated "value", not a fixed "given"
-      grid: (() => { const g = grid9(introGivens); g[ix(0, 0)] = { value: 1 }; return g; })(),
-      highlights: [{ cells: [ix(0, 0)], kind: "place" }],
-    },
-  ],
-  interactive: { stepIndex: 0, answerCell: ix(0, 0), answerDigit: 1 },
-};
-
 // --- naked-single: cell (4,4) sees 1,2,3 (row), 4,5,6 (col), 8,9 (box) → must be 7 ---
 const nakedSingleGivens: Record<number, number> = {
   [ix(4, 0)]: 1, [ix(4, 1)]: 2, [ix(4, 2)]: 3, // row 4
@@ -381,7 +351,6 @@ const killer: Lesson = {
 };
 
 export const LESSONS: Lesson[] = [
-  intro,
   nakedSingle,
   hiddenSingle,
   nakedPair,
