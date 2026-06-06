@@ -24,6 +24,19 @@ describe("GUIDED_GAME data", () => {
       seen.add(m.cell);
     }
   });
+  it("blocker cells, where present, are in range", () => {
+    for (const m of GUIDED_GAME.moves) {
+      for (const b of m.blockers ?? []) {
+        expect(b).toBeGreaterThanOrEqual(0);
+        expect(b).toBeLessThan(81);
+      }
+    }
+  });
+  it("every hidden-single move (moves 4-12) has at least one blocker", () => {
+    GUIDED_GAME.moves.slice(3).forEach((m, i) => {
+      expect(m.blockers && m.blockers.length, `move ${i + 4}`).toBeTruthy();
+    });
+  });
   it("givens form a legal partial grid (no dup in any row/col/box)", () => {
     const g = GUIDED_GAME.givens;
     const peers = (i: number) => {

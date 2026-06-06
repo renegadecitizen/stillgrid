@@ -2,6 +2,7 @@ export interface GuidedMove {
   cell: number;     // flat index (row*9+col) the learner must fill
   digit: number;    // the forced digit (1-9)
   unit: number[];   // cells to highlight as the forcing row/col/box
+  blockers?: number[]; // same-digit cells that rule the digit out of every other empty cell in the unit (hidden singles only)
   caption: string;  // the coaching line
 }
 export interface GuidedGame {
@@ -83,6 +84,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(3, 5),
       digit: 4,
       unit: [ix(3, 0), ix(3, 1), ix(3, 2), ix(3, 3), ix(3, 4), ix(3, 5), ix(3, 6), ix(3, 7), ix(3, 8)],
+      blockers: [17, 37, 52, 76],
       caption: "Now switch to hidden singles. Row 4 still needs a 4, and the columns and boxes block it from every empty cell except column 6 — so 4 must go there.",
     },
     {
@@ -90,6 +92,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(0, 3),
       digit: 4,
       unit: [ix(0, 0), ix(0, 1), ix(0, 2), ix(0, 3), ix(0, 4), ix(0, 5), ix(0, 6), ix(0, 7), ix(0, 8)],
+      blockers: [32, 37],
       caption: "Row 1 is missing a 4 as well. Check each empty cell in the row — only column 4 has no 4 already in its column or box. That is the home for 4.",
     },
     {
@@ -97,6 +100,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(4, 8),
       digit: 9,
       unit: [ix(4, 0), ix(4, 1), ix(4, 2), ix(4, 3), ix(4, 4), ix(4, 5), ix(4, 6), ix(4, 7), ix(4, 8)],
+      blockers: [7, 30, 47],
       caption: "Row 5 needs a 9. Every empty cell in the row already sees a 9 except column 9, so the 9 is forced into the last cell.",
     },
     {
@@ -104,6 +108,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(7, 6),
       digit: 4,
       unit: [ix(7, 0), ix(7, 1), ix(7, 2), ix(7, 3), ix(7, 4), ix(7, 5), ix(7, 6), ix(7, 7), ix(7, 8)],
+      blockers: [17, 32, 37, 76],
       caption: "In row 8 the missing 4 fits only in column 7 — the other empty cells already have a 4 in their column or box.",
     },
     {
@@ -111,6 +116,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(6, 2),
       digit: 4,
       unit: [ix(6, 0), ix(6, 1), ix(6, 2), ix(6, 3), ix(6, 4), ix(6, 5), ix(6, 6), ix(6, 7), ix(6, 8)],
+      blockers: [3, 17, 32, 37, 52, 69, 76],
       caption: "Row 7 wants a 4 too, and column 3 is the one empty cell in the row that can still take it. Place the 4.",
     },
     {
@@ -118,6 +124,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(2, 0),
       digit: 4,
       unit: [ix(2, 0), ix(2, 1), ix(2, 2), ix(2, 3), ix(2, 4), ix(2, 5), ix(2, 6), ix(2, 7), ix(2, 8)],
+      blockers: [3, 32, 37, 56],
       caption: "Back to row 3, which still has no 4. With the columns now filling in, column 1 is the only spot left for it.",
     },
     {
@@ -125,6 +132,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(2, 1),
       digit: 7,
       unit: [ix(2, 0), ix(2, 1), ix(2, 2), ix(2, 3), ix(2, 4), ix(2, 5), ix(2, 6), ix(2, 7), ix(2, 8)],
+      blockers: [4, 65],
       caption: "Row 3 is also missing a 7, and after the last move only column 2 can hold it. Drop the 7 in.",
     },
     {
@@ -132,6 +140,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(8, 7),
       digit: 6,
       unit: [ix(8, 0), ix(8, 1), ix(8, 2), ix(8, 3), ix(8, 4), ix(8, 5), ix(8, 6), ix(8, 7), ix(8, 8)],
+      blockers: [26, 33, 54, 66],
       caption: "Row 9 needs a 6, and every empty cell except column 8 already sees a 6 in its column or box. So 6 goes here.",
     },
     {
@@ -139,6 +148,7 @@ export const GUIDED_GAME: GuidedGame = {
       cell: ix(6, 7),
       digit: 2,
       unit: [ix(0, 7), ix(1, 7), ix(2, 7), ix(3, 7), ix(4, 7), ix(5, 7), ix(6, 7), ix(7, 7), ix(8, 7)],
+      blockers: [51],
       caption: "Finally, scan a column. Column 8 still lacks a 2, and row 7 is the only cell in that column where a 2 will fit. That completes your first dozen moves.",
     },
   ],

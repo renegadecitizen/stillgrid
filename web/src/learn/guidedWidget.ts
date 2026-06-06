@@ -30,6 +30,7 @@ export function mountGuided(host: HTMLElement, game: GuidedGame = GUIDED_GAME): 
     const done = guided.complete;
     const move = done ? null : guided.current();
     const unit = new Set<number>(move ? move.unit : []);
+    const block = new Set<number>(move && move.blockers ? move.blockers : []);
     board.setAttribute("role", done ? "img" : "group");
     cells.forEach((el, i) => {
       resetCell(el);
@@ -39,6 +40,7 @@ export function mountGuided(host: HTMLElement, game: GuidedGame = GUIDED_GAME): 
       const cell = isGiven ? { given: digit } : digit !== undefined ? { value: digit } : {};
       renderCellContent(el, cell);
       if (unit.has(i)) el.classList.add("hl-unit");
+      if (block.has(i)) el.classList.add("hl-block");
       const target = !done && move !== null && i === move.cell;
       if (target) el.classList.add("hl-target");
       el.classList.toggle("clickable", target);
