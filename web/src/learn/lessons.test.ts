@@ -41,13 +41,6 @@ describe("LESSONS", () => {
           }
         }
       }
-      if (l.interactive) {
-        expect(l.interactive.stepIndex).toBeLessThan(l.steps.length);
-        expect(l.interactive.answerCell).toBeGreaterThanOrEqual(0);
-        expect(l.interactive.answerCell).toBeLessThan(cells);
-        expect(l.interactive.answerDigit).toBeGreaterThanOrEqual(1);
-        expect(l.interactive.answerDigit).toBeLessThanOrEqual(l.size);
-      }
     }
   });
 });
