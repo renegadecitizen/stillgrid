@@ -1,0 +1,65 @@
+.lesson { margin: 1.25rem 0 2rem; }
+.lesson-fallback { color: var(--color-ink-soft); font-size: 0.95rem; }
+
+.lesson-board {
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  gap: 1px;
+  max-width: 22rem;
+  margin: 0 auto;
+  background: var(--color-border);
+  border: 2px solid var(--color-ink);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.lesson-cell {
+  aspect-ratio: 1;
+  border: 0;
+  background: var(--color-cream);
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(0.7rem, 3.4vw, 1.1rem);
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+.lesson-board.reduce .lesson-cell { transition: none; }
+.lesson-cell.given { font-weight: 600; }
+.lesson-cell.placed { color: var(--accent, var(--color-sage)); font-weight: 600; }
+.lesson-cell.cands {
+  font-family: "Inter", sans-serif;
+  font-size: 0.55rem;
+  color: var(--color-ink-soft);
+  letter-spacing: 0.04em;
+}
+.lesson-cell.hl-unit { background: #efe7d6; }
+.lesson-cell.hl-target { background: #d9e6dd; outline: 2px solid var(--color-sage); outline-offset: -2px; }
+.lesson-cell.hl-elim { background: #f0dcd2; text-decoration: line-through; }
+.lesson-cell.hl-place { background: #d9e6dd; }
+.lesson-cell.clickable { cursor: pointer; }
+.lesson-cell.clickable:hover { background: #d9e6dd; }
+.lesson-cell:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }
+
+.lesson-caption {
+  text-align: center;
+  margin: 0.9rem 0 0.6rem;
+  min-height: 2.6em;
+  color: var(--color-ink);
+}
+.lesson-controls { display: flex; justify-content: center; gap: 0.5rem; }
+.lesson-btn {
+  font-family: "Inter", sans-serif;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-cream);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.lesson-btn:hover:not(:disabled) { color: var(--accent, var(--color-sage)); border-color: var(--accent, var(--color-sage)); }
+.lesson-btn:disabled { opacity: 0.4; cursor: default; }
+.lesson-btn:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
