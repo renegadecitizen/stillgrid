@@ -90,6 +90,8 @@ export function mountGuided(host: HTMLElement, game: GuidedGame = GUIDED_GAME): 
       a.textContent = "Play a full game →";
       p.append(a);
       host.append(p);
+      // Move focus off the just-completed cell (now aria-hidden) onto the next action.
+      a.focus();
     }
   }
 
