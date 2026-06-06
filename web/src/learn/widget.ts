@@ -94,8 +94,13 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
           "aria-label",
           filled ? `row ${r}, column ${c}, ${el.textContent}` : `row ${r}, column ${c}, empty`,
         );
+        el.removeAttribute("aria-hidden");
       } else {
+        // Non-interactive board is a single role="img" described by its aria-label;
+        // its cells are decorative, so hide them from the a11y tree (also satisfies
+        // the button-name audit since these <button>s have no accessible name).
         el.removeAttribute("aria-label");
+        el.setAttribute("aria-hidden", "true");
       }
       el.tabIndex = target ? 0 : -1;
       el.onclick = target
