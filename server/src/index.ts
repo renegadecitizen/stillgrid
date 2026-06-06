@@ -221,7 +221,7 @@ app.get("/api/daily", async (req, res) => {
 
 // Prerendered HTML pages for SEO. Must be registered before the 404 handler
 // so /killer, /privacy, etc. resolve to their pages rather than the catch-all.
-const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "privacy"] as const;
+export const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "privacy", "learn"] as const;
 if (SERVE_STATIC) {
   for (const slug of LANDING_ROUTES) {
     app.get(`/${slug}`, (_req, res) => {

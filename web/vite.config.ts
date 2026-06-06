@@ -12,6 +12,14 @@ export default defineConfig({
       "/api": "http://localhost:3001",
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        learn: "learn.html",
+      },
+    },
+  },
   test: {
     environment: "jsdom",
   },
