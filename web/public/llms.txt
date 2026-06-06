@@ -15,5 +15,6 @@
 
 ## About
 
+- [How to play sudoku](https://stillgrid.app/learn): Rules, pencil-mark notes, and the technique ladder Stillgrid grades difficulty by — singles, pairs, pointing, X-Wing, and beyond.
 - [Stillgrid home](https://stillgrid.app/): Play any variant, the daily challenge, and track personal bests and streaks.
 - [Privacy](https://stillgrid.app/privacy): No accounts and no tracking beyond privacy-friendly aggregate analytics; all game state stays in your browser.

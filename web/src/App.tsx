@@ -384,7 +384,7 @@ function Topbar() {
         <nav aria-label="Primary" className="flex items-center gap-5" style={{ color: "var(--color-ink-soft)" }}>
           <a href="#" className="hover:text-ink transition-colors">Play</a>
           <a href="#" className="hover:text-ink transition-colors">Daily</a>
-          <a href="#" className="hover:text-ink transition-colors">Learn</a>
+          <a href="/learn" className="hover:text-ink transition-colors">Learn</a>
           <a href="#" className="hover:text-ink transition-colors">About</a>
         </nav>
       </div>
