@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-// web is ESM ("type": "module") — use import.meta.dirname, not __dirname.
-const html = readFileSync(resolve(import.meta.dirname, "../../learn.html"), "utf8");
+import html from "../../learn.html?raw";
 
 const LD_BLOCK = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
 
@@ -15,8 +11,8 @@ function jsonLdBlocks(src: string): unknown[] {
   return out;
 }
 
-// Visible copy = the HTML with the JSON-LD blocks removed, so a verbatim match
-// proves the FAQ answer is in the rendered <p>, not just echoed in structured data.
+// Visible copy = HTML minus the JSON-LD blocks, so a verbatim match proves the
+// FAQ answer is in the rendered <p>, not just echoed in structured data.
 const visibleHtml = html.replace(LD_BLOCK, "");
 
 describe("learn.html structured data", () => {
