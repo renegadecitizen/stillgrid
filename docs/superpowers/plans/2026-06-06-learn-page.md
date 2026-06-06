@@ -316,7 +316,7 @@ The `FAQPage` answer `text` must match the visible `<p>` copy **byte-for-byte** 
     {"@context":"https://schema.org","@type":"LearningResource","name":"How to play sudoku","description":"A tutorial covering sudoku rules, pencil-mark notes, and the technique ladder Stillgrid grades difficulty by.","learningResourceType":"Tutorial","educationalLevel":"Beginner to advanced","teaches":["Naked single","Hidden single","Naked pair","Hidden pair","Pointing pair","X-Wing","Swordfish","XY-Wing","Killer cage sums"],"inLanguage":"en","isAccessibleForFree":true,"url":"https://stillgrid.app/learn","publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
     </script>
     <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I start a sudoku?","acceptedAnswer":{"@type":"Answer","text":"Scan each row, column, and 3×3 box for a cell that can only hold one digit — a naked single — and fill it in. As you place digits, more singles appear. When the obvious cells run out, start tracking candidates as pencil-mark notes and look for pairs and pointing patterns."}},{"@type":"Question","name":"What is a naked single and a hidden single?","acceptedAnswer":{"@type":"Answer","text":"A naked single is a cell whose row, column, and box already use eight different digits, leaving only one possible digit for it. A hidden single is a digit that can only go in one cell of a given row, column, or box, even if that cell still shows other candidates."}},{"@type":"Question","name":"What do notes or pencil marks do?","acceptedAnswer":{"@type":"Answer","text":"Notes let you record the candidate digits still possible in a cell. They're the basis of every technique past singles — pairs, pointing, and X-Wing are all patterns in the candidates. Stillgrid can auto-fill every cell's notes for you with auto-pencil."}},{"@type":"Question","name":"How is sudoku difficulty graded on Stillgrid?","acceptedAnswer":{"@type":"Answer","text":"Stillgrid grades each puzzle by the hardest solving technique it actually requires, not by clue count. Easy solves with naked and hidden singles, Medium needs pairs and pointing, and Hard or Diabolical needs X-Wing, Swordfish, XY-Wing, or chains."}},{"@type":"Question","name":"Is Stillgrid free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Every puzzle, variant, and size is free to play, with no signup needed to start a puzzle."}}]}
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I start a sudoku?","acceptedAnswer":{"@type":"Answer","text":"Scan each row, column, and 3×3 box for a cell that can only hold one digit — a naked single — and fill it in. As you place digits, more singles appear. When the obvious cells run out, start tracking candidates as pencil-mark notes and look for pairs and pointing patterns."}},{"@type":"Question","name":"What is a naked single and a hidden single?","acceptedAnswer":{"@type":"Answer","text":"A naked single is a cell whose row, column, and box already use eight different digits, leaving only one possible digit for it. A hidden single is a digit that can only go in one cell of a given row, column, or box, even if that cell still shows other candidates."}},{"@type":"Question","name":"What do notes or pencil marks do?","acceptedAnswer":{"@type":"Answer","text":"Notes let you record the candidate digits still possible in a cell. They're the basis of every technique past singles — pairs, pointing, and X-Wing are all patterns in the candidates. Stillgrid can auto-fill every cell's notes for you with auto-pencil."}},{"@type":"Question","name":"How is sudoku difficulty graded on Stillgrid?","acceptedAnswer":{"@type":"Answer","text":"Stillgrid grades each puzzle by the hardest solving technique it actually requires, not by clue count. You can choose Easy, which solves with naked and hidden singles; Medium, which needs pairs and pointing; or Nightmare, which needs advanced patterns like X-Wing, Swordfish, XY-Wing, or chains."}},{"@type":"Question","name":"Is Stillgrid free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Every puzzle, variant, and size is free to play, with no signup needed to start a puzzle."}}]}
     </script>
 ```
 
@@ -334,13 +334,19 @@ import { resolve } from "node:path";
 // web is ESM ("type": "module") — use import.meta.dirname, not __dirname.
 const html = readFileSync(resolve(import.meta.dirname, "../../learn.html"), "utf8");
 
+const LD_BLOCK = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
+
 function jsonLdBlocks(src: string): unknown[] {
-  const re = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
   const out: unknown[] = [];
   let m: RegExpExecArray | null;
-  while ((m = re.exec(src))) out.push(JSON.parse(m[1]!));
+  LD_BLOCK.lastIndex = 0;
+  while ((m = LD_BLOCK.exec(src))) out.push(JSON.parse(m[1]!));
   return out;
 }
+
+// Visible copy = HTML minus the JSON-LD blocks, so a verbatim match proves the
+// FAQ answer is in the rendered <p>, not just echoed in structured data.
+const visibleHtml = html.replace(LD_BLOCK, "");
 
 describe("learn.html structured data", () => {
   const blocks = jsonLdBlocks(html);
@@ -353,12 +359,13 @@ describe("learn.html structured data", () => {
   });
 
   it("FAQ answer text appears verbatim in the visible HTML", () => {
-    const faq = blocks.find((b) => (b as { "@type": string })["@type"] === "FAQPage") as {
-      mainEntity: { acceptedAnswer: { text: string } }[];
-    };
-    for (const q of faq.mainEntity) {
+    const faq = blocks.find((b) => (b as { "@type": string })["@type"] === "FAQPage") as
+      | { mainEntity: { acceptedAnswer: { text: string } }[] }
+      | undefined;
+    expect(faq, "FAQPage block not found").toBeDefined();
+    for (const q of faq!.mainEntity) {
       const text = q.acceptedAnswer.text;
-      expect(html, `FAQ answer not found verbatim: ${text.slice(0, 40)}…`).toContain(text);
+      expect(visibleHtml, `FAQ answer not found in visible copy: ${text.slice(0, 40)}…`).toContain(text);
     }
   });
 });
