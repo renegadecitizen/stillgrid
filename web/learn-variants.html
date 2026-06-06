@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Sudoku variants & sizes — X, Jigsaw, Killer | Stillgrid</title>
+    <meta name="description" content="The same sudoku logic in new units: X-Sudoku diagonals, Jigsaw regions, and Killer cage sums — plus boards from 6×6 to 16×16." />
+    <link rel="canonical" href="https://stillgrid.app/learn/variants" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Sudoku variants & sizes — Stillgrid" />
+    <meta property="og:description" content="X-Sudoku, Jigsaw, and Killer — and boards from 6×6 to 16×16. Same logic, new units." />
+    <meta property="og:url" content="https://stillgrid.app/learn/variants" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Learn sudoku on Stillgrid." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Variants &amp; sizes</h1>
+      <p class="lede">Same logic, new units — and boards from 6×6 to 16×16.</p>
+      <p><a class="cta" href="/">Play now</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn">How to play</a>
+        <a href="/learn/core">Core techniques</a>
+        <a href="/learn/advanced">Advanced</a>
+        <a href="/learn/variants" aria-current="page">Variants &amp; sizes</a>
+      </nav>
+
+      <h2>Variants &amp; sizes</h2>
+      <p>Every technique above still applies in the variants — they just add or reshape the units you check.</p>
+
+      <h3>X-Sudoku</h3>
+      <p>Classic rules plus both main diagonals must each contain 1–9. The diagonals are two extra units to scan for singles, pairs, and pointing logic. <a href="/xsudoku">More about X-Sudoku →</a></p>
+      <div class="lesson" data-lesson="x-sudoku">
+        <p class="lesson-fallback">The two diagonals (highlighted) behave like extra rows: a digit already on a diagonal can't repeat anywhere else on it.</p>
+      </div>
+
+      <h3>Jigsaw</h3>
+      <p>Nine irregular connected regions replace the 3×3 boxes. The logic is identical — each region still needs 1–9 exactly once — but the shapes change which cells "see" each other. <a href="/jigsaw">More about Jigsaw →</a></p>
+      <div class="lesson" data-lesson="jigsaw">
+        <p class="lesson-fallback">Each coloured region must contain 1–9 once, just like a box — but the region's odd shape changes which cells share a unit.</p>
+      </div>
+
+      <h3>Killer</h3>
+      <p>Dashed cages with target sums replace given digits. On top of classic rules, the cells in a cage must add up to the target with no repeats — so cage-sum combinations become a technique of their own (a 3-cell cage summing to 7 can only be 1+2+4). <a href="/killer">More about Killer →</a></p>
+      <div class="lesson" data-lesson="killer">
+        <p class="lesson-fallback">A 3-cell cage summing to 7 can only be {1, 2, 4} — so 3, 5, 6, 7, 8, 9 are removed from every cell in the cage.</p>
+      </div>
+
+      <h3>Board sizes</h3>
+      <p>Stillgrid plays at more than one size:</p>
+      <ul>
+        <li><strong>6×6</strong> — 2×3 boxes, digits 1–6. A gentle introduction; the same row/column/box logic on a smaller board.</li>
+        <li><strong>9×9</strong> — the classic board everything above is taught on.</li>
+        <li><strong>16×16</strong> — 4×4 boxes, digits shown as 1–9 then A–G. Much larger; best on a bigger screen. Currently available for Classic and X-Sudoku.</li>
+      </ul>
+
+      <h2>Common questions</h2>
+      <div class="faq">
+        <h3>How is sudoku difficulty graded on Stillgrid?</h3>
+        <p>Stillgrid grades each puzzle by the hardest solving technique it actually requires, not by clue count. You can choose Easy, which solves with naked and hidden singles; Medium, which needs pairs and pointing; or Nightmare, which needs advanced patterns like X-Wing, Swordfish, XY-Wing, or chains.</p>
+        <h3>Is Stillgrid free?</h3>
+        <p>Yes. Every puzzle, variant, and size is free to play, with no signup needed to start a puzzle.</p>
+      </div>
+
+      <p class="learn-prev"><a href="/learn/advanced">← Advanced</a></p>
+
+      <h2>Try a variant</h2>
+      <div class="variant-row">
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/killer">Killer Sudoku</a>
+      </div>
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/learn/main.ts"></script>
+  </body>
+</html>

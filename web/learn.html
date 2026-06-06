@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#FAF7F2" />
-    <title>How to play sudoku — rules, techniques & difficulty | Stillgrid</title>
-    <meta name="description" content="Learn how to play sudoku: the rules, how to use pencil-mark notes, and the exact technique ladder Stillgrid grades difficulty by — singles, pairs, X-Wing, and beyond. Free, no signup needed." />
+    <title>How to play sudoku — Stillgrid</title>
+    <meta name="description" content="Learn how to play sudoku: the rules, how to use pencil-mark notes, and your first naked and hidden singles. Then play your first game step by step. Free, no signup needed." />
     <link rel="canonical" href="https://stillgrid.app/learn" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -42,14 +42,22 @@
       <h1>How to play sudoku</h1>
       <p class="lede">The rules, then the exact ladder of techniques Stillgrid uses to grade difficulty — from your first naked single to X-Wing.</p>
       <p><a class="cta" href="/">Play now</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn" aria-current="page">How to play</a>
+        <a href="/learn/core">Core techniques</a>
+        <a href="/learn/advanced">Advanced</a>
+        <a href="/learn/variants">Variants &amp; sizes</a>
+      </nav>
       <h2>The goal</h2>
       <p>A sudoku is a 9×9 grid split into nine 3×3 boxes. Fill every empty cell with a digit from 1 to 9 so that each row, each column, and each 3×3 box contains all nine digits exactly once — no repeats anywhere. A proper puzzle has exactly one solution, so you never have to guess: every digit can be reasoned out.</p>
 
       <h2>Notes (pencil marks)</h2>
       <p>Once the obvious cells are filled, you track <em>candidates</em> — the digits still possible in a cell — as small “pencil marks.” Notes are the backbone of every technique past the basics: pairs, pointing, and X-Wing are all patterns you spot in the candidates, not the solved digits. On Stillgrid you can enter pencil marks by hand, or tap <strong>auto-pencil</strong> to fill every cell's candidates at once, and undo/redo is always one tap away.</p>
 
-      <div class="lesson" data-lesson="intro">
-        <p class="lesson-fallback">Worked example: when a cell's row, column, and box already use eight different digits, only one digit is left for it — place that digit.</p>
+      <h2>Play your first game</h2>
+      <p>The best way to learn is to solve. Work through the opening of a real puzzle below — each step shows you the one cell you can fill next and why.</p>
+      <div class="guided" data-guided="first-game">
+        <p class="lesson-fallback">Look for a cell whose row, column, and box already use eight different digits — only one digit can go there. Place it, and the next forced cell appears. Repeat: scan rows, columns, and boxes for cells with just one possibility.</p>
       </div>
 
       <h2>Beginning — what "Easy" means</h2>
@@ -67,68 +75,6 @@
         <p class="lesson-fallback">Across this box, only one cell can possibly hold a 4 — the other cells are blocked by a 4 elsewhere in their row or column — so that cell is 4.</p>
       </div>
 
-      <h2>Middle — what "Medium" means</h2>
-      <p>Medium puzzles need techniques that eliminate candidates across several cells before any single is revealed. They all operate on your notes.</p>
-
-      <h3>Naked pair</h3>
-      <p>If two cells in the same unit share the same two candidates and nothing else (say, only 3 and 7), then 3 and 7 are locked to those two cells — you can erase 3 and 7 from every other cell in that unit.</p>
-      <div class="lesson" data-lesson="naked-pair">
-        <p class="lesson-fallback">Two cells in this row both show only {3, 7}. So 3 and 7 can be removed from the other cells in the row, often exposing a single elsewhere.</p>
-      </div>
-
-      <h3>Hidden pair</h3>
-      <p>The mirror image of a naked pair: if two digits can each only go in the same two cells of a unit, those cells form a pair — you can erase every <em>other</em> candidate from those two cells.</p>
-      <div class="lesson" data-lesson="hidden-pair">
-        <p class="lesson-fallback">In this box, the digits 2 and 5 can each only land in the same two cells. Those two cells are therefore {2, 5}, and any other candidates in them are removed.</p>
-      </div>
-
-      <h3>Pointing pair</h3>
-      <p>When a digit's only candidates inside a box all sit in one row (or one column), that digit must come from that box along that line — so it can be erased from the rest of the row (or column) outside the box.</p>
-      <div class="lesson" data-lesson="pointing-pair">
-        <p class="lesson-fallback">Inside this box, the only cells that can hold a 6 lie in a single row. So 6 is removed from that row everywhere outside the box.</p>
-      </div>
-
-      <h2>Advanced — what "Nightmare" means</h2>
-      <p>These patterns span multiple rows and columns at once. They're powerful but rare — most puzzles never require them. The hardest difficulty you can choose on Stillgrid is <strong>Nightmare</strong>, and a puzzle has to need techniques like these to earn it. (Play "Any" difficulty and you may also spot the grader's own "Hard" and "Diabolical" labels on individual puzzles.)</p>
-
-      <h3>X-Wing</h3>
-      <p>When a digit is a candidate in exactly two cells of one row, and in exactly two cells of a second row that line up in the same two columns, those four cells form a rectangle. The digit must occupy opposite corners — so it can be erased from those two columns everywhere else.</p>
-      <div class="lesson" data-lesson="x-wing">
-        <p class="lesson-fallback">A candidate 5 appears in just two columns across two rows, forming a rectangle. 5 is then removed from those two columns in all other rows.</p>
-      </div>
-
-      <h3>Swordfish, XY-Wing, and chains</h3>
-      <p>Swordfish extends the X-Wing idea to three rows and columns. XY-Wing links three bivalue cells so a digit is eliminated where two of them see the same cell. Chains (coloring and alternating inference chains) follow strong/weak links between candidates to force eliminations. Stillgrid's grader uses all of these to label the very hardest puzzles — but generated puzzles rarely need them.</p>
-
-      <h2>Variants &amp; sizes</h2>
-      <p>Every technique above still applies in the variants — they just add or reshape the units you check.</p>
-
-      <h3>X-Sudoku</h3>
-      <p>Classic rules plus both main diagonals must each contain 1–9. The diagonals are two extra units to scan for singles, pairs, and pointing logic. <a href="/xsudoku">More about X-Sudoku →</a></p>
-      <div class="lesson" data-lesson="x-sudoku">
-        <p class="lesson-fallback">The two diagonals (highlighted) behave like extra rows: a digit already on a diagonal can't repeat anywhere else on it.</p>
-      </div>
-
-      <h3>Jigsaw</h3>
-      <p>Nine irregular connected regions replace the 3×3 boxes. The logic is identical — each region still needs 1–9 exactly once — but the shapes change which cells "see" each other. <a href="/jigsaw">More about Jigsaw →</a></p>
-      <div class="lesson" data-lesson="jigsaw">
-        <p class="lesson-fallback">Each coloured region must contain 1–9 once, just like a box — but the region's odd shape changes which cells share a unit.</p>
-      </div>
-
-      <h3>Killer</h3>
-      <p>Dashed cages with target sums replace given digits. On top of classic rules, the cells in a cage must add up to the target with no repeats — so cage-sum combinations become a technique of their own (a 3-cell cage summing to 7 can only be 1+2+4). <a href="/killer">More about Killer →</a></p>
-      <div class="lesson" data-lesson="killer">
-        <p class="lesson-fallback">A 3-cell cage summing to 7 can only be {1, 2, 4} — so 3, 5, 6, 7, 8, 9 are removed from every cell in the cage.</p>
-      </div>
-
-      <h3>Board sizes</h3>
-      <p>Stillgrid plays at more than one size:</p>
-      <ul>
-        <li><strong>6×6</strong> — 2×3 boxes, digits 1–6. A gentle introduction; the same row/column/box logic on a smaller board.</li>
-        <li><strong>9×9</strong> — the classic board everything above is taught on.</li>
-        <li><strong>16×16</strong> — 4×4 boxes, digits shown as 1–9 then A–G. Much larger; best on a bigger screen. Currently available for Classic and X-Sudoku.</li>
-      </ul>
-
       <h2>Common questions</h2>
       <div class="faq">
         <h3>How do I start a sudoku?</h3>
@@ -137,11 +83,9 @@
         <p>A naked single is a cell whose row, column, and box already use eight different digits, leaving only one possible digit for it. A hidden single is a digit that can only go in one cell of a given row, column, or box, even if that cell still shows other candidates.</p>
         <h3>What do notes or pencil marks do?</h3>
         <p>Notes let you record the candidate digits still possible in a cell. They're the basis of every technique past singles — pairs, pointing, and X-Wing are all patterns in the candidates. Stillgrid can auto-fill every cell's notes for you with auto-pencil.</p>
-        <h3>How is sudoku difficulty graded on Stillgrid?</h3>
-        <p>Stillgrid grades each puzzle by the hardest solving technique it actually requires, not by clue count. You can choose Easy, which solves with naked and hidden singles; Medium, which needs pairs and pointing; or Nightmare, which needs advanced patterns like X-Wing, Swordfish, XY-Wing, or chains.</p>
-        <h3>Is Stillgrid free?</h3>
-        <p>Yes. Every puzzle, variant, and size is free to play, with no signup needed to start a puzzle.</p>
       </div>
+
+      <p class="learn-next"><a href="/learn/core">Next: Core techniques →</a></p>
 
       <h2>Try a variant</h2>
       <div class="variant-row">

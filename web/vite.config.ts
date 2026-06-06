@@ -17,6 +17,9 @@ export default defineConfig({
       input: {
         main: "index.html",
         learn: "learn.html",
+        learnCore: "learn-core.html",
+        learnAdvanced: "learn-advanced.html",
+        learnVariants: "learn-variants.html",
       },
     },
   },

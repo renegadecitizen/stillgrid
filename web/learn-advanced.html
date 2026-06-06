@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Advanced sudoku techniques — X-Wing, Swordfish | Stillgrid</title>
+    <meta name="description" content="The cross-grid patterns behind the hardest sudoku: X-Wing, Swordfish, XY-Wing, and chains — the techniques Stillgrid grades as Nightmare." />
+    <link rel="canonical" href="https://stillgrid.app/learn/advanced" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Advanced sudoku techniques — Stillgrid" />
+    <meta property="og:description" content="X-Wing, Swordfish, XY-Wing, and chains — the cross-grid patterns behind the hardest puzzles." />
+    <meta property="og:url" content="https://stillgrid.app/learn/advanced" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Learn sudoku on Stillgrid." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Advanced techniques</h1>
+      <p class="lede">The cross-grid patterns behind the hardest puzzles.</p>
+      <p><a class="cta" href="/">Play now</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn">How to play</a>
+        <a href="/learn/core">Core techniques</a>
+        <a href="/learn/advanced" aria-current="page">Advanced</a>
+        <a href="/learn/variants">Variants &amp; sizes</a>
+      </nav>
+
+      <h2>Advanced — what "Nightmare" means</h2>
+      <p>These patterns span multiple rows and columns at once. They're powerful but rare — most puzzles never require them. The hardest difficulty you can choose on Stillgrid is <strong>Nightmare</strong>, and a puzzle has to need techniques like these to earn it. (Play "Any" difficulty and you may also spot the grader's own "Hard" and "Diabolical" labels on individual puzzles.)</p>
+
+      <h3>X-Wing</h3>
+      <p>When a digit is a candidate in exactly two cells of one row, and in exactly two cells of a second row that line up in the same two columns, those four cells form a rectangle. The digit must occupy opposite corners — so it can be erased from those two columns everywhere else.</p>
+      <div class="lesson" data-lesson="x-wing">
+        <p class="lesson-fallback">A candidate 5 appears in just two columns across two rows, forming a rectangle. 5 is then removed from those two columns in all other rows.</p>
+      </div>
+
+      <h3>Swordfish, XY-Wing, and chains</h3>
+      <p>Swordfish extends the X-Wing idea to three rows and columns. XY-Wing links three bivalue cells so a digit is eliminated where two of them see the same cell. Chains (coloring and alternating inference chains) follow strong/weak links between candidates to force eliminations. Stillgrid's grader uses all of these to label the very hardest puzzles — but generated puzzles rarely need them.</p>
+
+      <p class="learn-prev"><a href="/learn/core">← Core techniques</a></p>
+      <p class="learn-next"><a href="/learn/variants">Next: Variants &amp; sizes →</a></p>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/learn/main.ts"></script>
+  </body>
+</html>

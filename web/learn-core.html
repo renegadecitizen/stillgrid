@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Core sudoku techniques — pairs & pointing | Stillgrid</title>
+    <meta name="description" content="The candidate-based moves that crack Medium sudoku: naked pairs, hidden pairs, and pointing pairs. Worked examples on a real grid." />
+    <link rel="canonical" href="https://stillgrid.app/learn/core" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Core sudoku techniques — Stillgrid" />
+    <meta property="og:description" content="Naked pairs, hidden pairs, and pointing pairs — the candidate moves behind Medium puzzles." />
+    <meta property="og:url" content="https://stillgrid.app/learn/core" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Learn sudoku on Stillgrid." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-HB79xhSO4XQqtCrZGd-vn.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()</script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Core techniques</h1>
+      <p class="lede">The candidate-based moves that crack Medium puzzles.</p>
+      <p><a class="cta" href="/">Play now</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn">How to play</a>
+        <a href="/learn/core" aria-current="page">Core techniques</a>
+        <a href="/learn/advanced">Advanced</a>
+        <a href="/learn/variants">Variants &amp; sizes</a>
+      </nav>
+
+      <h2>Core techniques — what "Medium" means</h2>
+      <p>Medium puzzles need techniques that eliminate candidates across several cells before any single is revealed. They all operate on your notes.</p>
+
+      <h3>Naked pair</h3>
+      <p>If two cells in the same unit share the same two candidates and nothing else (say, only 3 and 7), then 3 and 7 are locked to those two cells — you can erase 3 and 7 from every other cell in that unit.</p>
+      <div class="lesson" data-lesson="naked-pair">
+        <p class="lesson-fallback">Two cells in this row both show only {3, 7}. So 3 and 7 can be removed from the other cells in the row, often exposing a single elsewhere.</p>
+      </div>
+
+      <h3>Hidden pair</h3>
+      <p>The mirror image of a naked pair: if two digits can each only go in the same two cells of a unit, those cells form a pair — you can erase every <em>other</em> candidate from those two cells.</p>
+      <div class="lesson" data-lesson="hidden-pair">
+        <p class="lesson-fallback">In this box, the digits 2 and 5 can each only land in the same two cells. Those two cells are therefore {2, 5}, and any other candidates in them are removed.</p>
+      </div>
+
+      <h3>Pointing pair</h3>
+      <p>When a digit's only candidates inside a box all sit in one row (or one column), that digit must come from that box along that line — so it can be erased from the rest of the row (or column) outside the box.</p>
+      <div class="lesson" data-lesson="pointing-pair">
+        <p class="lesson-fallback">Inside this box, the only cells that can hold a 6 lie in a single row. So 6 is removed from that row everywhere outside the box.</p>
+      </div>
+
+      <p class="learn-prev"><a href="/learn">← How to play</a></p>
+      <p class="learn-next"><a href="/learn/advanced">Next: Advanced →</a></p>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/learn/main.ts"></script>
+  </body>
+</html>

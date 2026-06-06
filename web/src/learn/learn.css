@@ -73,3 +73,10 @@
 .lesson-btn:hover:not(:disabled) { color: var(--accent, var(--color-sage)); border-color: var(--accent, var(--color-sage)); }
 .lesson-btn:disabled { opacity: 0.4; cursor: default; }
 .lesson-btn:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+
+.learn-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin: 0 0 2rem; font-size: 0.95rem; }
+.learn-nav a { color: var(--color-ink-soft); text-decoration: none; }
+.learn-nav a:hover { color: var(--accent, var(--color-sage)); }
+.learn-nav a[aria-current="page"] { color: var(--color-ink); font-weight: 600; }
+.learn-next { margin-top: 2.5rem; }
+.learn-next a, .learn-prev a { color: var(--accent, var(--color-sage)); text-decoration: none; font-weight: 500; }
