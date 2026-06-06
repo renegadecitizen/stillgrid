@@ -1,10 +1,10 @@
-import type { Lesson } from "./types";
+import type { Lesson, Cell } from "./types";
 
 // row r (0-based), col c → flat index in a 9×9 grid
 const ix = (r: number, c: number) => r * 9 + c;
 
 // Build a 9×9 grid (81 cells). `givens` maps cell index → digit.
-function grid9(givens: Record<number, number>): Lesson["steps"][number]["grid"] {
+function grid9(givens: Record<number, number>): Cell[] {
   return Array.from({ length: 81 }, (_, i) =>
     givens[i] !== undefined ? { given: givens[i]! } : {},
   );
@@ -14,7 +14,7 @@ function grid9(givens: Record<number, number>): Lesson["steps"][number]["grid"] 
 function grid9Cands(
   givens: Record<number, number>,
   cands: Record<number, number[]>,
-): Lesson["steps"][number]["grid"] {
+): Cell[] {
   const g = grid9(givens);
   for (const [k, ds] of Object.entries(cands)) {
     g[Number(k)] = { cands: ds };
@@ -44,6 +44,7 @@ const intro: Lesson = {
     },
     {
       caption: "Right — 2–9 all appear in its row, column, or box, so the top-left cell must be 1.",
+      // place step: mutate a copy so the digit renders as an animated "value", not a fixed "given"
       grid: (() => { const g = grid9(introGivens); g[ix(0, 0)] = { value: 1 }; return g; })(),
       highlights: [{ cells: [ix(0, 0)], kind: "place" }],
     },
@@ -133,6 +134,14 @@ const nakedPairGivens: Record<number, number> = {
   [ix(0, 5)]: 1, [ix(0, 6)]: 2, [ix(0, 7)]: 4, [ix(0, 8)]: 5,
 };
 
+const nakedPairGrid = grid9Cands(nakedPairGivens, {
+  [ix(0, 0)]: [3, 7],
+  [ix(0, 1)]: [3, 7],
+  [ix(0, 2)]: [3, 6, 8, 9],
+  [ix(0, 3)]: [6, 7, 8, 9],
+  [ix(0, 4)]: [3, 6, 8, 9],
+});
+
 const nakedPair: Lesson = {
   id: "naked-pair",
   title: "Naked pair",
@@ -140,24 +149,12 @@ const nakedPair: Lesson = {
   steps: [
     {
       caption: "These two cells can each only be 3 or 7.",
-      grid: grid9Cands(nakedPairGivens, {
-        [ix(0, 0)]: [3, 7],
-        [ix(0, 1)]: [3, 7],
-        [ix(0, 2)]: [3, 6, 8, 9],
-        [ix(0, 3)]: [6, 7, 8, 9],
-        [ix(0, 4)]: [3, 6, 8, 9],
-      }),
+      grid: nakedPairGrid,
       highlights: [{ cells: [ix(0, 0), ix(0, 1)], kind: "target" }],
     },
     {
       caption: "Between them they will use up 3 and 7, so no other cell in the row can be 3 or 7.",
-      grid: grid9Cands(nakedPairGivens, {
-        [ix(0, 0)]: [3, 7],
-        [ix(0, 1)]: [3, 7],
-        [ix(0, 2)]: [3, 6, 8, 9],
-        [ix(0, 3)]: [6, 7, 8, 9],
-        [ix(0, 4)]: [3, 6, 8, 9],
-      }),
+      grid: nakedPairGrid,
       highlights: [
         { cells: [ix(0, 0), ix(0, 1)], kind: "target" },
         { cells: [ix(0, 2), ix(0, 3), ix(0, 4)], kind: "elim" },
@@ -239,7 +236,7 @@ const xWing: Lesson = {
   size: 9,
   steps: [
     {
-      caption: "In rows 1 and 5, the 5 can only go in these two columns — four corners of a rectangle.",
+      caption: "In both highlighted rows, the 5 can only go in these two columns — the four corners of a rectangle.",
       grid: grid9Cands({}, {
         [ix(0, 2)]: [5, 8],
         [ix(0, 6)]: [5, 8],

@@ -19,6 +19,7 @@ describe("LESSONS", () => {
     for (const id of REQUIRED_IDS) {
       expect(ids.filter((x) => x === id)).toHaveLength(1);
     }
+    expect(LESSONS).toHaveLength(REQUIRED_IDS.length);
   });
 
   it("each lesson is internally consistent", () => {
