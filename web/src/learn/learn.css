@@ -1,4 +1,6 @@
 .lesson { margin: 1.25rem 0 2rem; }
+.guided { margin: 1.25rem 0 2rem; }
+.guided-cta { text-align: center; margin-top: 1.25rem; }
 .lesson-fallback { color: var(--color-ink-soft); font-size: 0.95rem; }
 
 .lesson-board {
