@@ -14,7 +14,7 @@ export interface Stepper {
 export function createStepper(lesson: Lesson): Stepper {
   const last = lesson.steps.length - 1;
   let i = 0;
-  const clamp = (n: number) => Math.max(0, Math.min(last, n));
+  const clamp = (n: number) => Math.floor(Math.max(0, Math.min(last, n)));
   return {
     get index() {
       return i;

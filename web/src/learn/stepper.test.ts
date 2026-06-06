@@ -47,6 +47,18 @@ describe("createStepper", () => {
     expect(s.index).toBe(0);
   });
 
+  it("goTo clamps to range and floors fractional input", () => {
+    const s = createStepper(lesson);
+    s.goTo(1);
+    expect(s.index).toBe(1);
+    s.goTo(99);
+    expect(s.index).toBe(2); // clamped to last
+    s.goTo(-5);
+    expect(s.index).toBe(0); // clamped to start
+    s.goTo(1.7);
+    expect(s.index).toBe(1); // floored
+  });
+
   it("current() returns the step at the index", () => {
     const s = createStepper(lesson);
     s.next();
