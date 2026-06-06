@@ -5,13 +5,19 @@ import { resolve } from "node:path";
 // web is ESM ("type": "module") — use import.meta.dirname, not __dirname.
 const html = readFileSync(resolve(import.meta.dirname, "../../learn.html"), "utf8");
 
+const LD_BLOCK = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
+
 function jsonLdBlocks(src: string): unknown[] {
-  const re = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
   const out: unknown[] = [];
   let m: RegExpExecArray | null;
-  while ((m = re.exec(src))) out.push(JSON.parse(m[1]!));
+  LD_BLOCK.lastIndex = 0;
+  while ((m = LD_BLOCK.exec(src))) out.push(JSON.parse(m[1]!));
   return out;
 }
+
+// Visible copy = the HTML with the JSON-LD blocks removed, so a verbatim match
+// proves the FAQ answer is in the rendered <p>, not just echoed in structured data.
+const visibleHtml = html.replace(LD_BLOCK, "");
 
 describe("learn.html structured data", () => {
   const blocks = jsonLdBlocks(html);
@@ -24,12 +30,13 @@ describe("learn.html structured data", () => {
   });
 
   it("FAQ answer text appears verbatim in the visible HTML", () => {
-    const faq = blocks.find((b) => (b as { "@type": string })["@type"] === "FAQPage") as {
-      mainEntity: { acceptedAnswer: { text: string } }[];
-    };
-    for (const q of faq.mainEntity) {
+    const faq = blocks.find((b) => (b as { "@type": string })["@type"] === "FAQPage") as
+      | { mainEntity: { acceptedAnswer: { text: string } }[] }
+      | undefined;
+    expect(faq, "FAQPage block not found").toBeDefined();
+    for (const q of faq!.mainEntity) {
       const text = q.acceptedAnswer.text;
-      expect(html, `FAQ answer not found verbatim: ${text.slice(0, 40)}…`).toContain(text);
+      expect(visibleHtml, `FAQ answer not found in visible copy: ${text.slice(0, 40)}…`).toContain(text);
     }
   });
 });
