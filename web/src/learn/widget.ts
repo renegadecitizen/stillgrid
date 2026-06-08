@@ -34,7 +34,7 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
   const stepper = createStepper(lesson);
   const reduce = prefersReducedMotion();
 
-  const cellEls = buildCells(lesson.size);
+  const cellEls = buildCells(lesson.size, lesson.regions);
   cellEls.forEach((cell) => {
     cell.setAttribute("aria-hidden", "true"); // decorative; the board's label conveys state
     board.append(cell);
@@ -68,19 +68,6 @@ export function mountLesson(host: HTMLElement, lesson: Lesson): void {
   };
 
   paint(stepper.current());
-
-  // Auto-advance through the steps when motion is allowed. Any manual control
-  // click cancels it for good (it does not resume after Restart).
-  if (!reduce) {
-    const timer = setInterval(() => {
-      if (!stepper.next()) {
-        clearInterval(timer);
-        return;
-      }
-      paint(stepper.current());
-    }, 2600);
-    controls.addEventListener("click", () => clearInterval(timer), { once: true });
-  }
 }
 
 function button(label: string): HTMLButtonElement {

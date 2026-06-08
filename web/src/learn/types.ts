@@ -22,4 +22,7 @@ export interface Lesson {
   title: string;
   size: 6 | 9 | 16;
   steps: Step[];
+  // Optional jigsaw region map (one region id per cell, length size*size).
+  // When set, bold dividers follow region boundaries instead of 3×3 boxes.
+  regions?: number[];
 }

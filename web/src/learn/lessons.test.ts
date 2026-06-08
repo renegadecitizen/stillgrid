@@ -25,6 +25,14 @@ describe("LESSONS", () => {
     for (const l of LESSONS) {
       const cells = l.size * l.size;
       expect(l.steps.length, `${l.id} has steps`).toBeGreaterThan(0);
+      if (l.regions) {
+        expect(l.regions.length, `${l.id} regions cover the grid`).toBe(cells);
+        const counts = new Map<number, number>();
+        for (const id of l.regions) counts.set(id, (counts.get(id) ?? 0) + 1);
+        for (const [id, n] of counts) {
+          expect(n, `${l.id} region ${id} has ${l.size} cells`).toBe(l.size);
+        }
+      }
       for (const step of l.steps) {
         expect(step.caption.trim().length, `${l.id} caption non-empty`).toBeGreaterThan(0);
         expect(step.grid.length, `${l.id} grid is size²`).toBe(cells);

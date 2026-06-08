@@ -10,9 +10,11 @@ export function boxDims(size: number): { h: number; w: number } {
   return size === 6 ? { h: 2, w: 3 } : size === 16 ? { h: 4, w: 4 } : { h: 3, w: 3 };
 }
 
-// Build the size×size grid of cell buttons with bold box-divider classes baked in.
+// Build the size×size grid of cell buttons with bold divider classes baked in.
 // Cells start out of the tab order (tabIndex -1); callers opt specific cells in.
-export function buildCells(size: number): HTMLButtonElement[] {
+// When `regions` is given (one region id per cell), bold dividers follow the
+// region boundaries (jigsaw) instead of the regular 3×3 boxes.
+export function buildCells(size: number, regions?: number[]): HTMLButtonElement[] {
   const box = boxDims(size);
   const cells: HTMLButtonElement[] = [];
   for (let i = 0; i < size * size; i++) {
@@ -23,8 +25,13 @@ export function buildCells(size: number): HTMLButtonElement[] {
     const r = Math.floor(i / size);
     const c = i % size;
     let boxCls = "";
-    if ((c + 1) % box.w === 0 && c < size - 1) boxCls += " box-r";
-    if ((r + 1) % box.h === 0 && r < size - 1) boxCls += " box-b";
+    if (regions) {
+      if (c < size - 1 && regions[i] !== regions[i + 1]) boxCls += " box-r";
+      if (r < size - 1 && regions[i] !== regions[i + size]) boxCls += " box-b";
+    } else {
+      if ((c + 1) % box.w === 0 && c < size - 1) boxCls += " box-r";
+      if ((r + 1) % box.h === 0 && r < size - 1) boxCls += " box-b";
+    }
     cell.dataset.box = boxCls;
     cell.className = "lesson-cell" + boxCls;
     cells.push(cell);

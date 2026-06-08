@@ -280,36 +280,51 @@ const xSudoku: Lesson = {
   ],
 };
 
-// --- jigsaw: an irregular region replaces a box ---
-// Nine orthogonally connected cells form one region; eight carry 1–8 and the
-// region's "1–9 once" rule forces the last cell, (2,0), to 9.
+// --- jigsaw: irregular regions replace the 3×3 boxes ---
+// A full 9-region nonomino tiling (region id per cell) so the demo grid looks
+// like a real Jigsaw board, with bold dividers along the region outlines.
+// Region 0 is the L-shaped top-left piece used for the lesson: eight cells
+// carry 1–8 and the "1–9 once" rule forces the last cell, (3,2), to 9.
+const jigsawRegions = [
+  0, 0, 0, 1, 1, 1, 1, 2, 2,
+  0, 0, 0, 1, 1, 2, 2, 2, 2,
+  3, 3, 0, 0, 1, 1, 2, 2, 2,
+  3, 3, 0, 4, 1, 4, 5, 5, 5,
+  3, 3, 3, 4, 4, 4, 5, 5, 5,
+  6, 6, 3, 4, 4, 7, 8, 5, 5,
+  6, 6, 3, 4, 4, 7, 8, 8, 5,
+  6, 6, 7, 7, 7, 7, 8, 8, 8,
+  6, 6, 6, 7, 7, 7, 8, 8, 8,
+];
 const jigsawRegion = [
-  ix(0, 0), ix(0, 1), ix(0, 2), ix(0, 3),
-  ix(1, 0), ix(1, 1), ix(1, 2), ix(1, 3),
-  ix(2, 0),
+  ix(0, 0), ix(0, 1), ix(0, 2),
+  ix(1, 0), ix(1, 1), ix(1, 2),
+  ix(2, 2), ix(2, 3), ix(3, 2),
 ];
 const jigsawGivens: Record<number, number> = {
-  [ix(0, 0)]: 1, [ix(0, 1)]: 2, [ix(0, 2)]: 3, [ix(0, 3)]: 4,
-  [ix(1, 0)]: 5, [ix(1, 1)]: 6, [ix(1, 2)]: 7, [ix(1, 3)]: 8,
+  [ix(0, 0)]: 1, [ix(0, 1)]: 2, [ix(0, 2)]: 3,
+  [ix(1, 0)]: 4, [ix(1, 1)]: 5, [ix(1, 2)]: 6,
+  [ix(2, 2)]: 7, [ix(2, 3)]: 8,
 };
 
 const jigsaw: Lesson = {
   id: "jigsaw",
   title: "Jigsaw",
   size: 9,
+  regions: jigsawRegions,
   steps: [
     {
       caption: "In Jigsaw, irregular regions replace the 3×3 boxes — each region still needs 1–9 once.",
       grid: grid9(jigsawGivens),
       highlights: [
         { cells: jigsawRegion, kind: "unit" },
-        { cells: [ix(2, 0)], kind: "target" },
+        { cells: [ix(3, 2)], kind: "target" },
       ],
     },
     {
       caption: "This region already holds 1–8, so its last empty cell must be the 9.",
-      grid: (() => { const g = grid9(jigsawGivens); g[ix(2, 0)] = { value: 9 }; return g; })(),
-      highlights: [{ cells: [ix(2, 0)], kind: "place" }],
+      grid: (() => { const g = grid9(jigsawGivens); g[ix(3, 2)] = { value: 9 }; return g; })(),
+      highlights: [{ cells: [ix(3, 2)], kind: "place" }],
     },
   ],
 };
