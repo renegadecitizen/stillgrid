@@ -222,8 +222,14 @@ fn try_jigsaw_partition(rng: &mut Rng, n: usize) -> Option<[u8; MAX_CELLS]> {
             if region_size[region] as usize >= n {
                 continue;
             }
-            // Find an unassigned frontier cell.
-            while let Some(cell) = frontiers[region].pop() {
+            // Grow into a *random* frontier cell. A LIFO stack (`pop()`) keeps
+            // grabbing the last-pushed neighbour, which — given the fixed
+            // up/down/left/right push order — biases growth sideways into
+            // horizontal stripes. Random selection keeps regions compact and
+            // organic, like the hand-checked layout on the Learn page.
+            while !frontiers[region].is_empty() {
+                let idx = rng.gen_range(frontiers[region].len());
+                let cell = frontiers[region].swap_remove(idx);
                 if partition[cell] != u8::MAX {
                     continue;
                 }
