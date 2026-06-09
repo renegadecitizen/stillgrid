@@ -510,23 +510,30 @@ mod tests {
     // Regression guard for the jigsaw generation tail (roadmap #1). Before the
     // budgeted-fill + partition-restart fix, seeds 23 and 34 took 3.5 s / 5.3 s
     // and one seed in 1..=40 took ~845 s — all in `fill_random`. With the fix
-    // every seed must generate quickly and stay a valid unique jigsaw.
+    // all 40 seeds total ~1.4 s.
+    //
+    // We assert on *total* elapsed with a wide margin, not a tight per-seed
+    // budget: cargo runs tests in parallel, so per-seed wall-clock is noisy on
+    // shared CI runners — a healthy sub-second generation can stretch past 1 s
+    // under CPU contention (this test used to flake on exactly that). A 20 s
+    // total budget is ~14x headroom over the fixed time yet trips loudly if the
+    // catastrophic tail ever returns (a single 845 s seed alone blows it).
     #[test]
     fn jigsaw_generation_has_no_tail() {
         use crate::solver::{solve_variant, SolveOutcome};
         use std::time::Instant;
+        let t = Instant::now();
         for seed in 1..=40u64 {
             let mut rng = Rng::new(seed);
-            let t = Instant::now();
             let p = generate_for_n(&mut rng, 9, VariantKind::Jigsaw, 28);
-            let dt = t.elapsed();
-            assert!(dt.as_millis() < 1000, "seed {seed}: jigsaw generation took {dt:?}");
             let b = Board::from_str(&p.givens.to_string_dotted()).unwrap();
             assert!(
                 matches!(solve_variant(&b, &p.variant), SolveOutcome::Unique(_)),
                 "seed {seed}: generated jigsaw is not unique"
             );
         }
+        let dt = t.elapsed();
+        assert!(dt.as_secs() < 20, "jigsaw generation has a tail: 40 seeds took {dt:?}");
     }
 
     // Measures the tier distribution the generator actually produces per
