@@ -242,7 +242,13 @@ export function App() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
+  // Run-once guard: StrictMode double-invokes mount effects in dev, and this
+  // effect strips the entry param from the URL — so a second invocation would
+  // read an empty search and wrongly fall back to the default classic load.
+  const didInit = useRef(false);
   useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
     const entry = parseEntryParam(window.location.search);
     if (entry) {
       // Strip the param so a refresh doesn't re-trigger and the URL stays clean.
