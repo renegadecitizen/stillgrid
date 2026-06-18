@@ -56,5 +56,23 @@ describe("analytics.track()", () => {
 
       expect(plausibleSpy).toHaveBeenCalledWith("first_visit_ever", undefined);
     });
+
+    it("forwards puzzle_shared props", async () => {
+      const plausibleSpy = vi.fn();
+      (window as { plausible?: unknown }).plausible = plausibleSpy;
+      const { track } = await import("./analytics");
+
+      track("puzzle_shared", {
+        variant: "killer",
+        size: 9,
+        tier: "medium",
+        is_daily: true,
+        method: "clipboard",
+      });
+
+      expect(plausibleSpy).toHaveBeenCalledWith("puzzle_shared", {
+        props: { variant: "killer", size: 9, tier: "medium", is_daily: true, method: "clipboard" },
+      });
+    });
   });
 });

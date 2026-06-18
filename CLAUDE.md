@@ -67,7 +67,7 @@ Plausible Analytics (hosted, plausible.io) is the source of truth for product me
 
 - Script tag in all 5 HTML files (`web/index.html` + `web/public/*.html`).
 - Typed event helper at `web/src/analytics.ts` — single `track(eventName, props?)` function.
-- Six custom events: `puzzle_started`, `puzzle_completed`, `puzzle_abandoned`, `daily_streak_milestone`, `first_visit_ever`, `tier_unmatched` (fires when `/api/puzzle` can't hit a requested tier in 60 retries — sizes the need for the #5 pool).
+- Seven custom events: `puzzle_started`, `puzzle_completed`, `puzzle_abandoned`, `daily_streak_milestone`, `first_visit_ever`, `tier_unmatched` (fires when `/api/puzzle` can't hit a requested tier in 60 retries — sizes the need for the #5 pool), `puzzle_shared` (fires on a successful share/copy from the win panel — top of the viral loop).
 - Dev mode no-ops via `import.meta.env.PROD` check — localhost traffic doesn't pollute prod stats.
 - Dashboard: https://plausible.io/stillgrid.app
 - Full spec: `docs/superpowers/specs/2026-05-25-plausible-integration-design.md`
