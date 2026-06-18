@@ -12,7 +12,7 @@ import {
   type RecordOutcome,
 } from "./storage";
 import { track } from "./analytics";
-import { buildShareText, shareResult } from "./share";
+import { buildShareText, parseEntryParam, shareResult } from "./share";
 import {
   type BoardState,
   type Size,
@@ -242,7 +242,22 @@ export function App() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
-  useEffect(() => load("classic", "", 9), []);
+  useEffect(() => {
+    const entry = parseEntryParam(window.location.search);
+    if (entry) {
+      // Strip the param so a refresh doesn't re-trigger and the URL stays clean.
+      window.history.replaceState(null, "", window.location.pathname);
+      if (entry.mode === "daily") {
+        loadDaily(entry.variant);
+      } else {
+        setVariant(entry.variant);
+        load(entry.variant, "", 9);
+      }
+      return;
+    }
+    load("classic", "", 9);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fire first_visit_ever once per browser (localStorage-flagged).
   // Mount-only effect — empty deps array.
