@@ -95,3 +95,36 @@ export function buildShareText(input: ShareInput): { body: string; url: string; 
   const body = `${line1}\n${line2}`;
   return { body, url, full: `${body}\n${url}` };
 }
+
+export type ShareMethod = "native" | "clipboard" | "manual" | "cancelled";
+
+// Performs the share with progressive enhancement and reports which path ran.
+// Side-effect-light: the caller owns the UI feedback + analytics based on the
+// returned method. "cancelled" = user dismissed the native sheet (no-op).
+export async function shareResult(parts: { body: string; url: string; full: string }): Promise<ShareMethod> {
+  const nav: Navigator | undefined = typeof navigator !== "undefined" ? navigator : undefined;
+
+  if (nav && typeof nav.share === "function") {
+    try {
+      await nav.share({ text: parts.body, url: parts.url });
+      return "native";
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return "cancelled";
+      // any other error → fall through to clipboard
+    }
+  }
+
+  if (nav && nav.clipboard && typeof nav.clipboard.writeText === "function") {
+    try {
+      await nav.clipboard.writeText(parts.full);
+      return "clipboard";
+    } catch {
+      // fall through to manual
+    }
+  }
+
+  if (typeof prompt === "function") {
+    prompt("Copy your result:", parts.full);
+  }
+  return "manual";
+}

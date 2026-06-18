@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { buildShareText, parseEntryParam } from "./share";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { buildShareText, parseEntryParam, shareResult } from "./share";
 
 const ORIGIN = "https://stillgrid.app";
 
@@ -96,5 +96,68 @@ describe("parseEntryParam", () => {
     expect(parseEntryParam("?size=9")).toBeNull();
     expect(parseEntryParam("")).toBeNull();
     expect(parseEntryParam("?d=")).toBeNull();
+  });
+});
+
+describe("shareResult", () => {
+  const parts = { body: "L1\nL2", url: "https://stillgrid.app/?v=classic", full: "L1\nL2\nhttps://stillgrid.app/?v=classic" };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses the Web Share API when available and reports 'native'", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share, clipboard: { writeText } });
+
+    const method = await shareResult(parts);
+
+    expect(method).toBe("native");
+    expect(share).toHaveBeenCalledWith({ text: parts.body, url: parts.url });
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it("reports 'cancelled' and does NOT copy when the user dismisses the share sheet", async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException("dismissed", "AbortError"));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share, clipboard: { writeText } });
+
+    const method = await shareResult(parts);
+
+    expect(method).toBe("cancelled");
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it("falls back to clipboard when share throws a non-abort error", async () => {
+    const share = vi.fn().mockRejectedValue(new Error("boom"));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share, clipboard: { writeText } });
+
+    const method = await shareResult(parts);
+
+    expect(method).toBe("clipboard");
+    expect(writeText).toHaveBeenCalledWith(parts.full);
+  });
+
+  it("copies to clipboard when there is no Web Share API", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+
+    const method = await shareResult(parts);
+
+    expect(method).toBe("clipboard");
+    expect(writeText).toHaveBeenCalledWith(parts.full);
+  });
+
+  it("falls back to a prompt and reports 'manual' when neither API exists", async () => {
+    const prompt = vi.fn();
+    vi.stubGlobal("navigator", {});
+    vi.stubGlobal("prompt", prompt);
+
+    const method = await shareResult(parts);
+
+    expect(method).toBe("manual");
+    expect(prompt).toHaveBeenCalledWith("Copy your result:", parts.full);
   });
 });
