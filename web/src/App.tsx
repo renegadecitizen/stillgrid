@@ -12,6 +12,7 @@ import {
   type RecordOutcome,
 } from "./storage";
 import { track } from "./analytics";
+import { buildShareText, shareResult } from "./share";
 import {
   type BoardState,
   type Size,
@@ -668,6 +669,7 @@ function PlayCard({
   const [mistakes, setMistakes] = useState(0);
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [outcome, setOutcome] = useState<RecordOutcome | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // For puzzle_abandoned tracking: snapshot of current in-progress state.
   // Read by the reset effect when puzzle.givens changes to decide whether
@@ -1016,6 +1018,38 @@ function PlayCard({
     return Math.max(0, Math.round(raw - penalty));
   }, [isSolved, finishedAt, startedAt, mistakes, puzzle.grade]);
 
+  const handleShare = async () => {
+    const puzzleSize = (puzzle.givens.length === 36 ? 6 : puzzle.givens.length === 256 ? 16 : 9) as Size;
+    const parts = buildShareText({
+      variant: puzzle.variant,
+      size: puzzleSize,
+      tier: tierBucket ?? "easy",
+      timeSec: elapsedSeconds,
+      mistakes,
+      streak: getStreak(),
+      isDaily: dailyTag !== null,
+      date: dailyTag?.date ?? "",
+      origin: window.location.origin,
+    });
+    const method = await shareResult(parts);
+    if (method === "cancelled") return;
+    if (method === "clipboard") {
+      setCopied(true);
+      say("Result copied to clipboard.");
+      window.setTimeout(() => setCopied(false), 2000);
+    } else if (method === "manual") {
+      say("Copy your result from the dialog.");
+      return;
+    }
+    track("puzzle_shared", {
+      variant: puzzle.variant,
+      size: puzzleSize,
+      tier: tierBucket ?? "any",
+      is_daily: dailyTag !== null,
+      method,
+    });
+  };
+
   return (
     <div
       className="rounded-2xl p-3 sm:p-8 mt-6"
@@ -1111,6 +1145,17 @@ function PlayCard({
                 .join(" · ")}
             </div>
           )}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Share your result"
+              className="text-xs rounded-full px-3 py-1"
+              style={{ border: `1px solid ${playAccent}`, color: playAccent, fontWeight: 600 }}
+            >
+              {copied ? "Copied ✓" : "Share result"}
+            </button>
+          </div>
         </div>
       )}
 
