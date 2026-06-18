@@ -58,6 +58,26 @@ function mistakesPhrase(n: number): string {
   return `${n} mistakes`;
 }
 
+export type EntryParam =
+  | { mode: "daily"; variant: "classic" | "killer" }
+  | { mode: "casual"; variant: ShareVariant };
+
+const DAILY_VARIANTS = ["classic", "killer"] as const;
+const CASUAL_VARIANTS = ["classic", "xsudoku", "jigsaw", "killer"] as const;
+
+export function parseEntryParam(search: string): EntryParam | null {
+  const params = new URLSearchParams(search);
+  const d = params.get("d");
+  if (d && (DAILY_VARIANTS as readonly string[]).includes(d)) {
+    return { mode: "daily", variant: d as "classic" | "killer" };
+  }
+  const v = params.get("v");
+  if (v && (CASUAL_VARIANTS as readonly string[]).includes(v)) {
+    return { mode: "casual", variant: v as ShareVariant };
+  }
+  return null;
+}
+
 export function buildShareText(input: ShareInput): { body: string; url: string; full: string } {
   const tierKey = PIPS[input.tier] ? input.tier : "easy";
   const pips = PIPS[tierKey]!;

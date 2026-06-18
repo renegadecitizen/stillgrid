@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildShareText } from "./share";
+import { buildShareText, parseEntryParam } from "./share";
 
 const ORIGIN = "https://stillgrid.app";
 
@@ -66,5 +66,35 @@ describe("buildShareText", () => {
   it("uses ?d= for daily and ?v= for casual", () => {
     expect(buildShareText({ variant: "classic", size: 9, tier: "easy", timeSec: 60, mistakes: 0, streak: 0, isDaily: true, date: "2026-06-18", origin: ORIGIN }).url).toBe("https://stillgrid.app/?d=classic");
     expect(buildShareText({ variant: "classic", size: 9, tier: "easy", timeSec: 60, mistakes: 0, streak: 0, isDaily: false, date: "", origin: ORIGIN }).url).toBe("https://stillgrid.app/?v=classic");
+  });
+});
+
+describe("parseEntryParam", () => {
+  it("parses a valid daily param", () => {
+    expect(parseEntryParam("?d=classic")).toEqual({ mode: "daily", variant: "classic" });
+    expect(parseEntryParam("?d=killer")).toEqual({ mode: "daily", variant: "killer" });
+  });
+
+  it("rejects a daily param for a variant with no daily", () => {
+    expect(parseEntryParam("?d=jigsaw")).toBeNull();
+    expect(parseEntryParam("?d=xsudoku")).toBeNull();
+  });
+
+  it("parses a valid casual param for every variant", () => {
+    expect(parseEntryParam("?v=classic")).toEqual({ mode: "casual", variant: "classic" });
+    expect(parseEntryParam("?v=xsudoku")).toEqual({ mode: "casual", variant: "xsudoku" });
+    expect(parseEntryParam("?v=jigsaw")).toEqual({ mode: "casual", variant: "jigsaw" });
+    expect(parseEntryParam("?v=killer")).toEqual({ mode: "casual", variant: "killer" });
+  });
+
+  it("prefers daily when both are present", () => {
+    expect(parseEntryParam("?d=classic&v=jigsaw")).toEqual({ mode: "daily", variant: "classic" });
+  });
+
+  it("returns null for unknown/empty/garbage", () => {
+    expect(parseEntryParam("?v=foo")).toBeNull();
+    expect(parseEntryParam("?size=9")).toBeNull();
+    expect(parseEntryParam("")).toBeNull();
+    expect(parseEntryParam("?d=")).toBeNull();
   });
 });
