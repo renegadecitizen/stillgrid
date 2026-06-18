@@ -1035,6 +1035,9 @@ function PlayCard({
 
   const handleShare = async () => {
     const puzzleSize = (puzzle.givens.length === 36 ? 6 : puzzle.givens.length === 256 ? 16 : 9) as Size;
+    // tier sentinel differs by consumer on purpose: the share text needs a real
+    // tier to render pips (stuck/ungraded → "easy", matching the score default),
+    // while analytics logs "any" to match the other puzzle_* tier breakdowns.
     const parts = buildShareText({
       variant: puzzle.variant,
       size: puzzleSize,
@@ -1053,6 +1056,7 @@ function PlayCard({
       say("Result copied to clipboard.");
       window.setTimeout(() => setCopied(false), 2000);
     } else if (method === "manual") {
+      // prompt-based fallback: nothing was confirmably shared, so don't track.
       say("Copy your result from the dialog.");
       return;
     }
