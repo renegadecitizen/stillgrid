@@ -85,8 +85,9 @@ export function buildShareText(input: ShareInput): { body: string; url: string; 
   const square = SQUARE[input.variant];
   const label = LABEL[input.variant];
   const sizeSuffix = input.size === 9 ? "" : ` ${input.size}×${input.size}`;
-  const datePart = input.isDaily ? ` · ${prettyDate(input.date)}` : "";
+  const datePart = input.isDaily && input.date ? ` · ${prettyDate(input.date)}` : "";
   const dailyWord = input.isDaily ? " Daily" : "";
+  // Streak flame only for multi-day runs — a single solved day isn't a streak yet.
   const streakPart = input.streak >= 2 ? ` · 🔥${input.streak}` : "";
 
   const line1 = `${square} Stillgrid${dailyWord} · ${label}${sizeSuffix}${datePart}`;

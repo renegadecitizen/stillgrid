@@ -67,6 +67,14 @@ describe("buildShareText", () => {
     expect(buildShareText({ variant: "classic", size: 9, tier: "easy", timeSec: 60, mistakes: 0, streak: 0, isDaily: true, date: "2026-06-18", origin: ORIGIN }).url).toBe("https://stillgrid.app/?d=classic");
     expect(buildShareText({ variant: "classic", size: 9, tier: "easy", timeSec: 60, mistakes: 0, streak: 0, isDaily: false, date: "", origin: ORIGIN }).url).toBe("https://stillgrid.app/?v=classic");
   });
+
+  it("omits the date (and its separator) for a daily with an empty date", () => {
+    const r = buildShareText({
+      variant: "classic", size: 9, tier: "easy", timeSec: 60,
+      mistakes: 0, streak: 0, isDaily: true, date: "", origin: ORIGIN,
+    });
+    expect(r.body.split("\n")[0]).toBe("🟩 Stillgrid Daily · Classic");
+  });
 });
 
 describe("parseEntryParam", () => {
