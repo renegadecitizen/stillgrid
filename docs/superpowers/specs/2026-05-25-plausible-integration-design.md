@@ -122,6 +122,17 @@ Fires when `/api/puzzle` couldn't generate the requested difficulty within the 6
 
 Derived from the puzzle response (not the selector) so the props are race-safe. Dev-mode no-ops via the `track()` PROD guard like every other event.
 
+### `puzzle_shared`
+Fires when a player successfully shares/copies their result from the win panel (Web Share API or clipboard). Added 2026-06-18 with the share-result hook. Measures how often solves get shared — the top of the viral loop.
+
+| Prop | Type | Values |
+|---|---|---|
+| `variant` | string | `classic` / `killer` / `jigsaw` / `xsudoku` |
+| `size` | number | 6 / 9 / 16 |
+| `tier` | string | the graded `tier_label`, or `any` |
+| `is_daily` | boolean | true if the shared solve was a daily |
+| `method` | string | `native` (Web Share sheet) / `clipboard` |
+
 ## What Plausible tracks automatically
 
 Just from the script tag deployed on all 5 pages, Plausible auto-tracks the following — no code, no events, no setup beyond signing up at plausible.io:
