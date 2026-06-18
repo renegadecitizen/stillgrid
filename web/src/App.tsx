@@ -995,6 +995,7 @@ function PlayCard({
   // Provisional score: difficulty × time × accuracy.
   // We don't ship a "rating" yet — this is just the formula we'll use when
   // accounts + leaderboards land. Hidden until solved to avoid distracting.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept intentionally until the rating UI lands
   const score = useMemo(() => {
     if (!isSolved || finishedAt === null || startedAt === null) return null;
     const seconds = Math.max(1, Math.floor((finishedAt - startedAt) / 1000));

@@ -202,7 +202,7 @@ export function markDailyDone(
 export function getStreak(): number {
   const all = loadDaily();
   // Start counting from today.
-  let day = new Date();
+  const day = new Date();
   let streak = 0;
   // If today isn't solved yet, the streak can still be alive from yesterday.
   const todayStr = day.toISOString().slice(0, 10);
