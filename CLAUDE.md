@@ -63,14 +63,14 @@ Open http://localhost:5173. Vite proxies `/api` → `:3001`.
 
 ## Analytics
 
-Plausible Analytics (hosted, plausible.io) is the source of truth for product metrics.
+Umami Analytics (hosted, cloud.umami.is — free Hobby tier: 100k events/mo, 6-month retention) is the source of truth for product metrics. Migrated from Plausible 2026-07-05 to drop the $9/mo cost; taxonomy unchanged.
 
-- Script tag in all 5 HTML files (`web/index.html` + `web/public/*.html`).
-- Typed event helper at `web/src/analytics.ts` — single `track(eventName, props?)` function.
+- Script tag in all 10 HTML files (`web/index.html`, the 4 `web/learn*.html` Vite MPA entries, `web/public/*.html` incl. privacy).
+- Typed event helper at `web/src/analytics.ts` — single `track(eventName, props?)` function (calls `window.umami.track`; props are flat, not `{props}`-wrapped).
 - Seven custom events: `puzzle_started`, `puzzle_completed`, `puzzle_abandoned`, `daily_streak_milestone`, `first_visit_ever`, `tier_unmatched` (fires when `/api/puzzle` can't hit a requested tier in 60 retries — sizes the need for the #5 pool), `puzzle_shared` (fires on a successful share/copy from the win panel — top of the viral loop).
 - Dev mode no-ops via `import.meta.env.PROD` check — localhost traffic doesn't pollute prod stats.
-- Dashboard: https://plausible.io/stillgrid.app
-- Full spec: `docs/superpowers/specs/2026-05-25-plausible-integration-design.md`
+- Dashboard: https://cloud.umami.is (website ID `a623ea5c-9c7e-45c2-9d15-6c56bdfe0593`)
+- Event taxonomy spec (names/props still authoritative): `docs/superpowers/specs/2026-05-25-plausible-integration-design.md`; provider migration: `docs/superpowers/specs/2026-07-05-umami-migration-design.md`
 
 To add a new event:
 1. Add the name to the `EventName` union in `web/src/analytics.ts`.

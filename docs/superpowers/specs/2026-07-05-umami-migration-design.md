@@ -1,6 +1,6 @@
 # Migrate analytics: Plausible Cloud → Umami Cloud (free tier)
 
-**Status:** Design approved 2026-07-05, awaiting Umami website ID + implementation plan
+**Status:** Implemented 2026-07-05 (plan: ../plans/2026-07-05-umami-migration.md). Correction: 10 HTML files, not 6 — the four `web/learn*.html` pages also carried the snippet.
 **Date:** 2026-07-05
 **Owner:** Rob
 **Related:** [Plausible integration spec](2026-05-25-plausible-integration-design.md) (event taxonomy lives there and is unchanged)
