@@ -34,7 +34,7 @@ From the 2026-07-05 growth plan (adversarially verified research). Each entry: w
 |---|---|---|---|
 | 1 | AlternativeTo | **ROB: register account now** | 1-week aging, then suggest app with the longer copy |
 | 2 | awesome-selfhosted | calendared ~2026-11-05 | hand-write the PR (LLM PRs bannable); LICENSE + v1.0 ✅ done |
-| 3 | Uneed | **ROB: 20-second finish** | robot already scrapes the site fine; go to uneed.best/submit-a-tool, enter Stillgrid + https://stillgrid.app, click "Create my account & continue" (account creation is the only step left) |
+| 3 | Uneed | ✅ **paid fast-track ($14.99, 2026-07-05)** | product saved at uneed.best/tool/stillgrid (tags Gaming/Open Source/Fun); guaranteed publication + dofollow, launch date within ~2 weeks. NOTE: the free queue changed since research — ~148-day wait AND listing only survives with 10+ launch-day upvotes, so free tier ≈ lottery for audience-less products. Declined the $249 100-directories blast and the $99/yr Pro upsell. |
 | 4 | FMHY | ✅ PR filed | github.com/fmhy/edit/pull/5721 — await maintainer review |
 | 5 | SaaSHub | **ROB: needs account** | saashub.com/submit; then cherry-pick from their directory checklist |
 | 6 | 512KB Club | **ROB: scan + email** | measured ~213 KB uncompressed before webfonts (188.7 KB main JS + 18.6 KB CSS + rest); run DebugBear Page Weight Scan for the official number, then email the sites.yml patch below to lists.sr.ht/~bt/512kb-club-devel |
