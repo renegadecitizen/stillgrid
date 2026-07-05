@@ -218,7 +218,7 @@ export function getStreak(): number {
   return streak;
 }
 
-// --- First-visit tracking (for Plausible first_visit_ever event) -----------
+// --- First-visit tracking (for the first_visit_ever analytics event) -------
 
 const FIRST_VISIT_KEY = "stillgrid:first_visit:v1";
 

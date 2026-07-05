@@ -11,12 +11,13 @@ type EventProps = Record<string, string | number | boolean>;
 
 declare global {
   interface Window {
-    plausible?: (event: string, opts?: { props?: EventProps }) => void;
+    umami?: { track: (event: string, data?: EventProps) => void };
   }
 }
 
 export function track(event: EventName, props?: EventProps): void {
   if (!import.meta.env.PROD) return;
-  if (typeof window.plausible !== "function") return;
-  window.plausible(event, props ? { props } : undefined);
+  const umami = window.umami;
+  if (!umami || typeof umami.track !== "function") return;
+  umami.track(event, props);
 }
