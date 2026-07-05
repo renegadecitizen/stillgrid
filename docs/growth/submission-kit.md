@@ -28,20 +28,40 @@ From the 2026-07-05 growth plan (adversarially verified research). Each entry: w
 
 **Dead / don't bother (verified):** leereilly/games (archived), Kagi Small Web (blogs only), nwinkler/awesome-sudoku-links (stale), Slant (bot-blocked), findpwa.com, appsco.pe.
 
-## Status
+## Status (updated 2026-07-05)
 
-| # | Directory | Status | Date | Notes |
-|---|---|---|---|---|
-| 1 | AlternativeTo | account pending | | register, wait 1 week |
-| 2 | awesome-selfhosted | calendared | | PR ~2026-11-05, hand-written |
-| 3 | Uneed | todo | | |
-| 4 | FMHY | todo | | |
-| 5 | SaaSHub | todo | | |
-| 6 | 512KB Club | todo | | DebugBear scan first |
-| 7 | pwa.directory | todo | | |
-| 8 | searchmysite | todo | | |
-| 9 | Curlie | todo | | |
-| 10 | awesome-pwa | todo | | |
-| 11 | awesome-jsgames | todo | | |
-| 12 | llms.txt dirs | todo | | |
-| 13 | OpenAlternative | todo | | verify free path |
+| # | Directory | Status | Notes |
+|---|---|---|---|
+| 1 | AlternativeTo | **ROB: register account now** | 1-week aging, then suggest app with the longer copy |
+| 2 | awesome-selfhosted | calendared ~2026-11-05 | hand-write the PR (LLM PRs bannable); LICENSE + v1.0 ✅ done |
+| 3 | Uneed | **ROB: 20-second finish** | robot already scrapes the site fine; go to uneed.best/submit-a-tool, enter Stillgrid + https://stillgrid.app, click "Create my account & continue" (account creation is the only step left) |
+| 4 | FMHY | ✅ PR filed | github.com/fmhy/edit/pull/5721 — await maintainer review |
+| 5 | SaaSHub | **ROB: needs account** | saashub.com/submit; then cherry-pick from their directory checklist |
+| 6 | 512KB Club | **ROB: scan + email** | measured ~213 KB uncompressed before webfonts (188.7 KB main JS + 18.6 KB CSS + rest); run DebugBear Page Weight Scan for the official number, then email the sites.yml patch below to lists.sr.ht/~bt/512kb-club-devel |
+| 7 | pwa.directory | **ROB: send email** | draft below |
+| 8 | searchmysite | ✅ submitted | Basic tier (no domain proof needed — kit's DNS note was wrong); awaiting moderator review |
+| 9 | Curlie | **ROB: form + captcha** | **CATEGORY CORRECTION:** Variants explicitly excludes sites that also cover classic — use the MAIN Sudoku category: curlie.org/public/suggest?t=games&cat=Games/Puzzles/Brain_Teasers/Sudoku — paste-ready copy below; form has reCAPTCHA so it must be you |
+| 10 | awesome-pwa | ✅ PR filed | github.com/hemanth/awesome-pwa/pull/433 — batch merges, expect 1–3 months |
+| 11 | awesome-jsgames | ✅ issue + PR filed | issues/19 + pull/20 — merge latency months |
+| 12 | llmstxt.site | ✅ submitted | confirmation page received |
+| 12b | directory.llmstxt.cloud | ✅ submitted | Tally form confirmed; notification to mccrazy0@gmail.com |
+| 13 | OpenAlternative | **ROB: verify free path first** | live pricing showed paid-only; don't pay |
+
+## Paste-ready drafts for Rob's items
+
+**Curlie** (main Sudoku category, form at the URL above):
+- Site URL: `https://stillgrid.app`
+- Title: `Stillgrid`
+- Description (28 words, per their style rules): `Free browser sudoku with classic, diagonal, jigsaw, and killer variants at three grid sizes. Difficulty is graded by the solving techniques each puzzle requires. No account needed.`
+- Email: yours. Then the reCAPTCHA + Submit.
+
+**pwa.directory email** (find the submit address in their site footer/nav):
+> Subject: PWA submission: Stillgrid
+> URL: https://stillgrid.app — a calm, offline-capable sudoku PWA with four variants (classic, X, jigsaw, killer) at 6×6–16×16 and difficulty graded by the solving techniques each puzzle actually requires. Free, no ads, no signup. Unlike the sudoku PWA you already list, Stillgrid focuses on variants, honest technique-graded difficulty, and a daily challenge.
+
+**512KB Club email** (to lists.sr.ht/~bt/512kb-club-devel, after your DebugBear scan; attach as a git patch to `_data/sites.yml` in git.sr.ht/~bt/512kb-club or paste the entry):
+```yaml
+- domain: stillgrid.app
+  size: <DebugBear uncompressed KB>
+```
+> Adding stillgrid.app — a complete multi-variant sudoku app. DebugBear Page Weight Scan: <link/screenshot>, uncompressed total <N> KB.
