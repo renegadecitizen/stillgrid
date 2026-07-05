@@ -195,11 +195,11 @@ export function App() {
 
   // Load today's daily for a given variant. Demo mode reads from puzzles.json
   // under a "daily" key; production hits /api/daily.
-  const loadDaily = (kind: "classic" | "killer") => {
+  const loadDaily = (kind: "classic" | "killer", dateArg?: string) => {
     setPuzzle(null);
     setError(null);
     setShowSolution(false);
-    const date = todayKey();
+    const date = dateArg ?? todayKey();
     const t0 = performance.now();
 
     if (isDemo) {
@@ -254,10 +254,13 @@ export function App() {
       // Strip the param so a refresh doesn't re-trigger and the URL stays clean.
       window.history.replaceState(null, "", window.location.pathname);
       if (entry.mode === "daily") {
-        loadDaily(entry.variant);
+        loadDaily(entry.variant, entry.date);
       } else {
+        const entrySize: Size =
+          entry.size === 16 && entry.variant !== "classic" && entry.variant !== "xsudoku" ? 9 : entry.size ?? 9;
         setVariant(entry.variant);
-        load(entry.variant, "", 9);
+        setSize(entrySize);
+        load(entry.variant, "", entrySize);
       }
       return;
     }
@@ -2101,7 +2104,16 @@ function Footer({ isDemo }: { isDemo: boolean }) {
   useFeedletterWidget();
   return (
     <footer className="border-t mt-8" style={{ borderColor: "var(--color-divider)" }}>
-      <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-soft)" }}>
+      <nav aria-label="Variants and pages" className="max-w-6xl mx-auto px-6 pt-6 flex flex-wrap gap-x-4 gap-y-2 text-xs" style={{ color: "var(--color-ink-soft)" }}>
+        <a href="/classic" className="hover:underline">Classic Sudoku</a>
+        <a href="/xsudoku" className="hover:underline">X-Sudoku</a>
+        <a href="/jigsaw" className="hover:underline">Jigsaw Sudoku</a>
+        <a href="/killer" className="hover:underline">Killer Sudoku</a>
+        <a href="/sudoku-16x16" className="hover:underline">16×16 Sudoku</a>
+        <a href="/learn" className="hover:underline">Learn</a>
+        <a href="/privacy" className="hover:underline">Privacy</a>
+      </nav>
+      <div className="max-w-6xl mx-auto px-6 pt-3 pb-8 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-soft)" }}>
         <span>© {new Date().getFullYear()} Stillgrid. Made with patience.</span>
         <div className="flex items-center gap-4">
           {isDemo && <span className="italic">Demo build · pool of pre-baked puzzles</span>}

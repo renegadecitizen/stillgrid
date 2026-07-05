@@ -10,7 +10,7 @@ describe("buildShareText", () => {
       mistakes: 0, streak: 7, isDaily: true, date: "2026-06-18", origin: ORIGIN,
     });
     expect(r.body).toBe("🟧 Stillgrid Daily · Killer · Jun 18\n🟩🟩⬜⬜⬜ Medium · 4:12 · no mistakes · 🔥7");
-    expect(r.url).toBe("https://stillgrid.app/?d=killer");
+    expect(r.url).toBe("https://stillgrid.app/?d=killer&date=2026-06-18");
     expect(r.full).toBe(r.body + "\n" + r.url);
   });
 
@@ -63,8 +63,8 @@ describe("buildShareText", () => {
     expect(line2(2, 2)).toBe("🟩⬜⬜⬜⬜ Easy · 1:05 · 2 mistakes · 🔥2");
   });
 
-  it("uses ?d= for daily and ?v= for casual", () => {
-    expect(buildShareText({ variant: "classic", size: 9, tier: "easy", timeSec: 60, mistakes: 0, streak: 0, isDaily: true, date: "2026-06-18", origin: ORIGIN }).url).toBe("https://stillgrid.app/?d=classic");
+  it("uses ?d=&date= for daily and ?v= for casual", () => {
+    expect(buildShareText({ variant: "classic", size: 9, tier: "easy", timeSec: 60, mistakes: 0, streak: 0, isDaily: true, date: "2026-06-18", origin: ORIGIN }).url).toBe("https://stillgrid.app/?d=classic&date=2026-06-18");
     expect(buildShareText({ variant: "classic", size: 9, tier: "easy", timeSec: 60, mistakes: 0, streak: 0, isDaily: false, date: "", origin: ORIGIN }).url).toBe("https://stillgrid.app/?v=classic");
   });
 
@@ -74,6 +74,7 @@ describe("buildShareText", () => {
       mistakes: 0, streak: 0, isDaily: true, date: "", origin: ORIGIN,
     });
     expect(r.body.split("\n")[0]).toBe("🟩 Stillgrid Daily · Classic");
+    expect(r.url).toBe("https://stillgrid.app/?d=classic");
   });
 });
 
@@ -97,6 +98,18 @@ describe("parseEntryParam", () => {
 
   it("prefers daily when both are present", () => {
     expect(parseEntryParam("?d=classic&v=jigsaw")).toEqual({ mode: "daily", variant: "classic" });
+  });
+
+  it("carries a valid date on a daily param and drops an invalid one", () => {
+    expect(parseEntryParam("?d=killer&date=2026-06-18")).toEqual({ mode: "daily", variant: "killer", date: "2026-06-18" });
+    expect(parseEntryParam("?d=killer&date=yesterday")).toEqual({ mode: "daily", variant: "killer" });
+    expect(parseEntryParam("?d=killer&date=")).toEqual({ mode: "daily", variant: "killer" });
+  });
+
+  it("carries a valid size on a casual param and drops an invalid one", () => {
+    expect(parseEntryParam("?v=classic&size=16")).toEqual({ mode: "casual", variant: "classic", size: 16 });
+    expect(parseEntryParam("?v=killer&size=6")).toEqual({ mode: "casual", variant: "killer", size: 6 });
+    expect(parseEntryParam("?v=classic&size=7")).toEqual({ mode: "casual", variant: "classic" });
   });
 
   it("returns null for unknown/empty/garbage", () => {

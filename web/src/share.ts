@@ -59,21 +59,29 @@ function mistakesPhrase(n: number): string {
 }
 
 export type EntryParam =
-  | { mode: "daily"; variant: "classic" | "killer" }
-  | { mode: "casual"; variant: ShareVariant };
+  | { mode: "daily"; variant: "classic" | "killer"; date?: string }
+  | { mode: "casual"; variant: ShareVariant; size?: 6 | 9 | 16 };
 
 const DAILY_VARIANTS = ["classic", "killer"] as const;
 const CASUAL_VARIANTS = ["classic", "xsudoku", "jigsaw", "killer"] as const;
+const ENTRY_SIZES = [6, 9, 16] as const;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function parseEntryParam(search: string): EntryParam | null {
   const params = new URLSearchParams(search);
   const d = params.get("d");
   if (d && (DAILY_VARIANTS as readonly string[]).includes(d)) {
-    return { mode: "daily", variant: d as "classic" | "killer" };
+    const entry: EntryParam = { mode: "daily", variant: d as "classic" | "killer" };
+    const date = params.get("date");
+    if (date && ISO_DATE.test(date)) entry.date = date;
+    return entry;
   }
   const v = params.get("v");
   if (v && (CASUAL_VARIANTS as readonly string[]).includes(v)) {
-    return { mode: "casual", variant: v as ShareVariant };
+    const entry: EntryParam = { mode: "casual", variant: v as ShareVariant };
+    const size = Number(params.get("size"));
+    if ((ENTRY_SIZES as readonly number[]).includes(size)) entry.size = size as 6 | 9 | 16;
+    return entry;
   }
   return null;
 }
@@ -92,7 +100,8 @@ export function buildShareText(input: ShareInput): { body: string; url: string; 
 
   const line1 = `${square} Stillgrid${dailyWord} · ${label}${sizeSuffix}${datePart}`;
   const line2 = `${pips} ${tierCap} · ${mmss(input.timeSec)} · ${mistakesPhrase(input.mistakes)}${streakPart}`;
-  const url = `${input.origin}${input.isDaily ? `/?d=${input.variant}` : `/?v=${input.variant}`}`;
+  const dateParam = input.isDaily && ISO_DATE.test(input.date) ? `&date=${input.date}` : "";
+  const url = `${input.origin}${input.isDaily ? `/?d=${input.variant}${dateParam}` : `/?v=${input.variant}`}`;
   const body = `${line1}\n${line2}`;
   return { body, url, full: `${body}\n${url}` };
 }
