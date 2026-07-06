@@ -2634,4 +2634,176 @@ mod tests {
         }
         assert_eq!(stuck, 0, "{stuck}/30 killer puzzles still stuck (solved {solved})");
     }
+
+    // --- /killer-sudoku-calculator fixture ----------------------------------
+    //
+    // The calculator page's client-side math is validated against the engine
+    // through a shared fixture (web/src/calculator/cage-combos.json): the
+    // ignored test regenerates it; the non-ignored test pins the checked-in
+    // file to this enumeration and cross-checks the enumeration against
+    // `cage_can_fill`, the probe the CageCombo technique actually uses.
+
+    const CALC_FIXTURE_PATH: &str =
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../web/src/calculator/cage-combos.json");
+
+    /// All sets of `cells` distinct digits from 1..=n summing to `sum`,
+    /// ascending within each combo, lexicographic across combos.
+    fn cage_combos(n: u8, cells: usize, sum: u32) -> Vec<Vec<u8>> {
+        fn rec(
+            n: u8,
+            cells: usize,
+            target: i64,
+            from: u8,
+            cur: &mut Vec<u8>,
+            out: &mut Vec<Vec<u8>>,
+        ) {
+            if cells == 0 {
+                if target == 0 {
+                    out.push(cur.clone());
+                }
+                return;
+            }
+            for d in from..=n {
+                let next = target - i64::from(d);
+                if next < 0 {
+                    break; // digits only grow from here
+                }
+                cur.push(d);
+                rec(n, cells - 1, next, d + 1, cur, out);
+                cur.pop();
+            }
+        }
+        let mut out = Vec::new();
+        rec(n, cells, i64::from(sum), 1, &mut Vec::new(), &mut out);
+        out
+    }
+
+    /// Smallest and largest reachable sum for `cells` distinct digits of 1..=n.
+    fn cage_sum_range(n: u32, cells: u32) -> (u32, u32) {
+        (cells * (cells + 1) / 2, cells * (2 * n + 1 - cells) / 2)
+    }
+
+    /// 16×16 (cells, sum) pairs whose full combination lists ride in the
+    /// fixture; the rest of 16×16 is covered by per-(cells,sum) counts.
+    const CALC_SPOT_16: [(usize, u32); 5] = [(2, 17), (3, 24), (4, 58), (8, 68), (16, 136)];
+
+    fn push_combo_entry(out: &mut String, n: u8, cells: usize, sum: u32, combos: &[Vec<u8>]) {
+        use std::fmt::Write;
+        write!(out, "    {{\"n\":{n},\"cells\":{cells},\"sum\":{sum},\"combos\":[").unwrap();
+        for (i, combo) in combos.iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push('[');
+            for (j, d) in combo.iter().enumerate() {
+                if j > 0 {
+                    out.push(',');
+                }
+                write!(out, "{d}").unwrap();
+            }
+            out.push(']');
+        }
+        out.push_str("]}");
+    }
+
+    fn calculator_fixture_json() -> String {
+        use std::fmt::Write;
+        let mut out = String::from("{\n  \"full\": [\n");
+        let mut first = true;
+        for n in [6u8, 9] {
+            for cells in 2..=n as usize {
+                let (lo, hi) = cage_sum_range(u32::from(n), cells as u32);
+                for sum in lo..=hi {
+                    if !first {
+                        out.push_str(",\n");
+                    }
+                    first = false;
+                    push_combo_entry(&mut out, n, cells, sum, &cage_combos(n, cells, sum));
+                }
+            }
+        }
+        for (cells, sum) in CALC_SPOT_16 {
+            out.push_str(",\n");
+            push_combo_entry(&mut out, 16, cells, sum, &cage_combos(16, cells, sum));
+        }
+        out.push_str("\n  ],\n  \"counts16\": [\n");
+        first = true;
+        for cells in 2..=16u32 {
+            let (lo, hi) = cage_sum_range(16, cells);
+            for sum in lo..=hi {
+                if !first {
+                    out.push_str(",\n");
+                }
+                first = false;
+                let count = cage_combos(16, cells as usize, sum).len();
+                write!(out, "    {{\"cells\":{cells},\"sum\":{sum},\"count\":{count}}}").unwrap();
+            }
+        }
+        out.push_str("\n  ]\n}\n");
+        out
+    }
+
+    /// `cargo test --release regenerate_calculator_fixture -- --ignored`
+    #[test]
+    #[ignore]
+    fn regenerate_calculator_fixture() {
+        let path = std::path::Path::new(CALC_FIXTURE_PATH);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, calculator_fixture_json()).unwrap();
+    }
+
+    #[test]
+    fn calculator_fixture_matches_engine() {
+        // The totals the calculator page cites: 502 combinations at 9×9, 57 at 6×6.
+        let total = |n: u8| -> usize {
+            (2..=n as usize)
+                .map(|k| {
+                    let (lo, hi) = cage_sum_range(u32::from(n), k as u32);
+                    (lo..=hi).map(|s| cage_combos(n, k, s).len()).sum::<usize>()
+                })
+                .sum()
+        };
+        assert_eq!(total(9), 502);
+        assert_eq!(total(6), 57);
+
+        // The enumeration agrees with cage_can_fill on cage feasibility and
+        // per-digit feasibility — exactly what find_cage_sum computes. (16×16
+        // capped at 5 cells: cage_can_fill's backtracking is exponential on
+        // unsatisfiable wide cages, and the engine only ever probes small ones.)
+        for (n, max_cells) in [(6u8, 6usize), (9, 9), (16, 5)] {
+            let full = all_mask(n as usize);
+            for cells in 2..=max_cells {
+                let (lo, hi) = cage_sum_range(u32::from(n), cells as u32);
+                for sum in lo.saturating_sub(1)..=hi + 1 {
+                    let combos = cage_combos(n, cells, sum);
+                    assert_eq!(
+                        !combos.is_empty(),
+                        cage_can_fill(&vec![full; cells], i64::from(sum), 0),
+                        "cage feasibility mismatch at n={n} cells={cells} sum={sum}"
+                    );
+                    for d in 1..=n {
+                        let in_combo = combos.iter().any(|c| c.contains(&d));
+                        let feasible = cage_can_fill(
+                            &vec![full; cells - 1],
+                            i64::from(sum) - i64::from(d),
+                            bit(d),
+                        );
+                        assert_eq!(
+                            in_combo, feasible,
+                            "digit {d} feasibility mismatch at n={n} cells={cells} sum={sum}"
+                        );
+                    }
+                }
+            }
+        }
+
+        let on_disk = std::fs::read_to_string(CALC_FIXTURE_PATH).expect(
+            "web/src/calculator/cage-combos.json missing — run \
+             `cargo test regenerate_calculator_fixture -- --ignored`",
+        );
+        assert!(
+            on_disk == calculator_fixture_json(),
+            "cage-combos.json is stale — run `cargo test regenerate_calculator_fixture -- --ignored`"
+        );
+    }
 }

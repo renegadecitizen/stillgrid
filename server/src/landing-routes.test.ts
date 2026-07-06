@@ -5,6 +5,9 @@ describe("LANDING_ROUTES", () => {
   it("includes the learn page so /learn resolves to a prerendered file", () => {
     expect(LANDING_ROUTES).toContain("learn");
   });
+  it("includes the killer cage calculator", () => {
+    expect(LANDING_ROUTES).toContain("killer-sudoku-calculator");
+  });
 });
 
 describe("LEARN_SUBPAGES", () => {

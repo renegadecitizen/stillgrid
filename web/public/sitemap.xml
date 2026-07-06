@@ -43,6 +43,12 @@
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://stillgrid.app/killer-sudoku-calculator</loc>
+    <lastmod>2026-07-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://stillgrid.app/learn</loc>
     <lastmod>2026-06-06</lastmod>
     <changefreq>weekly</changefreq>

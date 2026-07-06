@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Killer Sudoku Calculator — cage sum combinations | Stillgrid</title>
+    <meta name="description" content="Free killer sudoku cage calculator with include/exclude digit filters, magic-cage highlighting, printable tables of all 502 combinations, and 6×6 + 16×16 modes." />
+    <link rel="canonical" href="https://stillgrid.app/killer-sudoku-calculator" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Killer Sudoku Calculator — Stillgrid" />
+    <meta property="og:description" content="Every cage-sum combination, with digit filters and magic-cage highlighting. Printable tables of all 502 combinations." />
+    <meta property="og:url" content="https://stillgrid.app/killer-sudoku-calculator" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://stillgrid.app/og-killer.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Killer Sudoku on Stillgrid — cages and sums replace clues." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-killer.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Umami -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a623ea5c-9c7e-45c2-9d15-6c56bdfe0593"></script>
+    <style>:root { --accent: var(--color-terracotta); }</style>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"WebApplication","name":"Killer Sudoku Cage Calculator","description":"Lists every digit combination for a killer sudoku cage from its sum and cell count, with include/exclude filters and magic-cage highlighting, for 6×6, 9×9, and 16×16 grids.","url":"https://stillgrid.app/killer-sudoku-calculator","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","image":"https://stillgrid.app/og-killer.png","inLanguage":"en","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is a killer sudoku cage calculator?","acceptedAnswer":{"@type":"Answer","text":"A killer sudoku cage calculator lists every combination of digits that can fill a cage. Enter the cage's sum and its number of cells, and it returns each set of distinct digits that adds up to that sum. Filtering out digits you have already placed narrows the cage to the combinations still possible."}},{"@type":"Question","name":"What is the 45 rule in killer sudoku?","acceptedAnswer":{"@type":"Answer","text":"Every row, column, and 3×3 box in a 9×9 killer sudoku contains the digits 1–9 exactly once, so each sums to 45. Comparing cage totals against 45 in a house reveals the value of cells that stick into or out of it — the innies and outies. On a 6×6 grid each house sums to 21; on a 16×16 grid, 136."}},{"@type":"Question","name":"What is a magic cage in killer sudoku?","acceptedAnswer":{"@type":"Answer","text":"A magic cage is a cage whose sum and size allow only one combination of digits, so you know its digits immediately — only their order is left to solve. A 2-cell cage summing to 3 must hold 1 and 2; a 4-cell cage summing to 30 must hold 6, 7, 8, and 9. The calculator and the tables on this page highlight every magic cage."}},{"@type":"Question","name":"How many killer sudoku cage combinations are there?","acceptedAnswer":{"@type":"Answer","text":"A 9×9 killer sudoku has 502 cage combinations across cages of 2 to 9 cells, and the tables on this page list all of them. A 6×6 killer grid has 57 combinations across its 2- to 6-cell cages. A 16×16 grid has 65,519 — too many for a table, which is what the calculator's 16×16 mode is for."}},{"@type":"Question","name":"Can I print the combination tables?","acceptedAnswer":{"@type":"Answer","text":"Yes. Print this page — the print button or your browser's print dialog — and the combination tables come out as a compact killer sudoku cheat sheet, free. The calculator itself and the site navigation are left off the printed page."}}]}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Killer sudoku cage calculator</h1>
+      <p class="print-attribution">Killer sudoku cage combination cheat sheet — stillgrid.app/killer-sudoku-calculator</p>
+      <p class="lede">Enter a cage's sum and cell count to see every combination that fits. Rule digits in or out, catch magic cages, and print the full cheat sheet.</p>
+
+      <div data-calculator>
+        <p class="calc-fallback">The interactive calculator needs JavaScript — but every 6×6 and 9×9 combination it can compute is already in the tables below.</p>
+      </div>
+      <p class="calc-cta"><a class="cta" href="/killer">Play killer sudoku</a> <span class="cta-note">— put the combinations to work on a real board.</span></p>
+
+      <h2 class="no-print">How to use it</h2>
+      <ul class="no-print">
+        <li>Set the cage's <strong>cells</strong> and <strong>sum</strong> — the combinations update as you type.</li>
+        <li><strong>Rule out</strong> a digit that already sits in the cage's row, column, or box: no remaining combination will use it.</li>
+        <li><strong>Require</strong> a digit you know belongs to the cage to keep only the combinations that contain it.</li>
+        <li>Digits shown underlined appear in <em>every</em> remaining combination — they are forced into the cage.</li>
+        <li>One combination left means a <strong>magic cage</strong>: all its digits are known, only their order remains.</li>
+      </ul>
+
+      <h2 class="no-print">Magic cages worth memorising</h2>
+      <p class="no-print">Some sum-and-size pairs admit a single combination, so their digits are certain before you place anything. The classics at 9×9: two cells summing to 3 (1+2), 4 (1+3), 16 (7+9), or 17 (8+9); three cells summing to 6 (1+2+3), 7 (1+2+4), 23 (6+8+9), or 24 (7+8+9); four cells summing to 10 (1+2+3+4) or 30 (6+7+8+9). Every magic cage is highlighted in the tables below and flagged by the calculator.</p>
+
+      <h2 id="tables">All 502 combinations (9×9)</h2>
+      <p>Every cage of 2 to 9 cells, by sum. A <span class="combo magic">highlighted</span> combination is the only one for its sum and size — a magic cage. <button type="button" class="print-btn" data-print hidden>Print the cheat sheet</button></p>
+      <section id="tables-9" aria-label="9×9 combination tables">
+      <h3 id="cages-9-2">2-cell cages <span class="table-note">sums 3–17 · 36 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 2-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">3</th><td><span class="combo magic">1+2</span></td></tr>
+          <tr><th scope="row">4</th><td><span class="combo magic">1+3</span></td></tr>
+          <tr><th scope="row">5</th><td><span class="combo">1+4</span> <span class="combo">2+3</span></td></tr>
+          <tr><th scope="row">6</th><td><span class="combo">1+5</span> <span class="combo">2+4</span></td></tr>
+          <tr><th scope="row">7</th><td><span class="combo">1+6</span> <span class="combo">2+5</span> <span class="combo">3+4</span></td></tr>
+          <tr><th scope="row">8</th><td><span class="combo">1+7</span> <span class="combo">2+6</span> <span class="combo">3+5</span></td></tr>
+          <tr><th scope="row">9</th><td><span class="combo">1+8</span> <span class="combo">2+7</span> <span class="combo">3+6</span> <span class="combo">4+5</span></td></tr>
+          <tr><th scope="row">10</th><td><span class="combo">1+9</span> <span class="combo">2+8</span> <span class="combo">3+7</span> <span class="combo">4+6</span></td></tr>
+          <tr><th scope="row">11</th><td><span class="combo">2+9</span> <span class="combo">3+8</span> <span class="combo">4+7</span> <span class="combo">5+6</span></td></tr>
+          <tr><th scope="row">12</th><td><span class="combo">3+9</span> <span class="combo">4+8</span> <span class="combo">5+7</span></td></tr>
+          <tr><th scope="row">13</th><td><span class="combo">4+9</span> <span class="combo">5+8</span> <span class="combo">6+7</span></td></tr>
+          <tr><th scope="row">14</th><td><span class="combo">5+9</span> <span class="combo">6+8</span></td></tr>
+          <tr><th scope="row">15</th><td><span class="combo">6+9</span> <span class="combo">7+8</span></td></tr>
+          <tr><th scope="row">16</th><td><span class="combo magic">7+9</span></td></tr>
+          <tr><th scope="row">17</th><td><span class="combo magic">8+9</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-9-3">3-cell cages <span class="table-note">sums 6–24 · 84 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 3-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">6</th><td><span class="combo magic">1+2+3</span></td></tr>
+          <tr><th scope="row">7</th><td><span class="combo magic">1+2+4</span></td></tr>
+          <tr><th scope="row">8</th><td><span class="combo">1+2+5</span> <span class="combo">1+3+4</span></td></tr>
+          <tr><th scope="row">9</th><td><span class="combo">1+2+6</span> <span class="combo">1+3+5</span> <span class="combo">2+3+4</span></td></tr>
+          <tr><th scope="row">10</th><td><span class="combo">1+2+7</span> <span class="combo">1+3+6</span> <span class="combo">1+4+5</span> <span class="combo">2+3+5</span></td></tr>
+          <tr><th scope="row">11</th><td><span class="combo">1+2+8</span> <span class="combo">1+3+7</span> <span class="combo">1+4+6</span> <span class="combo">2+3+6</span> <span class="combo">2+4+5</span></td></tr>
+          <tr><th scope="row">12</th><td><span class="combo">1+2+9</span> <span class="combo">1+3+8</span> <span class="combo">1+4+7</span> <span class="combo">1+5+6</span> <span class="combo">2+3+7</span> <span class="combo">2+4+6</span> <span class="combo">3+4+5</span></td></tr>
+          <tr><th scope="row">13</th><td><span class="combo">1+3+9</span> <span class="combo">1+4+8</span> <span class="combo">1+5+7</span> <span class="combo">2+3+8</span> <span class="combo">2+4+7</span> <span class="combo">2+5+6</span> <span class="combo">3+4+6</span></td></tr>
+          <tr><th scope="row">14</th><td><span class="combo">1+4+9</span> <span class="combo">1+5+8</span> <span class="combo">1+6+7</span> <span class="combo">2+3+9</span> <span class="combo">2+4+8</span> <span class="combo">2+5+7</span> <span class="combo">3+4+7</span> <span class="combo">3+5+6</span></td></tr>
+          <tr><th scope="row">15</th><td><span class="combo">1+5+9</span> <span class="combo">1+6+8</span> <span class="combo">2+4+9</span> <span class="combo">2+5+8</span> <span class="combo">2+6+7</span> <span class="combo">3+4+8</span> <span class="combo">3+5+7</span> <span class="combo">4+5+6</span></td></tr>
+          <tr><th scope="row">16</th><td><span class="combo">1+6+9</span> <span class="combo">1+7+8</span> <span class="combo">2+5+9</span> <span class="combo">2+6+8</span> <span class="combo">3+4+9</span> <span class="combo">3+5+8</span> <span class="combo">3+6+7</span> <span class="combo">4+5+7</span></td></tr>
+          <tr><th scope="row">17</th><td><span class="combo">1+7+9</span> <span class="combo">2+6+9</span> <span class="combo">2+7+8</span> <span class="combo">3+5+9</span> <span class="combo">3+6+8</span> <span class="combo">4+5+8</span> <span class="combo">4+6+7</span></td></tr>
+          <tr><th scope="row">18</th><td><span class="combo">1+8+9</span> <span class="combo">2+7+9</span> <span class="combo">3+6+9</span> <span class="combo">3+7+8</span> <span class="combo">4+5+9</span> <span class="combo">4+6+8</span> <span class="combo">5+6+7</span></td></tr>
+          <tr><th scope="row">19</th><td><span class="combo">2+8+9</span> <span class="combo">3+7+9</span> <span class="combo">4+6+9</span> <span class="combo">4+7+8</span> <span class="combo">5+6+8</span></td></tr>
+          <tr><th scope="row">20</th><td><span class="combo">3+8+9</span> <span class="combo">4+7+9</span> <span class="combo">5+6+9</span> <span class="combo">5+7+8</span></td></tr>
+          <tr><th scope="row">21</th><td><span class="combo">4+8+9</span> <span class="combo">5+7+9</span> <span class="combo">6+7+8</span></td></tr>
+          <tr><th scope="row">22</th><td><span class="combo">5+8+9</span> <span class="combo">6+7+9</span></td></tr>
+          <tr><th scope="row">23</th><td><span class="combo magic">6+8+9</span></td></tr>
+          <tr><th scope="row">24</th><td><span class="combo magic">7+8+9</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-9-4">4-cell cages <span class="table-note">sums 10–30 · 126 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 4-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">10</th><td><span class="combo magic">1+2+3+4</span></td></tr>
+          <tr><th scope="row">11</th><td><span class="combo magic">1+2+3+5</span></td></tr>
+          <tr><th scope="row">12</th><td><span class="combo">1+2+3+6</span> <span class="combo">1+2+4+5</span></td></tr>
+          <tr><th scope="row">13</th><td><span class="combo">1+2+3+7</span> <span class="combo">1+2+4+6</span> <span class="combo">1+3+4+5</span></td></tr>
+          <tr><th scope="row">14</th><td><span class="combo">1+2+3+8</span> <span class="combo">1+2+4+7</span> <span class="combo">1+2+5+6</span> <span class="combo">1+3+4+6</span> <span class="combo">2+3+4+5</span></td></tr>
+          <tr><th scope="row">15</th><td><span class="combo">1+2+3+9</span> <span class="combo">1+2+4+8</span> <span class="combo">1+2+5+7</span> <span class="combo">1+3+4+7</span> <span class="combo">1+3+5+6</span> <span class="combo">2+3+4+6</span></td></tr>
+          <tr><th scope="row">16</th><td><span class="combo">1+2+4+9</span> <span class="combo">1+2+5+8</span> <span class="combo">1+2+6+7</span> <span class="combo">1+3+4+8</span> <span class="combo">1+3+5+7</span> <span class="combo">1+4+5+6</span> <span class="combo">2+3+4+7</span> <span class="combo">2+3+5+6</span></td></tr>
+          <tr><th scope="row">17</th><td><span class="combo">1+2+5+9</span> <span class="combo">1+2+6+8</span> <span class="combo">1+3+4+9</span> <span class="combo">1+3+5+8</span> <span class="combo">1+3+6+7</span> <span class="combo">1+4+5+7</span> <span class="combo">2+3+4+8</span> <span class="combo">2+3+5+7</span> <span class="combo">2+4+5+6</span></td></tr>
+          <tr><th scope="row">18</th><td><span class="combo">1+2+6+9</span> <span class="combo">1+2+7+8</span> <span class="combo">1+3+5+9</span> <span class="combo">1+3+6+8</span> <span class="combo">1+4+5+8</span> <span class="combo">1+4+6+7</span> <span class="combo">2+3+4+9</span> <span class="combo">2+3+5+8</span> <span class="combo">2+3+6+7</span> <span class="combo">2+4+5+7</span> <span class="combo">3+4+5+6</span></td></tr>
+          <tr><th scope="row">19</th><td><span class="combo">1+2+7+9</span> <span class="combo">1+3+6+9</span> <span class="combo">1+3+7+8</span> <span class="combo">1+4+5+9</span> <span class="combo">1+4+6+8</span> <span class="combo">1+5+6+7</span> <span class="combo">2+3+5+9</span> <span class="combo">2+3+6+8</span> <span class="combo">2+4+5+8</span> <span class="combo">2+4+6+7</span> <span class="combo">3+4+5+7</span></td></tr>
+          <tr><th scope="row">20</th><td><span class="combo">1+2+8+9</span> <span class="combo">1+3+7+9</span> <span class="combo">1+4+6+9</span> <span class="combo">1+4+7+8</span> <span class="combo">1+5+6+8</span> <span class="combo">2+3+6+9</span> <span class="combo">2+3+7+8</span> <span class="combo">2+4+5+9</span> <span class="combo">2+4+6+8</span> <span class="combo">2+5+6+7</span> <span class="combo">3+4+5+8</span> <span class="combo">3+4+6+7</span></td></tr>
+          <tr><th scope="row">21</th><td><span class="combo">1+3+8+9</span> <span class="combo">1+4+7+9</span> <span class="combo">1+5+6+9</span> <span class="combo">1+5+7+8</span> <span class="combo">2+3+7+9</span> <span class="combo">2+4+6+9</span> <span class="combo">2+4+7+8</span> <span class="combo">2+5+6+8</span> <span class="combo">3+4+5+9</span> <span class="combo">3+4+6+8</span> <span class="combo">3+5+6+7</span></td></tr>
+          <tr><th scope="row">22</th><td><span class="combo">1+4+8+9</span> <span class="combo">1+5+7+9</span> <span class="combo">1+6+7+8</span> <span class="combo">2+3+8+9</span> <span class="combo">2+4+7+9</span> <span class="combo">2+5+6+9</span> <span class="combo">2+5+7+8</span> <span class="combo">3+4+6+9</span> <span class="combo">3+4+7+8</span> <span class="combo">3+5+6+8</span> <span class="combo">4+5+6+7</span></td></tr>
+          <tr><th scope="row">23</th><td><span class="combo">1+5+8+9</span> <span class="combo">1+6+7+9</span> <span class="combo">2+4+8+9</span> <span class="combo">2+5+7+9</span> <span class="combo">2+6+7+8</span> <span class="combo">3+4+7+9</span> <span class="combo">3+5+6+9</span> <span class="combo">3+5+7+8</span> <span class="combo">4+5+6+8</span></td></tr>
+          <tr><th scope="row">24</th><td><span class="combo">1+6+8+9</span> <span class="combo">2+5+8+9</span> <span class="combo">2+6+7+9</span> <span class="combo">3+4+8+9</span> <span class="combo">3+5+7+9</span> <span class="combo">3+6+7+8</span> <span class="combo">4+5+6+9</span> <span class="combo">4+5+7+8</span></td></tr>
+          <tr><th scope="row">25</th><td><span class="combo">1+7+8+9</span> <span class="combo">2+6+8+9</span> <span class="combo">3+5+8+9</span> <span class="combo">3+6+7+9</span> <span class="combo">4+5+7+9</span> <span class="combo">4+6+7+8</span></td></tr>
+          <tr><th scope="row">26</th><td><span class="combo">2+7+8+9</span> <span class="combo">3+6+8+9</span> <span class="combo">4+5+8+9</span> <span class="combo">4+6+7+9</span> <span class="combo">5+6+7+8</span></td></tr>
+          <tr><th scope="row">27</th><td><span class="combo">3+7+8+9</span> <span class="combo">4+6+8+9</span> <span class="combo">5+6+7+9</span></td></tr>
+          <tr><th scope="row">28</th><td><span class="combo">4+7+8+9</span> <span class="combo">5+6+8+9</span></td></tr>
+          <tr><th scope="row">29</th><td><span class="combo magic">5+7+8+9</span></td></tr>
+          <tr><th scope="row">30</th><td><span class="combo magic">6+7+8+9</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-9-5">5-cell cages <span class="table-note">sums 15–35 · 126 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 5-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">15</th><td><span class="combo magic">1+2+3+4+5</span></td></tr>
+          <tr><th scope="row">16</th><td><span class="combo magic">1+2+3+4+6</span></td></tr>
+          <tr><th scope="row">17</th><td><span class="combo">1+2+3+4+7</span> <span class="combo">1+2+3+5+6</span></td></tr>
+          <tr><th scope="row">18</th><td><span class="combo">1+2+3+4+8</span> <span class="combo">1+2+3+5+7</span> <span class="combo">1+2+4+5+6</span></td></tr>
+          <tr><th scope="row">19</th><td><span class="combo">1+2+3+4+9</span> <span class="combo">1+2+3+5+8</span> <span class="combo">1+2+3+6+7</span> <span class="combo">1+2+4+5+7</span> <span class="combo">1+3+4+5+6</span></td></tr>
+          <tr><th scope="row">20</th><td><span class="combo">1+2+3+5+9</span> <span class="combo">1+2+3+6+8</span> <span class="combo">1+2+4+5+8</span> <span class="combo">1+2+4+6+7</span> <span class="combo">1+3+4+5+7</span> <span class="combo">2+3+4+5+6</span></td></tr>
+          <tr><th scope="row">21</th><td><span class="combo">1+2+3+6+9</span> <span class="combo">1+2+3+7+8</span> <span class="combo">1+2+4+5+9</span> <span class="combo">1+2+4+6+8</span> <span class="combo">1+2+5+6+7</span> <span class="combo">1+3+4+5+8</span> <span class="combo">1+3+4+6+7</span> <span class="combo">2+3+4+5+7</span></td></tr>
+          <tr><th scope="row">22</th><td><span class="combo">1+2+3+7+9</span> <span class="combo">1+2+4+6+9</span> <span class="combo">1+2+4+7+8</span> <span class="combo">1+2+5+6+8</span> <span class="combo">1+3+4+5+9</span> <span class="combo">1+3+4+6+8</span> <span class="combo">1+3+5+6+7</span> <span class="combo">2+3+4+5+8</span> <span class="combo">2+3+4+6+7</span></td></tr>
+          <tr><th scope="row">23</th><td><span class="combo">1+2+3+8+9</span> <span class="combo">1+2+4+7+9</span> <span class="combo">1+2+5+6+9</span> <span class="combo">1+2+5+7+8</span> <span class="combo">1+3+4+6+9</span> <span class="combo">1+3+4+7+8</span> <span class="combo">1+3+5+6+8</span> <span class="combo">1+4+5+6+7</span> <span class="combo">2+3+4+5+9</span> <span class="combo">2+3+4+6+8</span> <span class="combo">2+3+5+6+7</span></td></tr>
+          <tr><th scope="row">24</th><td><span class="combo">1+2+4+8+9</span> <span class="combo">1+2+5+7+9</span> <span class="combo">1+2+6+7+8</span> <span class="combo">1+3+4+7+9</span> <span class="combo">1+3+5+6+9</span> <span class="combo">1+3+5+7+8</span> <span class="combo">1+4+5+6+8</span> <span class="combo">2+3+4+6+9</span> <span class="combo">2+3+4+7+8</span> <span class="combo">2+3+5+6+8</span> <span class="combo">2+4+5+6+7</span></td></tr>
+          <tr><th scope="row">25</th><td><span class="combo">1+2+5+8+9</span> <span class="combo">1+2+6+7+9</span> <span class="combo">1+3+4+8+9</span> <span class="combo">1+3+5+7+9</span> <span class="combo">1+3+6+7+8</span> <span class="combo">1+4+5+6+9</span> <span class="combo">1+4+5+7+8</span> <span class="combo">2+3+4+7+9</span> <span class="combo">2+3+5+6+9</span> <span class="combo">2+3+5+7+8</span> <span class="combo">2+4+5+6+8</span> <span class="combo">3+4+5+6+7</span></td></tr>
+          <tr><th scope="row">26</th><td><span class="combo">1+2+6+8+9</span> <span class="combo">1+3+5+8+9</span> <span class="combo">1+3+6+7+9</span> <span class="combo">1+4+5+7+9</span> <span class="combo">1+4+6+7+8</span> <span class="combo">2+3+4+8+9</span> <span class="combo">2+3+5+7+9</span> <span class="combo">2+3+6+7+8</span> <span class="combo">2+4+5+6+9</span> <span class="combo">2+4+5+7+8</span> <span class="combo">3+4+5+6+8</span></td></tr>
+          <tr><th scope="row">27</th><td><span class="combo">1+2+7+8+9</span> <span class="combo">1+3+6+8+9</span> <span class="combo">1+4+5+8+9</span> <span class="combo">1+4+6+7+9</span> <span class="combo">1+5+6+7+8</span> <span class="combo">2+3+5+8+9</span> <span class="combo">2+3+6+7+9</span> <span class="combo">2+4+5+7+9</span> <span class="combo">2+4+6+7+8</span> <span class="combo">3+4+5+6+9</span> <span class="combo">3+4+5+7+8</span></td></tr>
+          <tr><th scope="row">28</th><td><span class="combo">1+3+7+8+9</span> <span class="combo">1+4+6+8+9</span> <span class="combo">1+5+6+7+9</span> <span class="combo">2+3+6+8+9</span> <span class="combo">2+4+5+8+9</span> <span class="combo">2+4+6+7+9</span> <span class="combo">2+5+6+7+8</span> <span class="combo">3+4+5+7+9</span> <span class="combo">3+4+6+7+8</span></td></tr>
+          <tr><th scope="row">29</th><td><span class="combo">1+4+7+8+9</span> <span class="combo">1+5+6+8+9</span> <span class="combo">2+3+7+8+9</span> <span class="combo">2+4+6+8+9</span> <span class="combo">2+5+6+7+9</span> <span class="combo">3+4+5+8+9</span> <span class="combo">3+4+6+7+9</span> <span class="combo">3+5+6+7+8</span></td></tr>
+          <tr><th scope="row">30</th><td><span class="combo">1+5+7+8+9</span> <span class="combo">2+4+7+8+9</span> <span class="combo">2+5+6+8+9</span> <span class="combo">3+4+6+8+9</span> <span class="combo">3+5+6+7+9</span> <span class="combo">4+5+6+7+8</span></td></tr>
+          <tr><th scope="row">31</th><td><span class="combo">1+6+7+8+9</span> <span class="combo">2+5+7+8+9</span> <span class="combo">3+4+7+8+9</span> <span class="combo">3+5+6+8+9</span> <span class="combo">4+5+6+7+9</span></td></tr>
+          <tr><th scope="row">32</th><td><span class="combo">2+6+7+8+9</span> <span class="combo">3+5+7+8+9</span> <span class="combo">4+5+6+8+9</span></td></tr>
+          <tr><th scope="row">33</th><td><span class="combo">3+6+7+8+9</span> <span class="combo">4+5+7+8+9</span></td></tr>
+          <tr><th scope="row">34</th><td><span class="combo magic">4+6+7+8+9</span></td></tr>
+          <tr><th scope="row">35</th><td><span class="combo magic">5+6+7+8+9</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-9-6">6-cell cages <span class="table-note">sums 21–39 · 84 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 6-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">21</th><td><span class="combo magic">1+2+3+4+5+6</span></td></tr>
+          <tr><th scope="row">22</th><td><span class="combo magic">1+2+3+4+5+7</span></td></tr>
+          <tr><th scope="row">23</th><td><span class="combo">1+2+3+4+5+8</span> <span class="combo">1+2+3+4+6+7</span></td></tr>
+          <tr><th scope="row">24</th><td><span class="combo">1+2+3+4+5+9</span> <span class="combo">1+2+3+4+6+8</span> <span class="combo">1+2+3+5+6+7</span></td></tr>
+          <tr><th scope="row">25</th><td><span class="combo">1+2+3+4+6+9</span> <span class="combo">1+2+3+4+7+8</span> <span class="combo">1+2+3+5+6+8</span> <span class="combo">1+2+4+5+6+7</span></td></tr>
+          <tr><th scope="row">26</th><td><span class="combo">1+2+3+4+7+9</span> <span class="combo">1+2+3+5+6+9</span> <span class="combo">1+2+3+5+7+8</span> <span class="combo">1+2+4+5+6+8</span> <span class="combo">1+3+4+5+6+7</span></td></tr>
+          <tr><th scope="row">27</th><td><span class="combo">1+2+3+4+8+9</span> <span class="combo">1+2+3+5+7+9</span> <span class="combo">1+2+3+6+7+8</span> <span class="combo">1+2+4+5+6+9</span> <span class="combo">1+2+4+5+7+8</span> <span class="combo">1+3+4+5+6+8</span> <span class="combo">2+3+4+5+6+7</span></td></tr>
+          <tr><th scope="row">28</th><td><span class="combo">1+2+3+5+8+9</span> <span class="combo">1+2+3+6+7+9</span> <span class="combo">1+2+4+5+7+9</span> <span class="combo">1+2+4+6+7+8</span> <span class="combo">1+3+4+5+6+9</span> <span class="combo">1+3+4+5+7+8</span> <span class="combo">2+3+4+5+6+8</span></td></tr>
+          <tr><th scope="row">29</th><td><span class="combo">1+2+3+6+8+9</span> <span class="combo">1+2+4+5+8+9</span> <span class="combo">1+2+4+6+7+9</span> <span class="combo">1+2+5+6+7+8</span> <span class="combo">1+3+4+5+7+9</span> <span class="combo">1+3+4+6+7+8</span> <span class="combo">2+3+4+5+6+9</span> <span class="combo">2+3+4+5+7+8</span></td></tr>
+          <tr><th scope="row">30</th><td><span class="combo">1+2+3+7+8+9</span> <span class="combo">1+2+4+6+8+9</span> <span class="combo">1+2+5+6+7+9</span> <span class="combo">1+3+4+5+8+9</span> <span class="combo">1+3+4+6+7+9</span> <span class="combo">1+3+5+6+7+8</span> <span class="combo">2+3+4+5+7+9</span> <span class="combo">2+3+4+6+7+8</span></td></tr>
+          <tr><th scope="row">31</th><td><span class="combo">1+2+4+7+8+9</span> <span class="combo">1+2+5+6+8+9</span> <span class="combo">1+3+4+6+8+9</span> <span class="combo">1+3+5+6+7+9</span> <span class="combo">1+4+5+6+7+8</span> <span class="combo">2+3+4+5+8+9</span> <span class="combo">2+3+4+6+7+9</span> <span class="combo">2+3+5+6+7+8</span></td></tr>
+          <tr><th scope="row">32</th><td><span class="combo">1+2+5+7+8+9</span> <span class="combo">1+3+4+7+8+9</span> <span class="combo">1+3+5+6+8+9</span> <span class="combo">1+4+5+6+7+9</span> <span class="combo">2+3+4+6+8+9</span> <span class="combo">2+3+5+6+7+9</span> <span class="combo">2+4+5+6+7+8</span></td></tr>
+          <tr><th scope="row">33</th><td><span class="combo">1+2+6+7+8+9</span> <span class="combo">1+3+5+7+8+9</span> <span class="combo">1+4+5+6+8+9</span> <span class="combo">2+3+4+7+8+9</span> <span class="combo">2+3+5+6+8+9</span> <span class="combo">2+4+5+6+7+9</span> <span class="combo">3+4+5+6+7+8</span></td></tr>
+          <tr><th scope="row">34</th><td><span class="combo">1+3+6+7+8+9</span> <span class="combo">1+4+5+7+8+9</span> <span class="combo">2+3+5+7+8+9</span> <span class="combo">2+4+5+6+8+9</span> <span class="combo">3+4+5+6+7+9</span></td></tr>
+          <tr><th scope="row">35</th><td><span class="combo">1+4+6+7+8+9</span> <span class="combo">2+3+6+7+8+9</span> <span class="combo">2+4+5+7+8+9</span> <span class="combo">3+4+5+6+8+9</span></td></tr>
+          <tr><th scope="row">36</th><td><span class="combo">1+5+6+7+8+9</span> <span class="combo">2+4+6+7+8+9</span> <span class="combo">3+4+5+7+8+9</span></td></tr>
+          <tr><th scope="row">37</th><td><span class="combo">2+5+6+7+8+9</span> <span class="combo">3+4+6+7+8+9</span></td></tr>
+          <tr><th scope="row">38</th><td><span class="combo magic">3+5+6+7+8+9</span></td></tr>
+          <tr><th scope="row">39</th><td><span class="combo magic">4+5+6+7+8+9</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-9-7">7-cell cages <span class="table-note">sums 28–42 · 36 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 7-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">28</th><td><span class="combo magic">1+2+3+4+5+6+7</span></td></tr>
+          <tr><th scope="row">29</th><td><span class="combo magic">1+2+3+4+5+6+8</span></td></tr>
+          <tr><th scope="row">30</th><td><span class="combo">1+2+3+4+5+6+9</span> <span class="combo">1+2+3+4+5+7+8</span></td></tr>
+          <tr><th scope="row">31</th><td><span class="combo">1+2+3+4+5+7+9</span> <span class="combo">1+2+3+4+6+7+8</span></td></tr>
+          <tr><th scope="row">32</th><td><span class="combo">1+2+3+4+5+8+9</span> <span class="combo">1+2+3+4+6+7+9</span> <span class="combo">1+2+3+5+6+7+8</span></td></tr>
+          <tr><th scope="row">33</th><td><span class="combo">1+2+3+4+6+8+9</span> <span class="combo">1+2+3+5+6+7+9</span> <span class="combo">1+2+4+5+6+7+8</span></td></tr>
+          <tr><th scope="row">34</th><td><span class="combo">1+2+3+4+7+8+9</span> <span class="combo">1+2+3+5+6+8+9</span> <span class="combo">1+2+4+5+6+7+9</span> <span class="combo">1+3+4+5+6+7+8</span></td></tr>
+          <tr><th scope="row">35</th><td><span class="combo">1+2+3+5+7+8+9</span> <span class="combo">1+2+4+5+6+8+9</span> <span class="combo">1+3+4+5+6+7+9</span> <span class="combo">2+3+4+5+6+7+8</span></td></tr>
+          <tr><th scope="row">36</th><td><span class="combo">1+2+3+6+7+8+9</span> <span class="combo">1+2+4+5+7+8+9</span> <span class="combo">1+3+4+5+6+8+9</span> <span class="combo">2+3+4+5+6+7+9</span></td></tr>
+          <tr><th scope="row">37</th><td><span class="combo">1+2+4+6+7+8+9</span> <span class="combo">1+3+4+5+7+8+9</span> <span class="combo">2+3+4+5+6+8+9</span></td></tr>
+          <tr><th scope="row">38</th><td><span class="combo">1+2+5+6+7+8+9</span> <span class="combo">1+3+4+6+7+8+9</span> <span class="combo">2+3+4+5+7+8+9</span></td></tr>
+          <tr><th scope="row">39</th><td><span class="combo">1+3+5+6+7+8+9</span> <span class="combo">2+3+4+6+7+8+9</span></td></tr>
+          <tr><th scope="row">40</th><td><span class="combo">1+4+5+6+7+8+9</span> <span class="combo">2+3+5+6+7+8+9</span></td></tr>
+          <tr><th scope="row">41</th><td><span class="combo magic">2+4+5+6+7+8+9</span></td></tr>
+          <tr><th scope="row">42</th><td><span class="combo magic">3+4+5+6+7+8+9</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-9-8">8-cell cages <span class="table-note">sums 36–44 · 9 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 8-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">36</th><td><span class="combo magic">1+2+3+4+5+6+7+8</span></td></tr>
+          <tr><th scope="row">37</th><td><span class="combo magic">1+2+3+4+5+6+7+9</span></td></tr>
+          <tr><th scope="row">38</th><td><span class="combo magic">1+2+3+4+5+6+8+9</span></td></tr>
+          <tr><th scope="row">39</th><td><span class="combo magic">1+2+3+4+5+7+8+9</span></td></tr>
+          <tr><th scope="row">40</th><td><span class="combo magic">1+2+3+4+6+7+8+9</span></td></tr>
+          <tr><th scope="row">41</th><td><span class="combo magic">1+2+3+5+6+7+8+9</span></td></tr>
+          <tr><th scope="row">42</th><td><span class="combo magic">1+2+4+5+6+7+8+9</span></td></tr>
+          <tr><th scope="row">43</th><td><span class="combo magic">1+3+4+5+6+7+8+9</span></td></tr>
+          <tr><th scope="row">44</th><td><span class="combo magic">2+3+4+5+6+7+8+9</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-9-9">9-cell cages <span class="table-note">sums 45–45 · 1 combination</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 9-cell cage combinations for 9×9 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">45</th><td><span class="combo magic">1+2+3+4+5+6+7+8+9</span></td></tr>
+        </tbody>
+      </table>
+      </section>
+
+      <h2 id="tables-6x6">6×6 killer combinations</h2>
+      <p>On a 6×6 killer grid the digits are 1–6 and every row, column, and 2×3 box sums to 21. All 57 cage combinations:</p>
+      <section id="tables-6" aria-label="6×6 combination tables">
+      <h3 id="cages-6-2">2-cell cages <span class="table-note">sums 3–11 · 15 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 2-cell cage combinations for 6×6 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">3</th><td><span class="combo magic">1+2</span></td></tr>
+          <tr><th scope="row">4</th><td><span class="combo magic">1+3</span></td></tr>
+          <tr><th scope="row">5</th><td><span class="combo">1+4</span> <span class="combo">2+3</span></td></tr>
+          <tr><th scope="row">6</th><td><span class="combo">1+5</span> <span class="combo">2+4</span></td></tr>
+          <tr><th scope="row">7</th><td><span class="combo">1+6</span> <span class="combo">2+5</span> <span class="combo">3+4</span></td></tr>
+          <tr><th scope="row">8</th><td><span class="combo">2+6</span> <span class="combo">3+5</span></td></tr>
+          <tr><th scope="row">9</th><td><span class="combo">3+6</span> <span class="combo">4+5</span></td></tr>
+          <tr><th scope="row">10</th><td><span class="combo magic">4+6</span></td></tr>
+          <tr><th scope="row">11</th><td><span class="combo magic">5+6</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-6-3">3-cell cages <span class="table-note">sums 6–15 · 20 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 3-cell cage combinations for 6×6 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">6</th><td><span class="combo magic">1+2+3</span></td></tr>
+          <tr><th scope="row">7</th><td><span class="combo magic">1+2+4</span></td></tr>
+          <tr><th scope="row">8</th><td><span class="combo">1+2+5</span> <span class="combo">1+3+4</span></td></tr>
+          <tr><th scope="row">9</th><td><span class="combo">1+2+6</span> <span class="combo">1+3+5</span> <span class="combo">2+3+4</span></td></tr>
+          <tr><th scope="row">10</th><td><span class="combo">1+3+6</span> <span class="combo">1+4+5</span> <span class="combo">2+3+5</span></td></tr>
+          <tr><th scope="row">11</th><td><span class="combo">1+4+6</span> <span class="combo">2+3+6</span> <span class="combo">2+4+5</span></td></tr>
+          <tr><th scope="row">12</th><td><span class="combo">1+5+6</span> <span class="combo">2+4+6</span> <span class="combo">3+4+5</span></td></tr>
+          <tr><th scope="row">13</th><td><span class="combo">2+5+6</span> <span class="combo">3+4+6</span></td></tr>
+          <tr><th scope="row">14</th><td><span class="combo magic">3+5+6</span></td></tr>
+          <tr><th scope="row">15</th><td><span class="combo magic">4+5+6</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-6-4">4-cell cages <span class="table-note">sums 10–18 · 15 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 4-cell cage combinations for 6×6 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">10</th><td><span class="combo magic">1+2+3+4</span></td></tr>
+          <tr><th scope="row">11</th><td><span class="combo magic">1+2+3+5</span></td></tr>
+          <tr><th scope="row">12</th><td><span class="combo">1+2+3+6</span> <span class="combo">1+2+4+5</span></td></tr>
+          <tr><th scope="row">13</th><td><span class="combo">1+2+4+6</span> <span class="combo">1+3+4+5</span></td></tr>
+          <tr><th scope="row">14</th><td><span class="combo">1+2+5+6</span> <span class="combo">1+3+4+6</span> <span class="combo">2+3+4+5</span></td></tr>
+          <tr><th scope="row">15</th><td><span class="combo">1+3+5+6</span> <span class="combo">2+3+4+6</span></td></tr>
+          <tr><th scope="row">16</th><td><span class="combo">1+4+5+6</span> <span class="combo">2+3+5+6</span></td></tr>
+          <tr><th scope="row">17</th><td><span class="combo magic">2+4+5+6</span></td></tr>
+          <tr><th scope="row">18</th><td><span class="combo magic">3+4+5+6</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-6-5">5-cell cages <span class="table-note">sums 15–20 · 6 combinations</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 5-cell cage combinations for 6×6 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">15</th><td><span class="combo magic">1+2+3+4+5</span></td></tr>
+          <tr><th scope="row">16</th><td><span class="combo magic">1+2+3+4+6</span></td></tr>
+          <tr><th scope="row">17</th><td><span class="combo magic">1+2+3+5+6</span></td></tr>
+          <tr><th scope="row">18</th><td><span class="combo magic">1+2+4+5+6</span></td></tr>
+          <tr><th scope="row">19</th><td><span class="combo magic">1+3+4+5+6</span></td></tr>
+          <tr><th scope="row">20</th><td><span class="combo magic">2+3+4+5+6</span></td></tr>
+        </tbody>
+      </table>
+      <h3 id="cages-6-6">6-cell cages <span class="table-note">sums 21–21 · 1 combination</span></h3>
+      <table class="combo-table">
+        <caption class="sr-only">All 6-cell cage combinations for 6×6 killer sudoku</caption>
+        <thead><tr><th scope="col">Sum</th><th scope="col">Combinations</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">21</th><td><span class="combo magic">1+2+3+4+5+6</span></td></tr>
+        </tbody>
+      </table>
+      </section>
+
+      <h2 class="no-print">16×16 cages</h2>
+      <p class="no-print">A 16×16 killer grid uses digits 1–16, every house sums to 136, and there are 65,519 possible cage combinations — far too many for a printed table. Switch the calculator above to <strong>16×16</strong> and it computes them live, filters included. As far as we know, nothing else on the web does.</p>
+
+      <h2 class="no-print">Common questions</h2>
+      <div class="faq">
+        <h3>What is a killer sudoku cage calculator?</h3>
+        <p>A killer sudoku cage calculator lists every combination of digits that can fill a cage. Enter the cage's sum and its number of cells, and it returns each set of distinct digits that adds up to that sum. Filtering out digits you have already placed narrows the cage to the combinations still possible.</p>
+        <h3>What is the 45 rule in killer sudoku?</h3>
+        <p>Every row, column, and 3×3 box in a 9×9 killer sudoku contains the digits 1–9 exactly once, so each sums to 45. Comparing cage totals against 45 in a house reveals the value of cells that stick into or out of it — the innies and outies. On a 6×6 grid each house sums to 21; on a 16×16 grid, 136.</p>
+        <h3>What is a magic cage in killer sudoku?</h3>
+        <p>A magic cage is a cage whose sum and size allow only one combination of digits, so you know its digits immediately — only their order is left to solve. A 2-cell cage summing to 3 must hold 1 and 2; a 4-cell cage summing to 30 must hold 6, 7, 8, and 9. The calculator and the tables on this page highlight every magic cage.</p>
+        <h3>How many killer sudoku cage combinations are there?</h3>
+        <p>A 9×9 killer sudoku has 502 cage combinations across cages of 2 to 9 cells, and the tables on this page list all of them. A 6×6 killer grid has 57 combinations across its 2- to 6-cell cages. A 16×16 grid has 65,519 — too many for a table, which is what the calculator's 16×16 mode is for.</p>
+        <h3>Can I print the combination tables?</h3>
+        <p>Yes. Print this page — the print button or your browser's print dialog — and the combination tables come out as a compact killer sudoku cheat sheet, free. The calculator itself and the site navigation are left off the printed page.</p>
+      </div>
+
+      <h2 class="no-print">Try a variant</h2>
+      <div class="variant-row">
+        <a href="/killer">Killer Sudoku</a>
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/sudoku-16x16">16×16 Sudoku</a>
+        <a href="/learn">Learn how to play</a>
+      </div>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/calculator/main.ts"></script>
+  </body>
+</html>

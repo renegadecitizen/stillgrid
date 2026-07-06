@@ -14,6 +14,10 @@
 - [Killer Sudoku](https://stillgrid.app/killer): Dashed cages with target sums replace given digits; cage cells sum to the target with no repeats, on top of classic rules.
 - [16×16 Sudoku (Hexadoku)](https://stillgrid.app/sudoku-16x16): Giant 16×16 grid using digits 1–9 plus letters A–G in every row, column, and 4×4 box. Classic and X-Sudoku are playable at 16×16.
 
+## Tools
+
+- [Killer Sudoku Cage Calculator](https://stillgrid.app/killer-sudoku-calculator): Every digit combination for a cage from its sum and cell count, with include/exclude filters and magic-cage highlighting. Covers 6×6, 9×9, and 16×16 grids, plus printable tables of all 502 9×9 combinations.
+
 ## About
 
 - [How to play sudoku](https://stillgrid.app/learn): Rules, pencil-mark notes, and the technique ladder Stillgrid grades difficulty by — singles, pairs, pointing, X-Wing, and beyond.

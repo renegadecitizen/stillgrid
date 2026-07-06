@@ -20,6 +20,7 @@ export default defineConfig({
         learnCore: "learn-core.html",
         learnAdvanced: "learn-advanced.html",
         learnVariants: "learn-variants.html",
+        killerCalculator: "killer-sudoku-calculator.html",
       },
     },
   },

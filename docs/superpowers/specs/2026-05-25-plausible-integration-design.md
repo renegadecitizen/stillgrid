@@ -133,6 +133,15 @@ Fires when a player successfully shares/copies their result from the win panel (
 | `is_daily` | boolean | true if the shared solve was a daily |
 | `method` | string | `native` (Web Share sheet) / `clipboard` |
 
+### `calculator_used`
+Fires once per pageview of `/killer-sudoku-calculator`, on the first user-driven recalculation (size/cells/sum/filter change). Added 2026-07-06 with the cage-calculator page (growth plan Phase 2). Measures whether calculator visitors actually engage with the tool rather than bounce off the static tables.
+
+| Prop | Type | Values |
+|---|---|---|
+| `size` | number | 6 / 9 / 16 |
+| `cells` | number | 2–16, cage size at first interaction |
+| `sum` | number | the cage sum at first interaction |
+
 ## What Plausible tracks automatically
 
 Just from the script tag deployed on all 5 pages, Plausible auto-tracks the following — no code, no events, no setup beyond signing up at plausible.io:

@@ -2109,6 +2109,7 @@ function Footer({ isDemo }: { isDemo: boolean }) {
         <a href="/xsudoku" className="hover:underline">X-Sudoku</a>
         <a href="/jigsaw" className="hover:underline">Jigsaw Sudoku</a>
         <a href="/killer" className="hover:underline">Killer Sudoku</a>
+        <a href="/killer-sudoku-calculator" className="hover:underline">Killer Calculator</a>
         <a href="/sudoku-16x16" className="hover:underline">16×16 Sudoku</a>
         <a href="/learn" className="hover:underline">Learn</a>
         <a href="/privacy" className="hover:underline">Privacy</a>
