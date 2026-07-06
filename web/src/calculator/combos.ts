@@ -41,6 +41,12 @@ export function combinations(q: ComboQuery): number[][] {
   );
 }
 
+/** The SPA's contextual link passes the board size as ?size=6|9|16. */
+export function parseSizeParam(search: string): 6 | 9 | 16 | null {
+  const raw = new URLSearchParams(search).get("size");
+  return raw === "6" ? 6 : raw === "9" ? 9 : raw === "16" ? 16 : null;
+}
+
 /** Digits that appear in every combination — forced into the cage. */
 export function mustAppear(combos: readonly number[][]): number[] {
   const first = combos[0];

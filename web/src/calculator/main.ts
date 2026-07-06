@@ -1,5 +1,5 @@
 import "./calc.css";
-import { combinations, mustAppear, sumRange } from "./combos";
+import { combinations, mustAppear, parseSizeParam, sumRange } from "./combos";
 import { track } from "../analytics";
 
 const SIZES = [6, 9, 16] as const;
@@ -15,7 +15,7 @@ if (printBtn) {
 }
 
 function mountCalculator(host: HTMLElement): void {
-  let n: Size = 9;
+  let n: Size = parseSizeParam(window.location.search) ?? 9;
   let cells = 3;
   const include = new Set<number>();
   const exclude = new Set<number>();

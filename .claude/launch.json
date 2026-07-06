@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stillgrid-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "PORT=3001 make dev"],
+      "port": 5173
+    }
+  ]
+}

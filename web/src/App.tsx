@@ -330,6 +330,20 @@ export function App() {
               style={{ color: "var(--color-ink-soft)" }}
             >
               {blurbFor(variant, size)}
+              {variant === "killer" && (
+                <>
+                  {" "}
+                  <a
+                    href={`/killer-sudoku-calculator?size=${size}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="not-italic underline underline-offset-2 hover:opacity-80"
+                    style={{ color: "var(--color-ink-soft)" }}
+                  >
+                    Cage calculator<span aria-hidden="true"> ↗</span>
+                  </a>
+                </>
+              )}
             </p>
 
             {error && (
