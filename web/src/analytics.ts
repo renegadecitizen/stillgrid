@@ -6,7 +6,8 @@ type EventName =
   | "first_visit_ever"
   | "tier_unmatched"
   | "puzzle_shared"
-  | "calculator_used";
+  | "calculator_used"
+  | "grade_used";
 
 type EventProps = Record<string, string | number | boolean>;
 

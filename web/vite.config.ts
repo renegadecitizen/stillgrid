@@ -21,6 +21,7 @@ export default defineConfig({
         learnAdvanced: "learn-advanced.html",
         learnVariants: "learn-variants.html",
         killerCalculator: "killer-sudoku-calculator.html",
+        grade: "grade.html",
       },
     },
   },

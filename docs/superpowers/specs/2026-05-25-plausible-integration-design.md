@@ -142,6 +142,16 @@ Fires once per pageview of `/killer-sudoku-calculator`, on the first user-driven
 | `cells` | number | 2–16, cage size at first interaction |
 | `sum` | number | the cage sum at first interaction |
 
+### `grade_used`
+Fires on each grade submission from `/grade` (the difficulty-grader tool). Added 2026-07-07 with the grader page (growth plan Phase 3). Measures tool engagement and what people feed it — outcome distribution shows how often real-world pastes are broken puzzles vs gradeable ones.
+
+| Prop | Type | Values |
+|---|---|---|
+| `variant` | string | `classic` / `xsudoku` (killer/jigsaw not supported by the tool) |
+| `size` | number | 6 / 9 / 16 |
+| `outcome` | string | `solved` / `stuck` / `error` / `multiple` / `unsolvable` (last two from the classic uniqueness pre-check) |
+| `tier` | string | the graded `tier_label`; absent unless `outcome=solved` |
+
 ## What Plausible tracks automatically
 
 Just from the script tag deployed on all 5 pages, Plausible auto-tracks the following — no code, no events, no setup beyond signing up at plausible.io:

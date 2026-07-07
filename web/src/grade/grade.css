@@ -1,0 +1,147 @@
+/* /grade — difficulty grader widget. */
+
+.grader {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  background: #fffcf7;
+}
+.grade-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+.grade-field { min-width: 0; flex: 1 1 auto; }
+.grade-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-ink-soft);
+  margin-bottom: 0.35rem;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-cream);
+}
+.seg button {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.9rem;
+  border: none;
+  background: none;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.seg button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--color-cream);
+}
+.seg button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.grade-paste {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
+.ggrid {
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  border: 2px solid var(--color-ink);
+  width: 100%;
+  margin: 0 auto 1rem;
+  background: var(--color-cream);
+}
+.ggrid.g6 { max-width: 300px; }
+.ggrid.g9 { max-width: 430px; }
+.ggrid.g16 { max-width: 560px; }
+.ggrid input {
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  text-align: center;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(0.85rem, 3.5vw, 1.25rem);
+  color: var(--color-ink);
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+}
+.ggrid.g16 input { font-size: clamp(0.65rem, 2.2vw, 1rem); }
+.ggrid.g6 input:nth-child(-n + 6),
+.ggrid.g9 input:nth-child(-n + 9),
+.ggrid.g16 input:nth-child(-n + 16) { border-top: none; }
+.ggrid.g6 input:nth-child(6n + 1),
+.ggrid.g9 input:nth-child(9n + 1),
+.ggrid.g16 input:nth-child(16n + 1) { border-left: none; }
+.ggrid input.bt { border-top: 2px solid var(--color-ink); }
+.ggrid input.bl { border-left: 2px solid var(--color-ink); }
+.ggrid input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.grade-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.grade-go {
+  font: inherit;
+  font-weight: 500;
+  padding: 0.65rem 1.4rem;
+  background: var(--accent);
+  color: var(--color-cream);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+.grade-go:hover { opacity: 0.9; }
+.grade-go:disabled { opacity: 0.5; cursor: default; }
+.grade-clear {
+  font: inherit;
+  padding: 0.65rem 1.1rem;
+  background: none;
+  color: var(--color-ink-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+.grade-status { min-height: 1.4em; margin: 0.75rem 0 0; color: var(--color-ink-soft); font-size: 0.95rem; }
+.grade-status.err { color: var(--color-terracotta); }
+.grade-result { margin-top: 0.5rem; }
+.grade-verdict {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.2rem;
+  margin: 0.75rem 0;
+}
+.tier-badge { display: inline-block; padding: 0.2rem 0.75rem; border-radius: 999px; font-family: "Inter", sans-serif; font-weight: 600; font-size: 0.95rem; }
+.tier-easy { background: #e6ede7; color: #3d5a4e; }
+.tier-medium { background: #faf0db; color: #97681e; }
+.tier-hard { background: #fbe7dd; color: #a14a2a; }
+.tier-diabolical { background: #f3e3ec; color: #8c4a6b; }
+.tier-nightmare { background: #e7e6f1; color: #3f3a5e; }
+.tech-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+.tech-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--color-border);
+  max-width: 430px;
+}
+.tech-list .n { color: var(--color-ink-soft); font-variant-numeric: tabular-nums; }
+
+/* Static ladder table on the page */
+.ladder { list-style: none; padding: 0; }
+.ladder li { padding: 0.6rem 0; border-bottom: 1px solid var(--color-border); }
+.ladder .tier-badge { margin-right: 0.6rem; }

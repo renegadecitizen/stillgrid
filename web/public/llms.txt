@@ -17,6 +17,7 @@
 ## Tools
 
 - [Killer Sudoku Cage Calculator](https://stillgrid.app/killer-sudoku-calculator): Every digit combination for a cage from its sum and cell count, with include/exclude filters and magic-cage highlighting. Covers 6×6, 9×9, and 16×16 grids, plus printable tables of all 502 9×9 combinations.
+- [Sudoku Difficulty Grader](https://stillgrid.app/grade): Enter or paste any sudoku and get an honest difficulty grade — Easy to Nightmare — with the exact human techniques it requires, from naked singles to forcing chains. Grades 6×6, 9×9, and 16×16 grids, classic and X-Sudoku.
 
 ## Daily puzzles
 

@@ -210,14 +210,25 @@ app.get("/api/puzzle", async (req, res) => {
   }
 });
 
+// Variants the public grade API accepts. Jigsaw/killer need box/cage layouts
+// a plain string can't carry — the /grade tool ships without them.
+export const GRADE_VARIANTS: ReadonlySet<string> = new Set(["classic", "xsudoku"]);
+
 app.post("/api/grade", async (req, res) => {
   const puzzle = typeof req.body?.puzzle === "string" ? req.body.puzzle : null;
   if (!puzzle) {
     res.status(400).json({ error: "missing 'puzzle' string in body" });
     return;
   }
+  const variant = req.body?.variant === undefined ? "classic" : String(req.body.variant);
+  if (!GRADE_VARIANTS.has(variant)) {
+    res.status(400).json({ error: "unsupported variant", variant, supported: [...GRADE_VARIANTS] });
+    return;
+  }
   try {
-    res.json(await grade(puzzle));
+    res.json(
+      await grade(variant === "classic" ? puzzle : { givens: puzzle, variant: "xsudoku" }),
+    );
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : "unknown" });
   }
@@ -309,7 +320,7 @@ app.get("/daily/:kind/:date", async (req, res) => {
 
 // Prerendered HTML pages for SEO. Must be registered before the 404 handler
 // so /killer, /privacy, etc. resolve to their pages rather than the catch-all.
-export const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "sudoku-16x16", "privacy", "learn", "killer-sudoku-calculator"] as const;
+export const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "sudoku-16x16", "privacy", "learn", "killer-sudoku-calculator", "grade"] as const;
 
 export const LEARN_SUBPAGES = {
   "/learn/core": "learn-core.html",

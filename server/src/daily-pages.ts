@@ -288,6 +288,7 @@ const VARIANT_ROW = `<h2>Keep playing</h2>
         <a href="/xsudoku">X-Sudoku</a>
         <a href="/sudoku-16x16">16×16 Sudoku</a>
         <a href="/killer-sudoku-calculator">Killer Sudoku Calculator</a>
+        <a href="/grade">Sudoku Difficulty Grader</a>
         <a href="/learn">Learn how to play</a>
       </div>`;
 

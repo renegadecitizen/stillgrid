@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { generate } from "./engine.js";
-import { parseSize, variantSupportsSize } from "./index.js";
+import { generate, grade } from "./engine.js";
+import { GRADE_VARIANTS, parseSize, variantSupportsSize } from "./index.js";
 
 // These spawn the real Rust binary; they only run where it's been built
 // (local dev, the engine CI job). The server CI job has no cargo build, so
@@ -52,6 +52,24 @@ describe("variantSupportsSize", () => {
     for (const v of ["jigsaw", "killer"]) {
       expect(variantSupportsSize(v, 9)).toBe(true);
       expect(variantSupportsSize(v, 16)).toBe(false);
+    }
+  });
+});
+
+describe("GRADE_VARIANTS", () => {
+  it("allows exactly the string-only variants (no cage/box payloads)", () => {
+    expect([...GRADE_VARIANTS].sort()).toEqual(["classic", "xsudoku"]);
+  });
+});
+
+describe.skipIf(!HAVE_ENGINE)("grade with variant", () => {
+  it("grades an xsudoku board via the JSON stdin path", async () => {
+    const p = await generate({ variant: "xsudoku", seed: 7 });
+    const g = await grade({ givens: p.givens, variant: "xsudoku" });
+    expect(g.outcome).toBe("solved");
+    if (g.outcome === "solved") {
+      expect(g.tier).toBeGreaterThanOrEqual(1);
+      expect(Object.keys(g.technique_counts).length).toBeGreaterThan(0);
     }
   });
 });

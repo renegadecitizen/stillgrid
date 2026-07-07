@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Sudoku Difficulty Grader — rate any puzzle by technique | Stillgrid</title>
+    <meta name="description" content="Free sudoku difficulty grader: enter or paste any puzzle and get an honest grade — Easy to Nightmare — with the exact human techniques it requires, from naked singles to forcing chains. 6×6, 9×9, 16×16, classic and X-Sudoku." />
+    <link rel="canonical" href="https://stillgrid.app/grade" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Sudoku Difficulty Grader — Stillgrid" />
+    <meta property="og:description" content="How hard is your sudoku, really? Graded by the exact techniques it requires — Easy to Nightmare — not by clue count." />
+    <meta property="og:url" content="https://stillgrid.app/grade" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Stillgrid — sudoku, the quiet way." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Umami -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a623ea5c-9c7e-45c2-9d15-6c56bdfe0593"></script>
+    <style>:root { --accent: var(--color-sage); }</style>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"WebApplication","name":"Sudoku Difficulty Grader","description":"Grades any sudoku by the human solving techniques it actually requires — Easy to Nightmare — for 6×6, 9×9, and 16×16 grids, classic and X-Sudoku.","url":"https://stillgrid.app/grade","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","image":"https://stillgrid.app/og-image.png","inLanguage":"en","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How is sudoku difficulty graded?","acceptedAnswer":{"@type":"Answer","text":"The honest way to grade sudoku difficulty is by which solving techniques a puzzle actually requires, not by counting clues. Stillgrid's grader solves each puzzle the way a human would — simplest technique first, escalating only when stuck — and grades it by the hardest technique it needed, from Easy (singles only) up to Nightmare (chain-based logic)."}},{"@type":"Question","name":"Why does my puzzle grade as stuck?","acceptedAnswer":{"@type":"Answer","text":"Stuck means the grader ran its entire technique ladder — through X-Wing, Swordfish, XY-Wing, coloring, and forcing chains — and still couldn't finish. A few famously extreme puzzles genuinely live beyond the ladder. But the common cause is a typo: a grid with a wrong or missing given often has several solutions, and no logical technique can finish a puzzle that isn't unique."}},{"@type":"Question","name":"Can it grade 6×6 and 16×16 sudoku?","acceptedAnswer":{"@type":"Answer","text":"Yes. The grader accepts 6×6, 9×9, and 16×16 grids (16×16 uses letters A–G for 10–16), as classic or X-Sudoku — for X-Sudoku the two main diagonals are checked as well. Killer and jigsaw need their cage and region layouts, which a plain digit string can't carry, so they aren't supported here — every killer and jigsaw you play on Stillgrid is already graded."}},{"@type":"Question","name":"Is the sudoku grader free?","acceptedAnswer":{"@type":"Answer","text":"Yes. The grader is free to use, with no signup — like every puzzle on Stillgrid, which is free to play with no signup needed to start."}}]}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Sudoku difficulty grader</h1>
+      <p class="lede">How hard is your puzzle, really? Enter or paste any sudoku and get an honest grade — plus the exact techniques it takes to solve.</p>
+
+      <div data-grader>
+        <p class="grade-fallback">The interactive grader needs JavaScript. The ladder it grades by is documented below — from naked singles to forcing chains.</p>
+      </div>
+
+      <h2>How grading works</h2>
+      <p>Most sites rate difficulty by counting clues or timing solvers. Both mislead: a 24-clue puzzle can be a warm-up while a 30-clue one demands chains. Stillgrid's grader solves your puzzle the way a person would — it tries the simplest technique first and escalates only when nothing simpler works — then grades the puzzle by the <strong>hardest technique it was forced to use</strong>. The result also lists every technique on the path, so "Medium" isn't a vibe, it's a claim you can check.</p>
+      <p>Classic grids are first checked for a unique solution; a grid with zero or several solutions is reported honestly instead of graded.</p>
+
+      <h2>The technique ladder</h2>
+      <ul class="ladder">
+        <li><span class="tier-badge tier-easy">Easy</span> <a href="/learn#naked-single">Naked single</a>, <a href="/learn#hidden-single">hidden single</a> — one candidate left, or one home left for a digit.</li>
+        <li><span class="tier-badge tier-medium">Medium</span> <a href="/learn/core#naked-pair">Naked pair</a>, <a href="/learn/core#hidden-pair">hidden pair</a>, <a href="/learn/core#pointing-pair">pointing pair</a> — and cage-sum combinations in killer.</li>
+        <li><span class="tier-badge tier-hard">Hard</span> <a href="/learn/advanced#x-wing">X-Wing</a> — a candidate rectangle across two rows and two columns.</li>
+        <li><span class="tier-badge tier-diabolical">Diabolical</span> <a href="/learn/advanced#swordfish">Swordfish and XY-Wing</a> — three-line fish and bivalue pivots.</li>
+        <li><span class="tier-badge tier-nightmare">Nightmare</span> <a href="/learn/advanced#swordfish">Coloring, forcing chains, and Almost Locked Sets</a> — following candidate implications until something breaks.</li>
+      </ul>
+      <p>A puzzle that defeats the whole ladder grades as <em>stuck</em> — genuinely beyond Nightmare. The famous "world's hardest sudoku" grids land there, and we'd rather say so than pretend.</p>
+
+      <h2>Common questions</h2>
+      <div class="faq">
+        <h3>How is sudoku difficulty graded?</h3>
+        <p>The honest way to grade sudoku difficulty is by which solving techniques a puzzle actually requires, not by counting clues. Stillgrid's grader solves each puzzle the way a human would — simplest technique first, escalating only when stuck — and grades it by the hardest technique it needed, from Easy (singles only) up to Nightmare (chain-based logic).</p>
+        <h3>Why does my puzzle grade as stuck?</h3>
+        <p>Stuck means the grader ran its entire technique ladder — through X-Wing, Swordfish, XY-Wing, coloring, and forcing chains — and still couldn't finish. A few famously extreme puzzles genuinely live beyond the ladder. But the common cause is a typo: a grid with a wrong or missing given often has several solutions, and no logical technique can finish a puzzle that isn't unique.</p>
+        <h3>Can it grade 6×6 and 16×16 sudoku?</h3>
+        <p>Yes. The grader accepts 6×6, 9×9, and 16×16 grids (16×16 uses letters A–G for 10–16), as classic or X-Sudoku — for X-Sudoku the two main diagonals are checked as well. Killer and jigsaw need their cage and region layouts, which a plain digit string can't carry, so they aren't supported here — every killer and jigsaw you play on Stillgrid is already graded.</p>
+        <h3>Is the sudoku grader free?</h3>
+        <p>Yes. The grader is free to use, with no signup — like every puzzle on Stillgrid, which is free to play with no signup needed to start.</p>
+      </div>
+
+      <h2>Try a variant</h2>
+      <div class="variant-row">
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/killer">Killer Sudoku</a>
+        <a href="/sudoku-16x16">16×16 Sudoku</a>
+        <a href="/killer-sudoku-calculator">Killer Sudoku Calculator</a>
+        <a href="/daily">Daily Sudoku Archive</a>
+        <a href="/learn">Learn how to play</a>
+      </div>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/grade/main.ts"></script>
+  </body>
+</html>
