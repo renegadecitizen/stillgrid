@@ -17,7 +17,7 @@
 
 ## Tools
 
-- [Killer Sudoku Cage Calculator](https://stillgrid.app/killer-sudoku-calculator): Every digit combination for a cage from its sum and cell count, with include/exclude filters and magic-cage highlighting. Covers 6×6, 9×9, and 16×16 grids, plus printable tables of all 502 9×9 combinations.
+- [Killer Sudoku Cage Calculator](https://stillgrid.app/killer-sudoku-calculator): Every digit combination for a cage from its sum and cell count, with include/exclude filters and magic-cage highlighting. Covers 6×6, 9×9, and 16×16 grids, plus printable tables of all 502 9×9 combinations. The same distinct-digit math makes it a kakuro run calculator too (not KenKen — its cages allow repeats).
 - [Sudoku Difficulty Grader](https://stillgrid.app/grade): Enter or paste any sudoku and get an honest difficulty grade — Easy to Nightmare — with the exact human techniques it requires, from naked singles to forcing chains. Grades 6×6, 9×9, and 16×16 grids, classic and X-Sudoku.
 
 ## Daily puzzles
@@ -29,6 +29,8 @@
 - [How to play sudoku](https://stillgrid.app/learn): Rules, pencil-mark notes, and the technique ladder Stillgrid grades difficulty by — singles, pairs, pointing, X-Wing, and beyond.
 - [Sudoku techniques: core](https://stillgrid.app/learn/core): Naked pair, hidden pair, and pointing pair — the Medium-tier techniques.
 - [Sudoku techniques: advanced](https://stillgrid.app/learn/advanced): X-Wing, Swordfish, XY-Wing, and chains — the hardest patterns.
+- [XY-Wing, step by step](https://stillgrid.app/learn/xy-wing): The pivot-and-pincers pattern — interactive walkthrough, the two-case proof, scanning heuristics, and a real puzzle verified to need exactly one XY-Wing.
+- [Swordfish, step by step](https://stillgrid.app/learn/swordfish): The three-line X-Wing — interactive walkthrough, the pigeonhole logic, the 2-2-2 form, and a real puzzle verified to require a Swordfish.
 - [Sudoku variants & sizes](https://stillgrid.app/learn/variants): X-Sudoku, Jigsaw, Killer, and the 6×6/9×9/16×16 boards.
 - [Stillgrid home](https://stillgrid.app/): Play any variant, the daily challenge, and track personal bests and streaks.
 - [Privacy](https://stillgrid.app/privacy): No accounts and no tracking beyond privacy-friendly aggregate analytics; all game state stays in your browser.
