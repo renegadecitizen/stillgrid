@@ -112,6 +112,17 @@ describe("parseEntryParam", () => {
     expect(parseEntryParam("?v=classic&size=7")).toEqual({ mode: "casual", variant: "classic" });
   });
 
+  it("carries a valid tier on a casual param and drops an invalid one", () => {
+    expect(parseEntryParam("?v=classic&tier=nightmare")).toEqual({ mode: "casual", variant: "classic", tier: "nightmare" });
+    expect(parseEntryParam("?v=killer&tier=medium&size=9")).toEqual({ mode: "casual", variant: "killer", size: 9, tier: "medium" });
+    expect(parseEntryParam("?v=classic&tier=evil")).toEqual({ mode: "casual", variant: "classic" });
+    expect(parseEntryParam("?v=classic&tier=")).toEqual({ mode: "casual", variant: "classic" });
+  });
+
+  it("ignores tier on a daily param (dailies aren't tier-selectable)", () => {
+    expect(parseEntryParam("?d=classic&tier=nightmare")).toEqual({ mode: "daily", variant: "classic" });
+  });
+
   it("returns null for unknown/empty/garbage", () => {
     expect(parseEntryParam("?v=foo")).toBeNull();
     expect(parseEntryParam("?size=9")).toBeNull();

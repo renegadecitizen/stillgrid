@@ -258,9 +258,11 @@ export function App() {
       } else {
         const entrySize: Size =
           entry.size === 16 && entry.variant !== "classic" && entry.variant !== "xsudoku" ? 9 : entry.size ?? 9;
+        const entryTier = entry.tier ? snapTier(entry.tier, entry.variant, entrySize) : "";
         setVariant(entry.variant);
         setSize(entrySize);
-        load(entry.variant, "", entrySize);
+        if (entryTier) setTier(entryTier);
+        load(entry.variant, entryTier, entrySize);
       }
       return;
     }
@@ -2125,6 +2127,7 @@ function Footer({ isDemo }: { isDemo: boolean }) {
         <a href="/killer" className="hover:underline">Killer Sudoku</a>
         <a href="/killer-sudoku-calculator" className="hover:underline">Killer Sudoku Calculator</a>
         <a href="/sudoku-16x16" className="hover:underline">16×16 Sudoku</a>
+        <a href="/evil-sudoku" className="hover:underline">Evil Sudoku</a>
         <a href="/daily" className="hover:underline">Daily Archive</a>
         <a href="/grade" className="hover:underline">Grade a Puzzle</a>
         <a href="/learn" className="hover:underline">Learn</a>

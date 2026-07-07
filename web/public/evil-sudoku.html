@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Evil Sudoku — extreme puzzles, provably hard | Stillgrid</title>
+    <meta name="description" content="Play evil sudoku online, free — the extreme tier where puzzles provably require X-Wing, Swordfish, XY-Wing, or forcing chains. Not just fewer clues: every evil puzzle is certified by the exact techniques it demands. No signup needed." />
+    <link rel="canonical" href="https://stillgrid.app/evil-sudoku" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Evil Sudoku — Stillgrid" />
+    <meta property="og:description" content="Extreme sudoku, honestly graded: every evil puzzle provably requires advanced techniques — X-Wing, XY-Wing, chains — not just fewer clues." />
+    <meta property="og:url" content="https://stillgrid.app/evil-sudoku" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Stillgrid — sudoku, the quiet way." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Umami -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a623ea5c-9c7e-45c2-9d15-6c56bdfe0593"></script>
+    <style>
+:root { --accent: #3f3a5e; } /* the Nightmare-tier indigo */
+.board { border-collapse: separate; border-spacing: 0; border: 2px solid var(--color-ink); margin: 1.5rem auto; }
+.board td { width: 44px; height: 44px; padding: 0; text-align: center; vertical-align: middle;
+  font-family: "Fraunces", Georgia, serif; font-size: 1.3rem; color: var(--color-ink);
+  border-top: 1px solid var(--color-border); border-left: 1px solid var(--color-border); }
+.board tr:first-child td { border-top: none; }
+.board td:first-child { border-left: none; }
+.board td.bt { border-top: 2px solid var(--color-ink); }
+.board td.bl { border-left: 2px solid var(--color-ink); }
+@media (max-width: 480px) { .board td { width: 34px; height: 34px; font-size: 1.05rem; } }
+.tech-list { list-style: none; padding: 0; }
+.tech-list li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid var(--color-border); max-width: 430px; margin: 0 auto; }
+.tech-list .n { color: var(--color-ink-soft); font-variant-numeric: tabular-nums; }
+    </style>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"Game","name":"Evil Sudoku — Stillgrid","description":"Extreme-tier sudoku puzzles that provably require advanced techniques — X-Wing, Swordfish, XY-Wing, forcing chains — verified by a technique-based grader.","genre":"Puzzle","gamePlatform":"Web","applicationCategory":"Game","url":"https://stillgrid.app/evil-sudoku","image":"https://stillgrid.app/og-image.png","inLanguage":"en","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"HowTo","name":"How to solve an evil sudoku","description":"Work an extreme sudoku from quiet moves to chains: exhaust singles, mine the pencil marks, then hunt the advanced patterns the puzzle was built to require.","step":[{"@type":"HowToStep","name":"Exhaust the quiet moves","text":"Fill every naked and hidden single first. Evil puzzles hand you a few before the wall — take them, they anchor everything after."},{"@type":"HowToStep","name":"Mine the pencil marks","text":"Note every candidate, then squeeze: naked and hidden pairs, pointing pairs. Each elimination is small; together they expose the pattern the puzzle hinges on."},{"@type":"HowToStep","name":"Hunt the patterns","text":"When simple logic stalls, the puzzle is demanding a pattern: X-Wing rectangles, Swordfish across three lines, or an XY-Wing pivot. Scan candidate pairs row by row."},{"@type":"HowToStep","name":"Follow the chains","text":"The hardest grids need chains — follow a candidate's implications from cell to cell until an assumption contradicts itself. That contradiction is the solve."}]}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is evil sudoku?","acceptedAnswer":{"@type":"Answer","text":"Evil sudoku is the hardest tier of sudoku — puzzles that cannot be finished with basic techniques alone. A genuine evil puzzle forces advanced patterns like X-Wing, Swordfish, XY-Wing, or forcing chains. The honest test is which techniques a puzzle requires, not how few clues it has: removing clues makes a grid emptier, not necessarily harder."}},{"@type":"Question","name":"Is evil sudoku the same as extreme or expert sudoku?","acceptedAnswer":{"@type":"Answer","text":"The names blur into each other — sites variously call their hardest tier evil, extreme, expert, or fiendish, and there is no standard. On Stillgrid the top grade is called Nightmare, and it is earned, not asserted: a puzzle only grades Nightmare when our solver provably needs chain-based techniques to finish it."}},{"@type":"Question","name":"Are Stillgrid's evil sudoku puzzles free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Evil (Nightmare) puzzles are free to play, with no signup needed to start. Each one is generated fresh and verified by the grader to require the techniques its grade claims."}}]}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Evil Sudoku</h1>
+      <p class="lede">The extreme tier — puzzles that provably require X-Wings, XY-Wings, and forcing chains. Not fewer clues. Harder logic.</p>
+      <p><a class="cta" href="/?v=classic&amp;tier=nightmare">Play evil sudoku</a></p>
+
+      <h2>What earns the grade</h2>
+      <p>Most "evil" or "extreme" sudoku is graded by clue count or solver timing — neither says anything about the logic you'll face. Stillgrid grades by <strong>required technique</strong>: our solver works every puzzle like a human, simplest move first, and a puzzle only reaches the top tier when it cannot be finished without chain-based techniques. We call that tier <strong>Nightmare</strong> — same beast other sites call evil, extreme, or expert — and every puzzle served at it has been verified to deserve it.</p>
+      <p>Prefer a different intensity? Every puzzle on <a href="/classic">Stillgrid</a> is graded on the same honest ladder, from Easy up.</p>
+
+      <h2>A certified evil puzzle</h2>
+      <p>Proof over promises. Our grader solved this exact puzzle in 75 steps, escalating only when every simpler technique ran dry — and it had to reach for X-Wings, XY-Wings, and forcing chains before the grid gave in. The full path:</p>
+      <div class="sample" data-sample-seed="113" data-sample-min-clues="22" data-sample-givens="..1....6.8....32..76...........9682...2.1..3.....4.9...5...46.......749.....3...8">
+        <table class="board" role="img" aria-label="A certified evil sudoku: 24 givens, graded Nightmare — provably requires X-Wing, XY-Wing, and forcing chains."><tbody><tr><td></td><td></td><td class="g">1</td><td class="bl"></td><td></td><td></td><td class="bl"></td><td class="g">6</td><td></td></tr><tr><td class="g">8</td><td></td><td></td><td class="bl"></td><td></td><td class="g">3</td><td class="bl g">2</td><td></td><td></td></tr><tr><td class="g">7</td><td class="g">6</td><td></td><td class="bl"></td><td></td><td></td><td class="bl"></td><td></td><td></td></tr><tr><td class="bt"></td><td class="bt"></td><td class="bt"></td><td class="bt bl"></td><td class="bt g">9</td><td class="bt g">6</td><td class="bt bl g">8</td><td class="bt g">2</td><td class="bt"></td></tr><tr><td></td><td></td><td class="g">2</td><td class="bl"></td><td class="g">1</td><td></td><td class="bl"></td><td class="g">3</td><td></td></tr><tr><td></td><td></td><td></td><td class="bl"></td><td class="g">4</td><td></td><td class="bl g">9</td><td></td><td></td></tr><tr><td class="bt"></td><td class="bt g">5</td><td class="bt"></td><td class="bt bl"></td><td class="bt"></td><td class="bt g">4</td><td class="bt bl g">6</td><td class="bt"></td><td class="bt"></td></tr><tr><td></td><td></td><td></td><td class="bl"></td><td></td><td class="g">7</td><td class="bl g">4</td><td class="g">9</td><td></td></tr><tr><td></td><td></td><td></td><td class="bl"></td><td class="g">3</td><td></td><td class="bl"></td><td></td><td class="g">8</td></tr></tbody></table>
+      </div>
+      <p style="text-align:center; color: var(--color-ink-soft); font-size: 0.9rem;">24 givens · graded <strong>Nightmare</strong> · 75 solver steps</p>
+      <ul class="tech-list">
+        <li><span><a href="/learn#naked-single">Naked single</a></span><span class="n">× 50</span></li>
+        <li><span><a href="/learn#hidden-single">Hidden single</a></span><span class="n">× 7</span></li>
+        <li><span><a href="/learn/core#naked-pair">Naked pair</a></span><span class="n">× 2</span></li>
+        <li><span><a href="/learn/core#hidden-pair">Hidden pair</a></span><span class="n">× 1</span></li>
+        <li><span><a href="/learn/core#pointing-pair">Pointing pair</a></span><span class="n">× 6</span></li>
+        <li><span><a href="/learn/advanced#x-wing">X-Wing</a></span><span class="n">× 2</span></li>
+        <li><span><a href="/learn/advanced#swordfish">XY-Wing</a></span><span class="n">× 2</span></li>
+        <li><span><a href="/learn/advanced#swordfish">Forcing chain</a></span><span class="n">× 5</span></li>
+      </ul>
+      <p>Have a puzzle you suspect is evil? <a href="/grade">Grade it yourself</a> — same ladder, same honesty.</p>
+
+      <h2>How to solve one</h2>
+      <ul>
+        <li><strong>Exhaust the quiet moves.</strong> Fill every naked and hidden single first. Evil puzzles hand you a few before the wall — take them, they anchor everything after.</li>
+        <li><strong>Mine the pencil marks.</strong> Note every candidate, then squeeze: naked and hidden pairs, pointing pairs. Each elimination is small; together they expose the pattern the puzzle hinges on.</li>
+        <li><strong>Hunt the patterns.</strong> When simple logic stalls, the puzzle is demanding a pattern: X-Wing rectangles, Swordfish across three lines, or an XY-Wing pivot. Scan candidate pairs row by row.</li>
+        <li><strong>Follow the chains.</strong> The hardest grids need chains — follow a candidate's implications from cell to cell until an assumption contradicts itself. That contradiction is the solve.</li>
+      </ul>
+      <p>The full ladder, with examples, lives on the <a href="/learn">learn pages</a>.</p>
+
+      <h2>Common questions</h2>
+      <div class="faq">
+        <h3>What is evil sudoku?</h3>
+        <p>Evil sudoku is the hardest tier of sudoku — puzzles that cannot be finished with basic techniques alone. A genuine evil puzzle forces advanced patterns like X-Wing, Swordfish, XY-Wing, or forcing chains. The honest test is which techniques a puzzle requires, not how few clues it has: removing clues makes a grid emptier, not necessarily harder.</p>
+        <h3>Is evil sudoku the same as extreme or expert sudoku?</h3>
+        <p>The names blur into each other — sites variously call their hardest tier evil, extreme, expert, or fiendish, and there is no standard. On Stillgrid the top grade is called Nightmare, and it is earned, not asserted: a puzzle only grades Nightmare when our solver provably needs chain-based techniques to finish it.</p>
+        <h3>Are Stillgrid's evil sudoku puzzles free?</h3>
+        <p>Yes. Evil (Nightmare) puzzles are free to play, with no signup needed to start. Each one is generated fresh and verified by the grader to require the techniques its grade claims.</p>
+      </div>
+
+      <h2>Try a variant</h2>
+      <div class="variant-row">
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/killer">Killer Sudoku</a>
+        <a href="/sudoku-16x16">16×16 Sudoku</a>
+        <a href="/killer-sudoku-calculator">Killer Sudoku Calculator</a>
+        <a href="/grade">Sudoku Difficulty Grader</a>
+        <a href="/daily">Daily Sudoku Archive</a>
+        <a href="/learn">Learn how to play</a>
+      </div>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+  </body>
+</html>

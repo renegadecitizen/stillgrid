@@ -60,11 +60,13 @@ function mistakesPhrase(n: number): string {
 
 export type EntryParam =
   | { mode: "daily"; variant: "classic" | "killer"; date?: string }
-  | { mode: "casual"; variant: ShareVariant; size?: 6 | 9 | 16 };
+  | { mode: "casual"; variant: ShareVariant; size?: 6 | 9 | 16; tier?: string };
 
 const DAILY_VARIANTS = ["classic", "killer"] as const;
 const CASUAL_VARIANTS = ["classic", "xsudoku", "jigsaw", "killer"] as const;
 const ENTRY_SIZES = [6, 9, 16] as const;
+// Grader labels; App.tsx snaps to what the (variant, size) actually offers.
+const ENTRY_TIERS = ["easy", "medium", "hard", "diabolical", "nightmare"] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function parseEntryParam(search: string): EntryParam | null {
@@ -81,6 +83,8 @@ export function parseEntryParam(search: string): EntryParam | null {
     const entry: EntryParam = { mode: "casual", variant: v as ShareVariant };
     const size = Number(params.get("size"));
     if ((ENTRY_SIZES as readonly number[]).includes(size)) entry.size = size as 6 | 9 | 16;
+    const tier = params.get("tier");
+    if (tier && (ENTRY_TIERS as readonly string[]).includes(tier)) entry.tier = tier;
     return entry;
   }
   return null;

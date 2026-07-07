@@ -320,7 +320,7 @@ app.get("/daily/:kind/:date", async (req, res) => {
 
 // Prerendered HTML pages for SEO. Must be registered before the 404 handler
 // so /killer, /privacy, etc. resolve to their pages rather than the catch-all.
-export const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "sudoku-16x16", "privacy", "learn", "killer-sudoku-calculator", "grade"] as const;
+export const LANDING_ROUTES = ["classic", "killer", "jigsaw", "xsudoku", "sudoku-16x16", "privacy", "learn", "killer-sudoku-calculator", "grade", "evil-sudoku"] as const;
 
 export const LEARN_SUBPAGES = {
   "/learn/core": "learn-core.html",

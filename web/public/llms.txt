@@ -13,6 +13,7 @@
 - [Jigsaw Sudoku](https://stillgrid.app/jigsaw): Nine irregular connected regions replace the 3×3 boxes. Also called irregular or squiggly sudoku.
 - [Killer Sudoku](https://stillgrid.app/killer): Dashed cages with target sums replace given digits; cage cells sum to the target with no repeats, on top of classic rules.
 - [16×16 Sudoku (Hexadoku)](https://stillgrid.app/sudoku-16x16): Giant 16×16 grid using digits 1–9 plus letters A–G in every row, column, and 4×4 box. Classic and X-Sudoku are playable at 16×16.
+- [Evil Sudoku](https://stillgrid.app/evil-sudoku): The extreme tier — puzzles that provably require advanced techniques (X-Wing, XY-Wing, forcing chains), verified by the grader rather than asserted. Stillgrid's name for this tier is Nightmare.
 
 ## Tools
 

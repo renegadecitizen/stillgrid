@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { generate, grade } from "./engine.js";
 import { GRADE_VARIANTS, parseSize, variantSupportsSize } from "./index.js";
@@ -70,6 +70,39 @@ describe.skipIf(!HAVE_ENGINE)("grade with variant", () => {
     if (g.outcome === "solved") {
       expect(g.tier).toBeGreaterThanOrEqual(1);
       expect(Object.keys(g.technique_counts).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+// /evil-sudoku bakes a real generated puzzle + its grade path into static
+// HTML. Pin the page to the engine so a generator/grader change can't leave
+// the page's certificate stale.
+describe.skipIf(!HAVE_ENGINE)("evil-sudoku baked sample", () => {
+  it("matches its seed and still grades nightmare with the claimed path", async () => {
+    const page = readFileSync(
+      resolve(import.meta.dirname, "../../web/public/evil-sudoku.html"),
+      "utf8",
+    );
+    const seed = Number(/data-sample-seed="(\d+)"/.exec(page)?.[1]);
+    const minClues = Number(/data-sample-min-clues="(\d+)"/.exec(page)?.[1]);
+    const givens = /data-sample-givens="([.\d]+)"/.exec(page)?.[1];
+    expect(seed).toBeGreaterThan(0);
+    expect(givens).toHaveLength(81);
+
+    const p = await generate({ variant: "classic", seed, minClues });
+    expect(p.givens).toBe(givens);
+
+    const g = await grade(p.givens);
+    expect(g.outcome).toBe("solved");
+    if (g.outcome === "solved") {
+      expect(g.tier_label).toBe("nightmare");
+      // The page's visible claims: 75 steps, chains ×5, XY-Wing ×2, X-Wing ×2.
+      expect(g.steps).toBe(75);
+      expect(g.technique_counts["ForcingChain"]).toBe(5);
+      expect(g.technique_counts["XYWing"]).toBe(2);
+      expect(
+        (g.technique_counts["XWingRow"] ?? 0) + (g.technique_counts["XWingCol"] ?? 0),
+      ).toBe(2);
     }
   });
 });
