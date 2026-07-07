@@ -22,6 +22,7 @@ export default defineConfig({
         learnVariants: "learn-variants.html",
         learnXyWing: "learn-xy-wing.html",
         learnSwordfish: "learn-swordfish.html",
+        learnColoring: "learn-coloring.html",
         killerCalculator: "killer-sudoku-calculator.html",
         grade: "grade.html",
       },

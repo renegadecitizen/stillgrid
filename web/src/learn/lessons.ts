@@ -334,6 +334,53 @@ const swordfish: Lesson = {
   ],
 };
 
+// --- simple coloring: digit 6, a chain of three strong links ---
+// Row 1 links (1,1)–(1,7); column 7 links (1,7)–(6,7); row 6 links (6,7)–(6,3).
+// Colouring alternately gives colour A = {(1,1),(6,7)}, colour B = {(1,7),(6,3)}.
+// The victim (6,1) sees colour A via column 1 and colour B via row 6, so it loses
+// its 6 whichever colour turns out to be the true set.
+const coloringCands: Record<number, number[]> = {
+  [ix(1, 1)]: [1, 6], [ix(1, 7)]: [2, 6],
+  [ix(6, 7)]: [3, 6], [ix(6, 3)]: [4, 6],
+  [ix(6, 1)]: [5, 6],
+};
+const coloringA = [ix(1, 1), ix(6, 7)];
+const coloringB = [ix(1, 7), ix(6, 3)];
+
+const coloring: Lesson = {
+  id: "coloring",
+  title: "Simple Coloring",
+  size: 9,
+  steps: [
+    {
+      caption: "Take one digit — 6. Each highlighted unit has only two spots for it, a strong link. Colour along the chain, alternating two colours.",
+      grid: grid9Cands({}, coloringCands),
+      highlights: [
+        { cells: coloringA, kind: "target" },
+        { cells: coloringB, kind: "unit" },
+      ],
+    },
+    {
+      caption: "One colour is the true 6 everywhere, the other is blank — we don't know which. This cell sees a cell of each colour.",
+      grid: grid9Cands({}, coloringCands),
+      highlights: [
+        { cells: coloringA, kind: "target" },
+        { cells: coloringB, kind: "unit" },
+        { cells: [ix(6, 1)], kind: "elim" },
+      ],
+    },
+    {
+      caption: "Whichever colour wins, this cell sits beside a 6 — so it can't be one. Remove it.",
+      grid: grid9Cands({}, { ...coloringCands, [ix(6, 1)]: [5] }),
+      highlights: [
+        { cells: coloringA, kind: "target" },
+        { cells: coloringB, kind: "unit" },
+        { cells: [ix(6, 1)], kind: "elim" },
+      ],
+    },
+  ],
+};
+
 // --- x-sudoku: the main diagonal is an extra unit ---
 // Eight of the nine diagonal cells carry 1–7 and 9; only (7,7) is empty and
 // only 8 is missing, so the diagonal forces (7,7) = 8.
@@ -459,6 +506,7 @@ export const LESSONS: Lesson[] = [
   xWing,
   xyWing,
   swordfish,
+  coloring,
   xSudoku,
   jigsaw,
   killer,

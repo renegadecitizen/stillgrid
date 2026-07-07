@@ -18,12 +18,14 @@ describe("LEARN_SUBPAGES", () => {
       "/learn/variants",
       "/learn/xy-wing",
       "/learn/swordfish",
+      "/learn/coloring",
     ]);
     expect(LEARN_SUBPAGES["/learn/core"]).toBe("learn-core.html");
     expect(LEARN_SUBPAGES["/learn/advanced"]).toBe("learn-advanced.html");
     expect(LEARN_SUBPAGES["/learn/variants"]).toBe("learn-variants.html");
     expect(LEARN_SUBPAGES["/learn/xy-wing"]).toBe("learn-xy-wing.html");
     expect(LEARN_SUBPAGES["/learn/swordfish"]).toBe("learn-swordfish.html");
+    expect(LEARN_SUBPAGES["/learn/coloring"]).toBe("learn-coloring.html");
   });
 });
 

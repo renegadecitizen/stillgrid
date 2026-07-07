@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Simple Coloring sudoku technique — how it works, with examples | Stillgrid</title>
+    <meta name="description" content="Learn simple coloring: colour a chain of strong links in two colours, then remove the digit from any cell that sees both. Interactive walkthrough, the parity proof, how to scan for one, and a real puzzle that provably needs a coloring move." />
+    <link rel="canonical" href="https://stillgrid.app/learn/coloring" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Simple Coloring sudoku technique — Stillgrid" />
+    <meta property="og:description" content="One digit, a chain of strong links, two colours — every cell that sees both loses the digit. Interactive walkthrough plus a real puzzle that provably needs a coloring move." />
+    <meta property="og:url" content="https://stillgrid.app/learn/coloring" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Learn sudoku on Stillgrid." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Umami -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a623ea5c-9c7e-45c2-9d15-6c56bdfe0593" data-domains="stillgrid.app"></script>
+    <style>
+.board { border-collapse: separate; border-spacing: 0; border: 2px solid var(--color-ink); margin: 1.5rem auto; }
+.board td { width: 44px; height: 44px; padding: 0; text-align: center; vertical-align: middle;
+  font-family: "Fraunces", Georgia, serif; font-size: 1.3rem; color: var(--color-ink);
+  border-top: 1px solid var(--color-border); border-left: 1px solid var(--color-border); }
+.board tr:first-child td { border-top: none; }
+.board td:first-child { border-left: none; }
+.board td.bt { border-top: 2px solid var(--color-ink); }
+.board td.bl { border-left: 2px solid var(--color-ink); }
+@media (max-width: 480px) { .board td { width: 34px; height: 34px; font-size: 1.05rem; } }
+.sample-meta { text-align: center; color: var(--color-ink-soft); font-size: 0.9rem; }
+    </style>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"LearningResource","name":"Simple Coloring sudoku technique","description":"Colour a single digit's strong links in two alternating colours, then eliminate the digit from any cell that sees both — interactive walkthrough, the parity proof, scanning heuristics, and a certified example puzzle.","learningResourceType":"Tutorial","educationalLevel":"Advanced","teaches":["Simple Coloring"],"inLanguage":"en","isAccessibleForFree":true,"url":"https://stillgrid.app/learn/coloring","publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is simple coloring in sudoku?","acceptedAnswer":{"@type":"Answer","text":"Simple coloring works on one digit at a time. Wherever a unit has only two candidate cells for that digit, the two cells are strongly linked — exactly one of them holds the digit. You colour along these links in two alternating colours, so one colour is the true set of that digit and the other is empty. Then two rules eliminate: any cell that sees both colours can never hold the digit, and any colour that appears twice inside one unit is false outright, making the other colour true."}},{"@type":"Question","name":"Do I have to guess which colour is the right one?","acceptedAnswer":{"@type":"Answer","text":"No — and that is the whole point. You never decide which colour is the true digit. Both eliminations hold in either case: a cell that sees both colours loses the digit no matter which colour wins, and a colour that repeats inside a single unit is impossible on its own. Coloring is deduction, not trial and error."}},{"@type":"Question","name":"How hard is simple coloring?","acceptedAnswer":{"@type":"Answer","text":"Stillgrid grades coloring in the Nightmare tier — the top of the technique ladder, alongside forcing chains and ALS moves. Puzzles that genuinely require it are rare among generated grids; the sample on this page provably needs exactly one coloring move and nothing harder."}}]}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Simple Coloring</h1>
+      <p class="lede">One digit, a chain of strong links, two colours — and every cell that sees both loses the digit.</p>
+      <p><a class="cta" href="/?v=classic&amp;tier=nightmare">Play hard puzzles</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn">How to play</a>
+        <a href="/learn/core">Core techniques</a>
+        <a href="/learn/advanced">Advanced</a>
+        <a href="/learn/variants">Variants &amp; sizes</a>
+      </nav>
+
+      <h2>The pattern</h2>
+      <p>Pick one digit. Wherever a unit — a row, column, or box — has <strong>only two cells</strong> left where that digit can go, those two cells form a <strong>strong link</strong>: exactly one of them is the digit. Chain the strong links together and <strong>colour the ends alternately</strong>. When you're done, one colour is the digit's true set and the other is entirely blank — you just don't know yet which is which, and you don't need to.</p>
+      <div class="lesson" data-lesson="coloring">
+        <p class="lesson-fallback">Colour a digit's strong links in two alternating colours. A cell that sees both colours can't hold the digit — whichever colour turns out true, that cell would sit beside a copy — so the digit is removed.</p>
+      </div>
+
+      <h2>Why it works</h2>
+      <p>Every strong link is a coin flip with two faces, and colouring records the parity: the two colours are the two faces. Exactly one colour ends up holding the digit everywhere it's painted; the other holds it nowhere. So consider any uncoloured cell that <em>sees one cell of each colour</em>. If the first colour is the true one, the cell collides with that copy; if the second colour is true, it collides with the other. There is no third option — the digit is impossible there.</p>
+      <p>A second elimination falls out of the same parity: if two cells of the <strong>same colour</strong> ever share a unit, that colour would place the digit twice in one unit — impossible — so that colour is false and the <em>other</em> colour is true everywhere at once.</p>
+
+      <h2>How to spot one</h2>
+      <ul>
+        <li><strong>Work one digit at a time.</strong> Coloring is single-digit hunting — choose a digit whose candidates are already thin.</li>
+        <li><strong>Find the strong links.</strong> List every row, column, and box where the digit has exactly two candidate cells. Those pairs are your chain material.</li>
+        <li><strong>Colour along the chain.</strong> Start anywhere, alternate two colours across each strong link, and keep going while links connect.</li>
+        <li><strong>Check for a repeated colour in a unit.</strong> If one colour shows up twice in the same unit, it's dead — flip every cell to the other colour.</li>
+        <li><strong>Hunt cells that see both colours.</strong> Any uncoloured candidate sharing a unit with one cell of each colour loses the digit.</li>
+      </ul>
+
+      <h2>A puzzle that needs one</h2>
+      <p>Generated and verified by our grader: singles carry this puzzle almost the whole way — then it stalls, and a <strong>single simple-coloring move</strong> is the only thing that breaks it open. That one move is what earns it the Nightmare grade.</p>
+      <div class="sample" data-sample-seed="50" data-sample-min-clues="22" data-sample-givens="....38.4.8...2...7...........7....8...43.12......5...91...93..5..967..1.2..5...9.">
+        <table class="board" role="img" aria-label="A 25-given sudoku graded Nightmare: solvable with singles plus exactly one Simple Coloring move."><tbody><tr><td></td><td></td><td></td><td class="bl"></td><td class="g">3</td><td class="g">8</td><td class="bl"></td><td class="g">4</td><td></td></tr><tr><td class="g">8</td><td></td><td></td><td class="bl"></td><td class="g">2</td><td></td><td class="bl"></td><td></td><td class="g">7</td></tr><tr><td></td><td></td><td></td><td class="bl"></td><td></td><td></td><td class="bl"></td><td></td><td></td></tr><tr><td class="bt"></td><td class="bt"></td><td class="bt g">7</td><td class="bt bl"></td><td class="bt"></td><td class="bt"></td><td class="bt bl"></td><td class="bt g">8</td><td class="bt"></td></tr><tr><td></td><td></td><td class="g">4</td><td class="bl g">3</td><td></td><td class="g">1</td><td class="bl g">2</td><td></td><td></td></tr><tr><td></td><td></td><td></td><td class="bl"></td><td class="g">5</td><td></td><td class="bl"></td><td></td><td class="g">9</td></tr><tr><td class="bt g">1</td><td class="bt"></td><td class="bt"></td><td class="bt bl"></td><td class="bt g">9</td><td class="bt g">3</td><td class="bt bl"></td><td class="bt"></td><td class="bt g">5</td></tr><tr><td></td><td></td><td class="g">9</td><td class="bl g">6</td><td class="g">7</td><td></td><td class="bl"></td><td class="g">1</td><td></td></tr><tr><td class="g">2</td><td></td><td></td><td class="bl g">5</td><td></td><td></td><td class="bl"></td><td class="g">9</td><td></td></tr></tbody></table>
+      </div>
+      <p class="sample-meta">25 givens · graded <strong>Nightmare</strong> · 57 solver steps · Simple Coloring × 1</p>
+      <p>Copy it into the <a href="/grade">difficulty grader</a> to see the certificate yourself, then go colouring on a fresh board.</p>
+
+      <h2>Common questions</h2>
+      <div class="faq">
+        <h3>What is simple coloring in sudoku?</h3>
+        <p>Simple coloring works on one digit at a time. Wherever a unit has only two candidate cells for that digit, the two cells are strongly linked — exactly one of them holds the digit. You colour along these links in two alternating colours, so one colour is the true set of that digit and the other is empty. Then two rules eliminate: any cell that sees both colours can never hold the digit, and any colour that appears twice inside one unit is false outright, making the other colour true.</p>
+        <h3>Do I have to guess which colour is the right one?</h3>
+        <p>No — and that is the whole point. You never decide which colour is the true digit. Both eliminations hold in either case: a cell that sees both colours loses the digit no matter which colour wins, and a colour that repeats inside a single unit is impossible on its own. Coloring is deduction, not trial and error.</p>
+        <h3>How hard is simple coloring?</h3>
+        <p>Stillgrid grades coloring in the Nightmare tier — the top of the technique ladder, alongside forcing chains and ALS moves. Puzzles that genuinely require it are rare among generated grids; the sample on this page provably needs exactly one coloring move and nothing harder.</p>
+      </div>
+
+      <p class="learn-prev"><a href="/learn/swordfish">← Deep dive: Swordfish</a></p>
+      <p class="learn-next"><a href="/learn/advanced">Back to Advanced techniques →</a></p>
+
+      <h2>Try a variant</h2>
+      <div class="variant-row">
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/killer">Killer Sudoku</a>
+        <a href="/evil-sudoku">Evil Sudoku</a>
+        <a href="/killer-sudoku-calculator">Killer Sudoku Calculator</a>
+        <a href="/grade">Sudoku Difficulty Grader</a>
+        <a href="/daily">Daily Sudoku Archive</a>
+      </div>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/learn/main.ts"></script>
+  </body>
+</html>

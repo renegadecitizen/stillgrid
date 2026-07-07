@@ -143,4 +143,13 @@ describe.skipIf(!HAVE_ENGINE)("learn technique-page baked samples", () => {
     ).toBe(1);
     expect(g?.technique_counts["XYWing"]).toBe(1);
   });
+
+  it("coloring sample: Nightmare via exactly one Coloring move, nothing harder", async () => {
+    const g = await pageSample("learn-coloring.html");
+    expect(g?.tier_label).toBe("nightmare");
+    expect(g?.steps).toBe(57);
+    expect(g?.technique_counts["Coloring"]).toBe(1);
+    expect(g?.technique_counts["ForcingChain"] ?? 0).toBe(0);
+    expect(g?.technique_counts["Als"] ?? 0).toBe(0);
+  });
 });
