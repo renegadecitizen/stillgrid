@@ -11,11 +11,19 @@ describe("LANDING_ROUTES", () => {
 });
 
 describe("LEARN_SUBPAGES", () => {
-  it("maps the three nested learn routes to their html files", () => {
-    expect(Object.keys(LEARN_SUBPAGES)).toEqual(["/learn/core", "/learn/advanced", "/learn/variants"]);
+  it("maps every nested learn route to its html file", () => {
+    expect(Object.keys(LEARN_SUBPAGES)).toEqual([
+      "/learn/core",
+      "/learn/advanced",
+      "/learn/variants",
+      "/learn/xy-wing",
+      "/learn/swordfish",
+    ]);
     expect(LEARN_SUBPAGES["/learn/core"]).toBe("learn-core.html");
     expect(LEARN_SUBPAGES["/learn/advanced"]).toBe("learn-advanced.html");
     expect(LEARN_SUBPAGES["/learn/variants"]).toBe("learn-variants.html");
+    expect(LEARN_SUBPAGES["/learn/xy-wing"]).toBe("learn-xy-wing.html");
+    expect(LEARN_SUBPAGES["/learn/swordfish"]).toBe("learn-swordfish.html");
   });
 });
 

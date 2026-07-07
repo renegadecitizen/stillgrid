@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>XY-Wing sudoku technique — how it works, with examples | Stillgrid</title>
+    <meta name="description" content="Learn the XY-Wing: a pivot and two pincers that force an elimination. Interactive step-by-step walkthrough, why the logic works, how to scan for one, and a real puzzle that provably needs exactly one XY-Wing." />
+    <link rel="canonical" href="https://stillgrid.app/learn/xy-wing" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="XY-Wing sudoku technique — Stillgrid" />
+    <meta property="og:description" content="A pivot, two pincers, one forced elimination. Interactive walkthrough plus a real puzzle that provably needs exactly one XY-Wing." />
+    <meta property="og:url" content="https://stillgrid.app/learn/xy-wing" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Learn sudoku on Stillgrid." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Umami -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a623ea5c-9c7e-45c2-9d15-6c56bdfe0593"></script>
+    <style>
+.board { border-collapse: separate; border-spacing: 0; border: 2px solid var(--color-ink); margin: 1.5rem auto; }
+.board td { width: 44px; height: 44px; padding: 0; text-align: center; vertical-align: middle;
+  font-family: "Fraunces", Georgia, serif; font-size: 1.3rem; color: var(--color-ink);
+  border-top: 1px solid var(--color-border); border-left: 1px solid var(--color-border); }
+.board tr:first-child td { border-top: none; }
+.board td:first-child { border-left: none; }
+.board td.bt { border-top: 2px solid var(--color-ink); }
+.board td.bl { border-left: 2px solid var(--color-ink); }
+@media (max-width: 480px) { .board td { width: 34px; height: 34px; font-size: 1.05rem; } }
+.sample-meta { text-align: center; color: var(--color-ink-soft); font-size: 0.9rem; }
+    </style>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"LearningResource","name":"XY-Wing sudoku technique","description":"A pivot and two pincers that force an elimination — interactive walkthrough, the two-case proof, scanning heuristics, and a certified example puzzle.","learningResourceType":"Tutorial","educationalLevel":"Advanced","teaches":["XY-Wing"],"inLanguage":"en","isAccessibleForFree":true,"url":"https://stillgrid.app/learn/xy-wing","publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is the XY-Wing technique in sudoku?","acceptedAnswer":{"@type":"Answer","text":"An XY-Wing is a three-cell pattern: a pivot holding exactly two candidates, X and Y, and two pincers the pivot sees — one holding X and Z, the other Y and Z. Whichever value the pivot takes, one of the pincers is forced to be Z. So any cell that sees both pincers can never be Z, and Z is removed from it."}},{"@type":"Question","name":"How hard is XY-Wing?","acceptedAnswer":{"@type":"Answer","text":"On Stillgrid's technique ladder the XY-Wing sits in the Diabolical tier — above X-Wing, below full chains. Puzzles that require one are uncommon among generated grids; the sample on this page provably needs exactly one XY-Wing and nothing harder."}},{"@type":"Question","name":"Does the eliminated cell need to see the pivot?","acceptedAnswer":{"@type":"Answer","text":"No — that's the classic mistake. The elimination applies to any cell that sees both pincers; whether it sees the pivot is irrelevant. In practice victims often sit near the pivot, but the rule to check is only: does this cell share a unit with each pincer?"}}]}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>XY-Wing</h1>
+      <p class="lede">A pivot, two pincers, and one forced elimination — the smallest chain in sudoku.</p>
+      <p><a class="cta" href="/?v=classic&amp;tier=nightmare">Play hard puzzles</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn">How to play</a>
+        <a href="/learn/core">Core techniques</a>
+        <a href="/learn/advanced">Advanced</a>
+        <a href="/learn/variants">Variants &amp; sizes</a>
+      </nav>
+
+      <h2>The pattern</h2>
+      <p>Find a cell with exactly two candidates — call them X and Y. That's the <strong>pivot</strong>. Now find two more bivalue cells the pivot can see: one holding X and Z, one holding Y and Z. Those are the <strong>pincers</strong>. The three cells form a hinge, and the hinge squeezes Z out of every cell that sees both pincers.</p>
+      <div class="lesson" data-lesson="xy-wing">
+        <p class="lesson-fallback">A pivot with candidates 1 and 2 sees a {1,3} pincer in its row and a {2,3} pincer in its column. Either pivot value forces a pincer to 3, so a cell seeing both pincers loses its 3.</p>
+      </div>
+
+      <h2>Why it works</h2>
+      <p>Run the pivot's two cases. If the pivot is X, the X-Z pincer loses its X and becomes Z. If the pivot is Y, the Y-Z pincer becomes Z. There is no third case — the pivot has only those two candidates. So <em>some</em> pincer ends up as Z in every possible world, and a cell that sees both pincers would collide with that Z no matter which world you're in. It can never hold Z.</p>
+
+      <h2>How to spot one</h2>
+      <ul>
+        <li><strong>Inventory the bivalue cells.</strong> XY-Wings live entirely in cells with two candidates — after your pairs and pointing eliminations, list them.</li>
+        <li><strong>Pick a pivot and read its letters.</strong> For a {1,2} cell, you're hunting peers of the form {1,z} and {2,z} with the same z.</li>
+        <li><strong>Check the pincers share z.</strong> {1,3} and {2,3} work; {1,3} and {2,4} don't.</li>
+        <li><strong>Hunt victims by the pincers, not the pivot.</strong> The cells that lose z are the ones seeing <em>both pincers</em> — scan the intersections of their units.</li>
+      </ul>
+
+      <h2>A puzzle that needs exactly one</h2>
+      <p>Generated and verified by our grader: this puzzle solves with 35 naked singles and 20 hidden singles — plus <strong>exactly one XY-Wing</strong>, the single advanced move the whole solve turns on. That one move earns it the Diabolical grade.</p>
+      <div class="sample" data-sample-seed="452" data-sample-min-clues="22" data-sample-givens="8..4...51...3..9..1....9..4..16....268..5.19.7...9..6..3...64.....7..........1..9">
+        <table class="board" role="img" aria-label="A 26-given sudoku graded Diabolical: solvable with singles plus exactly one XY-Wing."><tbody><tr><td class="g">8</td><td></td><td></td><td class="bl g">4</td><td></td><td></td><td class="bl"></td><td class="g">5</td><td class="g">1</td></tr><tr><td></td><td></td><td></td><td class="bl g">3</td><td></td><td></td><td class="bl g">9</td><td></td><td></td></tr><tr><td class="g">1</td><td></td><td></td><td class="bl"></td><td></td><td class="g">9</td><td class="bl"></td><td></td><td class="g">4</td></tr><tr><td class="bt"></td><td class="bt"></td><td class="bt g">1</td><td class="bt bl g">6</td><td class="bt"></td><td class="bt"></td><td class="bt bl"></td><td class="bt"></td><td class="bt g">2</td></tr><tr><td class="g">6</td><td class="g">8</td><td></td><td class="bl"></td><td class="g">5</td><td></td><td class="bl g">1</td><td class="g">9</td><td></td></tr><tr><td class="g">7</td><td></td><td></td><td class="bl"></td><td class="g">9</td><td></td><td class="bl"></td><td class="g">6</td><td></td></tr><tr><td class="bt"></td><td class="bt g">3</td><td class="bt"></td><td class="bt bl"></td><td class="bt"></td><td class="bt g">6</td><td class="bt bl g">4</td><td class="bt"></td><td class="bt"></td></tr><tr><td></td><td></td><td></td><td class="bl g">7</td><td></td><td></td><td class="bl"></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td class="bl"></td><td></td><td class="g">1</td><td class="bl"></td><td></td><td class="g">9</td></tr></tbody></table>
+      </div>
+      <p class="sample-meta">26 givens · graded <strong>Diabolical</strong> · 56 solver steps · XY-Wing × 1</p>
+      <p>Copy it into the <a href="/grade">difficulty grader</a> to see the certificate yourself, or take the scan list above hunting on a fresh board.</p>
+
+      <h2>Common questions</h2>
+      <div class="faq">
+        <h3>What is the XY-Wing technique in sudoku?</h3>
+        <p>An XY-Wing is a three-cell pattern: a pivot holding exactly two candidates, X and Y, and two pincers the pivot sees — one holding X and Z, the other Y and Z. Whichever value the pivot takes, one of the pincers is forced to be Z. So any cell that sees both pincers can never be Z, and Z is removed from it.</p>
+        <h3>How hard is XY-Wing?</h3>
+        <p>On Stillgrid's technique ladder the XY-Wing sits in the Diabolical tier — above X-Wing, below full chains. Puzzles that require one are uncommon among generated grids; the sample on this page provably needs exactly one XY-Wing and nothing harder.</p>
+        <h3>Does the eliminated cell need to see the pivot?</h3>
+        <p>No — that's the classic mistake. The elimination applies to any cell that sees both pincers; whether it sees the pivot is irrelevant. In practice victims often sit near the pivot, but the rule to check is only: does this cell share a unit with each pincer?</p>
+      </div>
+
+      <p class="learn-prev"><a href="/learn/advanced">← Advanced techniques</a></p>
+      <p class="learn-next"><a href="/learn/swordfish">Next deep dive: Swordfish →</a></p>
+
+      <h2>Try a variant</h2>
+      <div class="variant-row">
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/killer">Killer Sudoku</a>
+        <a href="/evil-sudoku">Evil Sudoku</a>
+        <a href="/killer-sudoku-calculator">Killer Sudoku Calculator</a>
+        <a href="/grade">Sudoku Difficulty Grader</a>
+        <a href="/daily">Daily Sudoku Archive</a>
+      </div>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/learn/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Swordfish sudoku technique — how it works, with examples | Stillgrid</title>
+    <meta name="description" content="Learn the Swordfish: the three-line X-Wing. Interactive step-by-step walkthrough, the pigeonhole logic behind it, the 2-2-2 form everyone misses, and a real puzzle that provably requires a Swordfish." />
+    <link rel="canonical" href="https://stillgrid.app/learn/swordfish" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Swordfish sudoku technique — Stillgrid" />
+    <meta property="og:description" content="The three-line X-Wing: three rows, three columns, one candidate pinned. Interactive walkthrough plus a certified example puzzle." />
+    <meta property="og:url" content="https://stillgrid.app/learn/swordfish" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Learn sudoku on Stillgrid." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Umami -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a623ea5c-9c7e-45c2-9d15-6c56bdfe0593"></script>
+    <style>
+.board { border-collapse: separate; border-spacing: 0; border: 2px solid var(--color-ink); margin: 1.5rem auto; }
+.board td { width: 44px; height: 44px; padding: 0; text-align: center; vertical-align: middle;
+  font-family: "Fraunces", Georgia, serif; font-size: 1.3rem; color: var(--color-ink);
+  border-top: 1px solid var(--color-border); border-left: 1px solid var(--color-border); }
+.board tr:first-child td { border-top: none; }
+.board td:first-child { border-left: none; }
+.board td.bt { border-top: 2px solid var(--color-ink); }
+.board td.bl { border-left: 2px solid var(--color-ink); }
+@media (max-width: 480px) { .board td { width: 34px; height: 34px; font-size: 1.05rem; } }
+.sample-meta { text-align: center; color: var(--color-ink-soft); font-size: 0.9rem; }
+    </style>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"LearningResource","name":"Swordfish sudoku technique","description":"The three-line X-Wing — interactive walkthrough, the pigeonhole proof, the 2-2-2 form, and a certified example puzzle.","learningResourceType":"Tutorial","educationalLevel":"Advanced","teaches":["Swordfish"],"inLanguage":"en","isAccessibleForFree":true,"url":"https://stillgrid.app/learn/swordfish","publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is the Swordfish technique in sudoku?","acceptedAnswer":{"@type":"Answer","text":"A Swordfish is the three-line version of the X-Wing: one candidate digit is confined, across three rows, to the same three columns (or across three columns to the same three rows). Those three lines must place three copies of the digit — one per crossing line — so the candidate is removed from every other cell of the crossing lines."}},{"@type":"Question","name":"Do all nine Swordfish cells need the candidate?","acceptedAnswer":{"@type":"Answer","text":"No. Each of the three rows only needs the candidate in two or three of the shared columns — the 2-2-2 form is a perfectly good Swordfish, and it's the shape people miss. What matters is that none of the three rows offers the digit outside the three columns."}},{"@type":"Question","name":"How hard is a Swordfish?","acceptedAnswer":{"@type":"Answer","text":"Stillgrid grades Swordfish in the Diabolical tier, alongside XY-Wing — harder than an X-Wing, easier than full chains. The certified sample on this page requires one Swordfish and one XY-Wing to finish."}}]}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Swordfish</h1>
+      <p class="lede">The X-Wing, one size up: three rows, three columns, one candidate pinned across the grid.</p>
+      <p><a class="cta" href="/?v=classic&amp;tier=nightmare">Play hard puzzles</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn">How to play</a>
+        <a href="/learn/core">Core techniques</a>
+        <a href="/learn/advanced">Advanced</a>
+        <a href="/learn/variants">Variants &amp; sizes</a>
+      </nav>
+
+      <h2>The pattern</h2>
+      <p>Pick one digit. If you can find <strong>three rows</strong> where that digit's candidates all fall inside the <strong>same three columns</strong>, the digit is trapped: three rows need three copies, the three columns can absorb exactly one each. Every other cell in those columns loses the candidate. Swap rows and columns and the same logic runs the other way.</p>
+      <div class="lesson" data-lesson="swordfish">
+        <p class="lesson-fallback">Across three rows, candidate 4 appears only in the same three columns. Three rows place three 4s — one per column — so 4 is removed from every other cell of those columns.</p>
+      </div>
+
+      <h2>Why it works</h2>
+      <p>It's pigeonhole logic. Each of the three rows must contain the digit somewhere, and by assumption each row's only options sit in the three shared columns. Three digits, three columns, and no column can hold two (they'd collide) — so each column takes exactly one, from one of those rows. Any other cell in a shared column would be a second copy. Gone.</p>
+      <p>The X-Wing is this same argument with two lines; a Swordfish is three. (Four lines makes a Jellyfish — same proof, rarer sighting.)</p>
+
+      <h2>How to spot one</h2>
+      <ul>
+        <li><strong>Work one digit at a time.</strong> Swordfish hunting is digit-first, not cell-first — pick a digit with sparse candidates.</li>
+        <li><strong>List rows with 2–3 spots.</strong> Rows where the digit has only two or three candidate cells are your raw material.</li>
+        <li><strong>Look for a shared column set.</strong> Three such rows whose candidate columns fit inside one set of three columns — that's the fish.</li>
+        <li><strong>Don't demand all nine cells.</strong> The 2-2-2 cycle is legal and common; missing corners don't break the logic.</li>
+        <li><strong>Scan both orientations.</strong> Column-based Swordfish eliminate along rows — check both before moving on.</li>
+      </ul>
+
+      <h2>A puzzle that needs one</h2>
+      <p>Generated and verified by our grader: singles and two naked pairs carry this puzzle a long way — then it takes a <strong>Swordfish</strong> to break through, and an <a href="/learn/xy-wing">XY-Wing</a> to finish. That pair of moves earns it the Diabolical grade.</p>
+      <div class="sample" data-sample-seed="310" data-sample-min-clues="22" data-sample-givens="...7.4..6752.8.....68...3....6...8.12.4.1..6..7......2.....59...8..612.5...8.....">
+        <table class="board" role="img" aria-label="A 27-given sudoku graded Diabolical: requires a Swordfish and an XY-Wing."><tbody><tr><td></td><td></td><td></td><td class="bl g">7</td><td></td><td class="g">4</td><td class="bl"></td><td></td><td class="g">6</td></tr><tr><td class="g">7</td><td class="g">5</td><td class="g">2</td><td class="bl"></td><td class="g">8</td><td></td><td class="bl"></td><td></td><td></td></tr><tr><td></td><td class="g">6</td><td class="g">8</td><td class="bl"></td><td></td><td></td><td class="bl g">3</td><td></td><td></td></tr><tr><td class="bt"></td><td class="bt"></td><td class="bt g">6</td><td class="bt bl"></td><td class="bt"></td><td class="bt"></td><td class="bt bl g">8</td><td class="bt"></td><td class="bt g">1</td></tr><tr><td class="g">2</td><td></td><td class="g">4</td><td class="bl"></td><td class="g">1</td><td></td><td class="bl"></td><td class="g">6</td><td></td></tr><tr><td></td><td class="g">7</td><td></td><td class="bl"></td><td></td><td></td><td class="bl"></td><td></td><td class="g">2</td></tr><tr><td class="bt"></td><td class="bt"></td><td class="bt"></td><td class="bt bl"></td><td class="bt"></td><td class="bt g">5</td><td class="bt bl g">9</td><td class="bt"></td><td class="bt"></td></tr><tr><td></td><td class="g">8</td><td></td><td class="bl"></td><td class="g">6</td><td class="g">1</td><td class="bl g">2</td><td></td><td class="g">5</td></tr><tr><td></td><td></td><td></td><td class="bl g">8</td><td></td><td></td><td class="bl"></td><td></td><td></td></tr></tbody></table>
+      </div>
+      <p class="sample-meta">27 givens · graded <strong>Diabolical</strong> · 58 solver steps · Swordfish × 1, XY-Wing × 1</p>
+      <p>Copy it into the <a href="/grade">difficulty grader</a> to see the certificate yourself — then go fishing on a fresh board.</p>
+
+      <h2>Common questions</h2>
+      <div class="faq">
+        <h3>What is the Swordfish technique in sudoku?</h3>
+        <p>A Swordfish is the three-line version of the X-Wing: one candidate digit is confined, across three rows, to the same three columns (or across three columns to the same three rows). Those three lines must place three copies of the digit — one per crossing line — so the candidate is removed from every other cell of the crossing lines.</p>
+        <h3>Do all nine Swordfish cells need the candidate?</h3>
+        <p>No. Each of the three rows only needs the candidate in two or three of the shared columns — the 2-2-2 form is a perfectly good Swordfish, and it's the shape people miss. What matters is that none of the three rows offers the digit outside the three columns.</p>
+        <h3>How hard is a Swordfish?</h3>
+        <p>Stillgrid grades Swordfish in the Diabolical tier, alongside XY-Wing — harder than an X-Wing, easier than full chains. The certified sample on this page requires one Swordfish and one XY-Wing to finish.</p>
+      </div>
+
+      <p class="learn-prev"><a href="/learn/xy-wing">← Deep dive: XY-Wing</a></p>
+      <p class="learn-next"><a href="/learn/advanced">Back to Advanced techniques →</a></p>
+
+      <h2>Try a variant</h2>
+      <div class="variant-row">
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/killer">Killer Sudoku</a>
+        <a href="/evil-sudoku">Evil Sudoku</a>
+        <a href="/killer-sudoku-calculator">Killer Sudoku Calculator</a>
+        <a href="/grade">Sudoku Difficulty Grader</a>
+        <a href="/daily">Daily Sudoku Archive</a>
+      </div>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/learn/main.ts"></script>
+  </body>
+</html>

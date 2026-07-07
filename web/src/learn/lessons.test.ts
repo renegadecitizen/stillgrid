@@ -7,6 +7,8 @@ const REQUIRED_IDS = [
   "naked-pair",
   "pointing-pair",
   "x-wing",
+  "xy-wing",
+  "swordfish",
   "x-sudoku",
   "jigsaw",
   "killer",

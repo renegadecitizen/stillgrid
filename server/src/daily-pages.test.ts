@@ -152,7 +152,7 @@ describe("renderDailyPage", () => {
     expect(html).toContain('href="/?d=classic&amp;date=2026-07-06"');
     expect(html).toContain("tier-nightmare");
     expect(html).toContain('<a href="/learn#naked-single">Naked single</a>');
-    expect(html).toContain('<a href="/learn/advanced#swordfish">XY-Wing</a>');
+    expect(html).toContain('<a href="/learn/xy-wing">XY-Wing</a>');
     // Never leak the solution into the page.
     expect(html).not.toContain("1".repeat(81));
   });

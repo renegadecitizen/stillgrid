@@ -248,6 +248,92 @@ const xWing: Lesson = {
   ],
 };
 
+// --- xy-wing: pivot {1,2} at (4,4), pincers {1,3} at (4,0) and {2,3} at (0,4) ---
+// Whichever value the pivot takes, one pincer becomes 3 — so the corner cell
+// (0,0), which sees both pincers, can never be 3.
+const xyWingCands: Record<number, number[]> = {
+  [ix(4, 4)]: [1, 2],
+  [ix(4, 0)]: [1, 3],
+  [ix(0, 4)]: [2, 3],
+  [ix(0, 0)]: [3, 8],
+};
+
+const xyWing: Lesson = {
+  id: "xy-wing",
+  title: "XY-Wing",
+  size: 9,
+  steps: [
+    {
+      caption: "The pivot can only be 1 or 2. It sees two pincers: {1,3} in its row, {2,3} in its column.",
+      grid: grid9Cands({}, xyWingCands),
+      highlights: [
+        { cells: [ix(4, 4)], kind: "target" },
+        { cells: [ix(4, 0), ix(0, 4)], kind: "unit" },
+      ],
+    },
+    {
+      caption: "Try both: pivot 1 forces the row pincer to 3; pivot 2 forces the column pincer to 3. Either way, one pincer is a 3.",
+      grid: grid9Cands({}, xyWingCands),
+      highlights: [
+        { cells: [ix(4, 4)], kind: "target" },
+        { cells: [ix(4, 0), ix(0, 4)], kind: "unit" },
+      ],
+    },
+    {
+      caption: "The corner cell sees both pincers, so it can never be 3 — remove it.",
+      grid: grid9Cands({}, { ...xyWingCands, [ix(0, 0)]: [8] }),
+      highlights: [
+        { cells: [ix(4, 0), ix(0, 4)], kind: "unit" },
+        { cells: [ix(0, 0)], kind: "elim" },
+      ],
+    },
+  ],
+};
+
+// --- swordfish: candidate 4 confined to columns 1/4/7 across rows 1, 4, 7 ---
+// The classic 2-2-2 cycle: each row offers two of the three columns. Three
+// rows place three 4s into three columns — one each — so 4 leaves every other
+// cell of those columns.
+const swordfishCands: Record<number, number[]> = {
+  [ix(1, 1)]: [4, 7], [ix(1, 4)]: [4, 9],
+  [ix(4, 4)]: [2, 4], [ix(4, 7)]: [4, 6],
+  [ix(7, 1)]: [4, 5], [ix(7, 7)]: [3, 4],
+  [ix(3, 1)]: [4, 8], [ix(5, 4)]: [1, 4], [ix(0, 7)]: [4, 6],
+};
+const swordfishCorners = [ix(1, 1), ix(1, 4), ix(4, 4), ix(4, 7), ix(7, 1), ix(7, 7)];
+const swordfishVictims = [ix(3, 1), ix(5, 4), ix(0, 7)];
+
+const swordfish: Lesson = {
+  id: "swordfish",
+  title: "Swordfish",
+  size: 9,
+  steps: [
+    {
+      caption: "In each of three rows, the candidate 4 fits only in two of the same three columns.",
+      grid: grid9Cands({}, swordfishCands),
+      highlights: [{ cells: swordfishCorners, kind: "target" }],
+    },
+    {
+      caption: "Those three rows must place three 4s, and all of them land inside these three columns — one per column.",
+      grid: grid9Cands({}, swordfishCands),
+      highlights: [
+        { cells: swordfishCorners, kind: "target" },
+        { cells: swordfishVictims, kind: "unit" },
+      ],
+    },
+    {
+      caption: "The columns are spoken for, so every other 4 in them goes.",
+      grid: grid9Cands({}, {
+        ...swordfishCands,
+        [ix(3, 1)]: [8],
+        [ix(5, 4)]: [1],
+        [ix(0, 7)]: [6],
+      }),
+      highlights: [{ cells: swordfishVictims, kind: "elim" }],
+    },
+  ],
+};
+
 // --- x-sudoku: the main diagonal is an extra unit ---
 // Eight of the nine diagonal cells carry 1–7 and 9; only (7,7) is empty and
 // only 8 is missing, so the diagonal forces (7,7) = 8.
@@ -371,6 +457,8 @@ export const LESSONS: Lesson[] = [
   nakedPair,
   pointingPair,
   xWing,
+  xyWing,
+  swordfish,
   xSudoku,
   jigsaw,
   killer,

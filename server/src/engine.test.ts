@@ -106,3 +106,41 @@ describe.skipIf(!HAVE_ENGINE)("evil-sudoku baked sample", () => {
     }
   });
 });
+
+// The /learn technique deep pages bake certified sample puzzles the same way
+// /evil-sudoku does. Pin each page's grid + visible claims to the engine.
+describe.skipIf(!HAVE_ENGINE)("learn technique-page baked samples", () => {
+  async function pageSample(file: string) {
+    const page = readFileSync(resolve(import.meta.dirname, `../../web/${file}`), "utf8");
+    const seed = Number(/data-sample-seed="(\d+)"/.exec(page)?.[1]);
+    const minClues = Number(/data-sample-min-clues="(\d+)"/.exec(page)?.[1]);
+    const givens = /data-sample-givens="([.\d]+)"/.exec(page)?.[1];
+    expect(seed).toBeGreaterThan(0);
+    expect(givens).toHaveLength(81);
+    const p = await generate({ variant: "classic", seed, minClues });
+    expect(p.givens).toBe(givens);
+    const g = await grade(p.givens);
+    expect(g.outcome).toBe("solved");
+    return g.outcome === "solved" ? g : null;
+  }
+
+  it("xy-wing sample: Diabolical via exactly one XY-Wing, nothing fishier", async () => {
+    const g = await pageSample("learn-xy-wing.html");
+    expect(g?.tier_label).toBe("diabolical");
+    expect(g?.steps).toBe(56);
+    expect(g?.technique_counts["XYWing"]).toBe(1);
+    expect(
+      (g?.technique_counts["SwordfishRow"] ?? 0) + (g?.technique_counts["SwordfishCol"] ?? 0),
+    ).toBe(0);
+  });
+
+  it("swordfish sample: Diabolical via one Swordfish plus one XY-Wing", async () => {
+    const g = await pageSample("learn-swordfish.html");
+    expect(g?.tier_label).toBe("diabolical");
+    expect(g?.steps).toBe(58);
+    expect(
+      (g?.technique_counts["SwordfishRow"] ?? 0) + (g?.technique_counts["SwordfishCol"] ?? 0),
+    ).toBe(1);
+    expect(g?.technique_counts["XYWing"]).toBe(1);
+  });
+});

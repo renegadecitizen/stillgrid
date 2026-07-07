@@ -3,6 +3,8 @@ import page from "../../grade.html?raw";
 import learnPage from "../../learn.html?raw";
 import learnCore from "../../learn-core.html?raw";
 import learnAdvanced from "../../learn-advanced.html?raw";
+import learnXyWing from "../../learn-xy-wing.html?raw";
+import learnSwordfish from "../../learn-swordfish.html?raw";
 
 const LD_BLOCK = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
 
@@ -39,6 +41,8 @@ describe("grade page ladder links", () => {
       "/learn/core#pointing-pair",
       "/learn/advanced#x-wing",
       "/learn/advanced#swordfish",
+      "/learn/swordfish",
+      "/learn/xy-wing",
     ]) {
       expect(page).toContain(`href="${href}"`);
     }
@@ -57,5 +61,8 @@ describe("grade page ladder links", () => {
     for (const [src, id] of targets) {
       expect(src, `#${id}`).toContain(`id="${id}"`);
     }
+    // The Diabolical families link to whole deep pages, not anchors.
+    expect(learnXyWing).toContain('rel="canonical" href="https://stillgrid.app/learn/xy-wing"');
+    expect(learnSwordfish).toContain('rel="canonical" href="https://stillgrid.app/learn/swordfish"');
   });
 });
