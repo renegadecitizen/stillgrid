@@ -1,7 +1,16 @@
 import express from "express";
 import { resolve } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { generate, grade, solve, type GradeInput, type GeneratedPuzzle } from "./engine.js";
+import {
+  isDailyKind,
+  isValidDailyDate,
+  mergeDailyIntoSitemap,
+  renderArchiveIndex,
+  renderDailyPage,
+  todayUTC,
+  type DailyData,
+} from "./daily-pages.js";
 
 const SUPPORTED_SIZES = new Set([6, 9, 16]);
 // 16×16 is exposed only for classic + xsudoku (jigsaw/killer deferred — perf + cage UX).
@@ -55,6 +64,20 @@ const WEB_DIST =
   process.env.STILLGRID_WEB_DIST ?? resolve(import.meta.dirname, "../../web/dist");
 const SERVE_STATIC = existsSync(WEB_DIST);
 if (SERVE_STATIC) {
+  // Dynamic sitemap: the static file plus the forward-growing daily-archive
+  // URLs. Registered before express.static so it wins over the raw file.
+  let sitemapBase: string | null = null;
+  app.get("/sitemap.xml", (_req, res, next) => {
+    try {
+      sitemapBase ??= readFileSync(resolve(WEB_DIST, "sitemap.xml"), "utf8");
+    } catch {
+      next();
+      return;
+    }
+    res.type("application/xml");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.send(mergeDailyIntoSitemap(sitemapBase, todayUTC()));
+  });
   app.use(
     express.static(WEB_DIST, {
       // Hashed JS/CSS bundles are immutable; long cache.
@@ -210,29 +233,77 @@ function dailySeed(date: string, kind: "classic" | "killer"): number {
   return base + (kind === "classic" ? 1 : 2);
 }
 
+// Dailies are deterministic and immutable, so cache them in-memory. The
+// promise (not the value) is cached to dedupe concurrent requests for the
+// same date — e.g. a crawler sweeping the archive; failures are evicted.
+const dailyCache = new Map<string, Promise<DailyData>>();
+
+function getDaily(date: string): Promise<DailyData> {
+  let entry = dailyCache.get(date);
+  if (!entry) {
+    entry = (async () => {
+      const [classic, killer] = await Promise.all([
+        generate({ variant: "classic", seed: dailySeed(date, "classic"), minClues: 28 }),
+        generate({ variant: "killer", seed: dailySeed(date, "killer") }),
+      ]);
+      const [g, gk] = await Promise.all([
+        grade(puzzleToGradeInput(classic)),
+        grade(puzzleToGradeInput(killer)),
+      ]);
+      return { date, classic: { ...classic, grade: g }, killer: { ...killer, grade: gk } };
+    })();
+    entry.catch(() => dailyCache.delete(date));
+    if (dailyCache.size >= 512) {
+      const oldest = dailyCache.keys().next().value;
+      if (oldest !== undefined) dailyCache.delete(oldest);
+    }
+    dailyCache.set(date, entry);
+  }
+  return entry;
+}
+
 app.get("/api/daily", async (req, res) => {
-  const today = new Date().toISOString().slice(0, 10);
-  const date = String(req.query.date ?? today);
+  const date = String(req.query.date ?? todayUTC());
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     res.status(400).json({ error: "date must be YYYY-MM-DD" });
     return;
   }
   try {
-    const [classic, killer] = await Promise.all([
-      generate({ variant: "classic", seed: dailySeed(date, "classic"), minClues: 28 }),
-      generate({ variant: "killer", seed: dailySeed(date, "killer") }),
-    ]);
-    const [g, gk] = await Promise.all([
-      grade(puzzleToGradeInput(classic)),
-      grade(puzzleToGradeInput(killer)),
-    ]);
-    res.json({
-      date,
-      classic: { ...classic, grade: g },
-      killer: { ...killer, grade: gk },
-    });
+    res.json(await getDaily(date));
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : "unknown" });
+  }
+});
+
+function sendNotFound(res: express.Response): void {
+  if (SERVE_STATIC) {
+    res.status(404).sendFile(resolve(WEB_DIST, "404.html"));
+  } else {
+    res.status(404).json({ error: "not found" });
+  }
+}
+
+// Daily archive: server-rendered, since the date set grows daily. The index
+// lists every date; per-date pages render the givens grid + grade breakdown.
+app.get("/daily", (_req, res) => {
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.send(renderArchiveIndex(todayUTC()));
+});
+
+app.get("/daily/:kind/:date", async (req, res) => {
+  const { kind, date } = req.params;
+  const today = todayUTC();
+  if (!isDailyKind(kind) || !isValidDailyDate(date, today)) {
+    sendNotFound(res);
+    return;
+  }
+  try {
+    const data = await getDaily(date);
+    // Past dates never change; today's page gains a "next day" link tomorrow.
+    res.setHeader("Cache-Control", `public, max-age=${date === today ? 3600 : 86400}`);
+    res.send(renderDailyPage(kind, data, today));
+  } catch (e) {
+    res.status(500).send(e instanceof Error ? e.message : "daily generation failed");
   }
 });
 

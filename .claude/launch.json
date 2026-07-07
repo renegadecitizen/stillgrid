@@ -6,6 +6,12 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": ["-c", "PORT=3001 make dev"],
       "port": 5173
+    },
+    {
+      "name": "stillgrid-prod",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "PORT=3002 node server/dist/index.js"],
+      "port": 3002
     }
   ]
 }

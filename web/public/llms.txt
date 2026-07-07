@@ -18,6 +18,10 @@
 
 - [Killer Sudoku Cage Calculator](https://stillgrid.app/killer-sudoku-calculator): Every digit combination for a cage from its sum and cell count, with include/exclude filters and magic-cage highlighting. Covers 6×6, 9×9, and 16×16 grids, plus printable tables of all 502 9×9 combinations.
 
+## Daily puzzles
+
+- [Daily Sudoku Archive](https://stillgrid.app/daily): Every day's classic and killer daily — the same puzzle for everyone, each page showing the starting grid, its honest difficulty grade, and the exact solving techniques it requires. All past dailies stay playable, free.
+
 ## About
 
 - [How to play sudoku](https://stillgrid.app/learn): Rules, pencil-mark notes, and the technique ladder Stillgrid grades difficulty by — singles, pairs, pointing, X-Wing, and beyond.

@@ -45,19 +45,19 @@
       <h2>Core techniques — what "Medium" means</h2>
       <p>Medium puzzles need techniques that eliminate candidates across several cells before any single is revealed. They all operate on your notes.</p>
 
-      <h3>Naked pair</h3>
+      <h3 id="naked-pair">Naked pair</h3>
       <p>If two cells in the same unit share the same two candidates and nothing else (say, only 3 and 7), then 3 and 7 are locked to those two cells — you can erase 3 and 7 from every other cell in that unit.</p>
       <div class="lesson" data-lesson="naked-pair">
         <p class="lesson-fallback">Two cells in this row both show only {3, 7}. So 3 and 7 can be removed from the other cells in the row, often exposing a single elsewhere.</p>
       </div>
 
-      <h3>Hidden pair</h3>
+      <h3 id="hidden-pair">Hidden pair</h3>
       <p>The mirror image of a naked pair: if two digits can each only go in the same two cells of a unit, those cells form a pair — you can erase every <em>other</em> candidate from those two cells.</p>
       <div class="lesson" data-lesson="hidden-pair">
         <p class="lesson-fallback">In this box, the digits 2 and 5 can each only land in the same two cells. Those two cells are therefore {2, 5}, and any other candidates in them are removed.</p>
       </div>
 
-      <h3>Pointing pair</h3>
+      <h3 id="pointing-pair">Pointing pair</h3>
       <p>Every box must contain each digit somewhere. So when a digit's only possible cells in a box all fall on one row (or column), that digit is pinned to that line — and since each row and column holds the digit just once, it can be erased from the rest of that row (or column) outside the box.</p>
       <div class="lesson" data-lesson="pointing-pair">
         <p class="lesson-fallback">Every box must hold a 6 somewhere. Inside this box, the only cells that can hold a 6 lie in a single row — so 6 is removed from that row everywhere outside the box.</p>

@@ -2125,6 +2125,7 @@ function Footer({ isDemo }: { isDemo: boolean }) {
         <a href="/killer" className="hover:underline">Killer Sudoku</a>
         <a href="/killer-sudoku-calculator" className="hover:underline">Killer Sudoku Calculator</a>
         <a href="/sudoku-16x16" className="hover:underline">16×16 Sudoku</a>
+        <a href="/daily" className="hover:underline">Daily Archive</a>
         <a href="/learn" className="hover:underline">Learn</a>
         <a href="/privacy" className="hover:underline">Privacy</a>
       </nav>
