@@ -112,7 +112,7 @@ export const TECH_FAMILIES: readonly TechFamily[] = [
   { label: "Swordfish", keys: ["SwordfishRow", "SwordfishCol"], tier: 4, href: "/learn/swordfish" },
   { label: "XY-Wing", keys: ["XYWing"], tier: 4, href: "/learn/xy-wing" },
   { label: "Coloring", keys: ["Coloring"], tier: 5, href: "/learn/coloring" },
-  { label: "Forcing chain", keys: ["ForcingChain"], tier: 5, href: "/learn/advanced#swordfish" },
+  { label: "Forcing chain", keys: ["ForcingChain"], tier: 5, href: "/learn/forcing-chains" },
   { label: "Almost Locked Set", keys: ["Als"], tier: 5, href: "/learn/advanced#swordfish" },
 ];
 
