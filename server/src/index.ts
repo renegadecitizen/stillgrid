@@ -329,6 +329,7 @@ export const LEARN_SUBPAGES = {
   "/learn/xy-wing": "learn-xy-wing.html",
   "/learn/swordfish": "learn-swordfish.html",
   "/learn/coloring": "learn-coloring.html",
+  "/learn/forcing-chains": "learn-forcing-chains.html",
 } as const;
 if (SERVE_STATIC) {
   for (const slug of LANDING_ROUTES) {

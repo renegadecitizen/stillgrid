@@ -19,6 +19,7 @@ describe("LEARN_SUBPAGES", () => {
       "/learn/xy-wing",
       "/learn/swordfish",
       "/learn/coloring",
+      "/learn/forcing-chains",
     ]);
     expect(LEARN_SUBPAGES["/learn/core"]).toBe("learn-core.html");
     expect(LEARN_SUBPAGES["/learn/advanced"]).toBe("learn-advanced.html");
@@ -26,6 +27,7 @@ describe("LEARN_SUBPAGES", () => {
     expect(LEARN_SUBPAGES["/learn/xy-wing"]).toBe("learn-xy-wing.html");
     expect(LEARN_SUBPAGES["/learn/swordfish"]).toBe("learn-swordfish.html");
     expect(LEARN_SUBPAGES["/learn/coloring"]).toBe("learn-coloring.html");
+    expect(LEARN_SUBPAGES["/learn/forcing-chains"]).toBe("learn-forcing-chains.html");
   });
 });
 
