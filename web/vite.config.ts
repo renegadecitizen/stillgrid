@@ -23,6 +23,7 @@ export default defineConfig({
         learnXyWing: "learn-xy-wing.html",
         learnSwordfish: "learn-swordfish.html",
         learnColoring: "learn-coloring.html",
+        learnForcingChains: "learn-forcing-chains.html",
         killerCalculator: "killer-sudoku-calculator.html",
         grade: "grade.html",
       },

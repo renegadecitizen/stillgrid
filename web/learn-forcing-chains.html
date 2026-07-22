@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF7F2" />
+    <title>Forcing chains sudoku — solve the hardest grids without guessing | Stillgrid</title>
+    <meta name="description" content="Learn forcing chains: assume a cell's two candidates in turn, follow each to its conclusion, and eliminate what both agree on. Interactive walkthrough, the no-guessing proof, and a certified puzzle that needs exactly one." />
+    <link rel="canonical" href="https://stillgrid.app/learn/forcing-chains" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:title" content="Forcing chains — Stillgrid" />
+    <meta property="og:description" content="Assume, follow, and compare: the technique that cracks evil sudoku without a single guess. Interactive walkthrough plus a certified example." />
+    <meta property="og:url" content="https://stillgrid.app/learn/forcing-chains" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://stillgrid.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Learn sudoku on Stillgrid." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://stillgrid.app/og-image.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/landing.css" />
+    <!-- Privacy-friendly analytics by Umami -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a623ea5c-9c7e-45c2-9d15-6c56bdfe0593" data-domains="stillgrid.app"></script>
+    <style>
+.board { border-collapse: separate; border-spacing: 0; border: 2px solid var(--color-ink); margin: 1.5rem auto; }
+.board td { width: 44px; height: 44px; padding: 0; text-align: center; vertical-align: middle;
+  font-family: "Fraunces", Georgia, serif; font-size: 1.3rem; color: var(--color-ink);
+  border-top: 1px solid var(--color-border); border-left: 1px solid var(--color-border); }
+.board tr:first-child td { border-top: none; }
+.board td:first-child { border-left: none; }
+.board td.bt { border-top: 2px solid var(--color-ink); }
+.board td.bl { border-left: 2px solid var(--color-ink); }
+@media (max-width: 480px) { .board td { width: 34px; height: 34px; font-size: 1.05rem; } }
+.sample-meta { text-align: center; color: var(--color-ink-soft); font-size: 0.9rem; }
+    </style>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"LearningResource","name":"Forcing chains in sudoku","description":"Assume a bivalue cell's two candidates in turn, follow each to its conclusion, and eliminate what both agree on — a proof, not a guess. Interactive walkthrough plus a certified example puzzle.","learningResourceType":"Tutorial","educationalLevel":"Advanced","teaches":["Forcing chain"],"inLanguage":"en","isAccessibleForFree":true,"url":"https://stillgrid.app/learn/forcing-chains","publisher":{"@type":"Organization","name":"Stillgrid","url":"https://stillgrid.app"}}
+    </script>
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is a forcing chain in sudoku?","acceptedAnswer":{"@type":"Answer","text":"A forcing chain starts from one cell that has just two candidates. You assume the first candidate and follow the ripple of forced placements it causes, then do the same for the second. Any elimination both assumptions produce is certain — it holds no matter which candidate is true — so you can make it without ever guessing."}},{"@type":"Question","name":"Is a forcing chain the same as guessing?","acceptedAnswer":{"@type":"Answer","text":"No. A guess keeps one assumption and hopes it holds. A forcing chain tries both of a cell's candidates and acts only on what they agree about, so the conclusion is proven either way. It is bookkeeping, not trial and error — nothing is ever left standing on an unverified guess."}},{"@type":"Question","name":"How hard is a puzzle that needs a forcing chain?","acceptedAnswer":{"@type":"Answer","text":"Stillgrid grades forcing chains in the Nightmare tier, the top of the ladder — the same beast other sites call evil or extreme. A grid only earns it when simpler techniques, up through coloring, provably run out before the chain. The certified sample on this page is pure: singles solve all of it except one forcing chain."}}]}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/">Stillgrid</a>
+      <h1>Forcing chains</h1>
+      <p class="lede">The technique that cracks the hardest grids — and does it without a single guess.</p>
+      <p><a class="cta" href="/?v=classic&amp;tier=nightmare">Play evil sudoku</a></p>
+      <nav class="learn-nav" aria-label="Learn sections">
+        <a href="/learn">How to play</a>
+        <a href="/learn/core">Core techniques</a>
+        <a href="/learn/advanced">Advanced</a>
+        <a href="/learn/variants">Variants &amp; sizes</a>
+      </nav>
+
+      <h2>The idea</h2>
+      <p>Find a cell with exactly <strong>two candidates</strong> — call it the pivot. One of them is true; you just don't know which yet. So try both. Assume the first and follow the chain of forced placements it sets off; then assume the second and follow that chain. Anywhere <strong>both assumptions reach the same conclusion</strong> — the same candidate removed from the same cell — that conclusion is certain, because it holds whichever candidate the pivot really has. You eliminate it, and you never guessed.</p>
+      <div class="lesson" data-lesson="forcing-chains">
+        <p class="lesson-fallback">Take a cell with two candidates, say 1 and 2. Assume 1 and follow the forced placements; assume 2 and follow those. If both roads put a 7 into the same row, any other cell in that row can't be 7 — remove it, no guess required.</p>
+      </div>
+
+      <h2>Why it isn't guessing</h2>
+      <p>A guess commits to one branch and hopes. A forcing chain commits to nothing: it explores <em>both</em> branches of a two-way cell and keeps only what they share. Since the pivot must be one value or the other, a shared consequence is true in every possible world — that's a proof by cases, the same logic a mathematician uses. If the two branches ever <em>disagree</em>, you learn nothing there and move on; only agreement lets you act.</p>
+
+      <h2>AIC or bivalue forcing — one grade</h2>
+      <p>There are two common ways to run the argument. A <strong>bivalue forcing chain</strong> is the direct version above: push both assumptions, compare. An <strong>alternating inference chain</strong> (AIC) threads a single path of strong and weak links to the same end without splitting. Stillgrid's grader can find either, and labels both simply <strong>Forcing chain</strong> — the top rung of its technique ladder.</p>
+
+      <h2>How to spot one</h2>
+      <ul>
+        <li><strong>Start from bivalue cells.</strong> Two candidates is the smallest fork — the easiest to follow both ways in your head.</li>
+        <li><strong>Follow forced moves only.</strong> After the assumption, take a step only when a cell is left with one candidate. No branching within a branch.</li>
+        <li><strong>Watch for a shared elimination.</strong> You're hunting a cell that loses the same candidate in <em>both</em> branches — that's the payoff.</li>
+        <li><strong>Keep the chains short.</strong> The best forcing chains are two or three links each; if you're a dozen deep, look for a simpler cell first.</li>
+        <li><strong>Reach for it last.</strong> Forcing chains are the top of the ladder — exhaust singles, pairs, fish, and coloring before you assume anything.</li>
+      </ul>
+
+      <h2>A puzzle that needs one</h2>
+      <p>Generated and verified by our grader: naked and hidden singles carry this grid almost to the end — then it wedges, and a single <strong>forcing chain</strong> is the only way through. That one move is what earns it the Nightmare grade.</p>
+      <div class="sample" data-sample-seed="361" data-sample-min-clues="22" data-sample-givens="......32...7425...8.........6...9.....3..8.79...64.....94...7..2...9..45....3..8.">
+        <table class="board" role="img" aria-label="A 24-given sudoku graded Nightmare: singles solve all of it except one forcing chain."><tbody><tr><td></td><td></td><td></td><td class="bl"></td><td></td><td></td><td class="bl g">3</td><td class="g">2</td><td></td></tr><tr><td></td><td></td><td class="g">7</td><td class="bl g">4</td><td class="g">2</td><td class="g">5</td><td class="bl"></td><td></td><td></td></tr><tr><td class="g">8</td><td></td><td></td><td class="bl"></td><td></td><td></td><td class="bl"></td><td></td><td></td></tr><tr><td class="bt"></td><td class="bt g">6</td><td class="bt"></td><td class="bt bl"></td><td class="bt"></td><td class="bt g">9</td><td class="bt bl"></td><td class="bt"></td><td class="bt"></td></tr><tr><td></td><td></td><td class="g">3</td><td class="bl"></td><td></td><td class="g">8</td><td class="bl"></td><td class="g">7</td><td class="g">9</td></tr><tr><td></td><td></td><td></td><td class="bl g">6</td><td class="g">4</td><td></td><td class="bl"></td><td></td><td></td></tr><tr><td class="bt"></td><td class="bt g">9</td><td class="bt g">4</td><td class="bt bl"></td><td class="bt"></td><td class="bt"></td><td class="bt bl g">7</td><td class="bt"></td><td class="bt"></td></tr><tr><td class="g">2</td><td></td><td></td><td class="bl"></td><td class="g">9</td><td></td><td class="bl"></td><td class="g">4</td><td class="g">5</td></tr><tr><td></td><td></td><td></td><td class="bl"></td><td class="g">3</td><td></td><td class="bl"></td><td class="g">8</td><td></td></tr></tbody></table>
+      </div>
+      <p class="sample-meta">24 givens · graded <strong>Nightmare</strong> · 58 solver steps · Forcing chain × 1</p>
+      <p>Copy it into the <a href="/grade">difficulty grader</a> to see the certificate yourself — then go hunting on a fresh board.</p>
+
+      <h2>Common questions</h2>
+      <div class="faq">
+        <h3>What is a forcing chain in sudoku?</h3>
+        <p>A forcing chain starts from one cell that has just two candidates. You assume the first candidate and follow the ripple of forced placements it causes, then do the same for the second. Any elimination both assumptions produce is certain — it holds no matter which candidate is true — so you can make it without ever guessing.</p>
+        <h3>Is a forcing chain the same as guessing?</h3>
+        <p>No. A guess keeps one assumption and hopes it holds. A forcing chain tries both of a cell's candidates and acts only on what they agree about, so the conclusion is proven either way. It is bookkeeping, not trial and error — nothing is ever left standing on an unverified guess.</p>
+        <h3>How hard is a puzzle that needs a forcing chain?</h3>
+        <p>Stillgrid grades forcing chains in the Nightmare tier, the top of the ladder — the same beast other sites call evil or extreme. A grid only earns it when simpler techniques, up through coloring, provably run out before the chain. The certified sample on this page is pure: singles solve all of it except one forcing chain.</p>
+      </div>
+
+      <p class="learn-prev"><a href="/learn/coloring">← Deep dive: Simple Coloring</a></p>
+      <p class="learn-next"><a href="/learn/advanced">Back to Advanced techniques →</a></p>
+
+      <h2>Try a variant</h2>
+      <div class="variant-row">
+        <a href="/classic">Classic Sudoku</a>
+        <a href="/xsudoku">X-Sudoku</a>
+        <a href="/jigsaw">Jigsaw Sudoku</a>
+        <a href="/killer">Killer Sudoku</a>
+        <a href="/evil-sudoku">Evil Sudoku</a>
+        <a href="/killer-sudoku-calculator">Killer Sudoku Calculator</a>
+        <a href="/grade">Sudoku Difficulty Grader</a>
+        <a href="/daily">Daily Sudoku Archive</a>
+      </div>
+
+      <footer>
+        <a href="/">Stillgrid home</a> · sudoku, the quiet way
+      </footer>
+    </main>
+    <script type="module" src="/src/learn/main.ts"></script>
+  </body>
+</html>
