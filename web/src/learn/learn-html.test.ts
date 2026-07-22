@@ -6,8 +6,9 @@ import variants from "../../learn-variants.html?raw";
 import xyWing from "../../learn-xy-wing.html?raw";
 import swordfish from "../../learn-swordfish.html?raw";
 import coloring from "../../learn-coloring.html?raw";
+import forcingChains from "../../learn-forcing-chains.html?raw";
 
-const PAGES: Record<string, string> = { learn, core, advanced, variants, xyWing, swordfish, coloring };
+const PAGES: Record<string, string> = { learn, core, advanced, variants, xyWing, swordfish, coloring, forcingChains };
 const LD_BLOCK = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;
 
 function blocks(src: string): { "@type": string; mainEntity?: { acceptedAnswer: { text: string } }[] }[] {

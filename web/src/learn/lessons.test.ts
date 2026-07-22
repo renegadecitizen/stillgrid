@@ -10,6 +10,7 @@ const REQUIRED_IDS = [
   "xy-wing",
   "swordfish",
   "coloring",
+  "forcing-chains",
   "x-sudoku",
   "jigsaw",
   "killer",

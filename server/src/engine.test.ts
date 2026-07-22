@@ -152,4 +152,17 @@ describe.skipIf(!HAVE_ENGINE)("learn technique-page baked samples", () => {
     expect(g?.technique_counts["ForcingChain"] ?? 0).toBe(0);
     expect(g?.technique_counts["Als"] ?? 0).toBe(0);
   });
+
+  it("forcing-chains sample: Nightmare via exactly one Forcing chain, nothing else advanced", async () => {
+    const g = await pageSample("learn-forcing-chains.html");
+    expect(g?.tier_label).toBe("nightmare");
+    expect(g?.steps).toBe(58);
+    expect(g?.technique_counts["ForcingChain"]).toBe(1);
+    expect(g?.technique_counts["Coloring"] ?? 0).toBe(0);
+    expect(g?.technique_counts["Als"] ?? 0).toBe(0);
+    expect(g?.technique_counts["XYWing"] ?? 0).toBe(0);
+    expect(
+      (g?.technique_counts["SwordfishRow"] ?? 0) + (g?.technique_counts["SwordfishCol"] ?? 0),
+    ).toBe(0);
+  });
 });

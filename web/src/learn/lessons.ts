@@ -381,6 +381,55 @@ const coloring: Lesson = {
   ],
 };
 
+// --- forcing chain: one bivalue pivot, two branches that agree ---
+// Pivot (4,4)={1,2}. Branch 1: (4,4)=1 ⇒ (4,8) drops 1 ⇒ =5 ⇒ (0,8) drops 5 ⇒ =7.
+// Branch 2: (4,4)=2 ⇒ (0,4) drops 2 ⇒ =7. Either branch puts a 7 in row 0, so the
+// bivalue victim (0,1)={7,9} loses its 7 whichever candidate the pivot truly holds.
+const forcingCands: Record<number, number[]> = {
+  [ix(4, 4)]: [1, 2],
+  [ix(4, 8)]: [1, 5], [ix(0, 8)]: [5, 7],
+  [ix(0, 4)]: [2, 7],
+  [ix(0, 1)]: [7, 9],
+};
+const forcingBranchA = [ix(4, 8), ix(0, 8)];
+const forcingBranchB = [ix(0, 4)];
+
+const forcingChain: Lesson = {
+  id: "forcing-chains",
+  title: "Forcing chains",
+  size: 9,
+  steps: [
+    {
+      caption: "Start at a cell with exactly two candidates — the pivot, {1,2}. One is true; we don't know which, so we'll try both.",
+      grid: grid9Cands({}, forcingCands),
+      highlights: [{ cells: [ix(4, 4)], kind: "target" }],
+    },
+    {
+      caption: "Assume the pivot is 1. That drops 1 from its neighbour → it becomes 5 → which drops 5 from the cell above → it becomes 7. A 7 lands in the top row.",
+      grid: grid9Cands({}, { ...forcingCands, [ix(4, 4)]: [1], [ix(4, 8)]: [5], [ix(0, 8)]: [7] }),
+      highlights: [
+        { cells: [ix(4, 4)], kind: "target" },
+        { cells: forcingBranchA, kind: "unit" },
+        { cells: [ix(0, 1)], kind: "elim" },
+      ],
+    },
+    {
+      caption: "Now assume the pivot is 2 instead. Following the other neighbour, a 7 again lands in the top row — a different cell, same row.",
+      grid: grid9Cands({}, { ...forcingCands, [ix(4, 4)]: [2], [ix(0, 4)]: [7] }),
+      highlights: [
+        { cells: [ix(4, 4)], kind: "target" },
+        { cells: forcingBranchB, kind: "unit" },
+        { cells: [ix(0, 1)], kind: "elim" },
+      ],
+    },
+    {
+      caption: "Either way the top row already has its 7, so this two-candidate cell can't be 7. Cross it off — only 9 remains. No guess was ever kept.",
+      grid: grid9Cands({}, { ...forcingCands, [ix(0, 1)]: [9] }),
+      highlights: [{ cells: [ix(0, 1)], kind: "elim" }],
+    },
+  ],
+};
+
 // --- x-sudoku: the main diagonal is an extra unit ---
 // Eight of the nine diagonal cells carry 1–7 and 9; only (7,7) is empty and
 // only 8 is missing, so the diagonal forces (7,7) = 8.
@@ -507,6 +556,7 @@ export const LESSONS: Lesson[] = [
   xyWing,
   swordfish,
   coloring,
+  forcingChain,
   xSudoku,
   jigsaw,
   killer,
