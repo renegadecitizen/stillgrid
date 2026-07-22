@@ -43,6 +43,8 @@ describe("grade page ladder links", () => {
       "/learn/advanced#swordfish",
       "/learn/swordfish",
       "/learn/xy-wing",
+      "/learn/coloring",
+      "/learn/forcing-chains",
     ]) {
       expect(page).toContain(`href="${href}"`);
     }
