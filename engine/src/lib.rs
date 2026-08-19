@@ -6,6 +6,8 @@ pub mod rng;
 pub mod solver;
 pub mod techniques;
 pub mod variant;
+pub mod wasm;
+pub mod wire;
 
 pub use board::Board;
 pub use generator::{
@@ -16,3 +18,4 @@ pub use rng::Rng;
 pub use solver::{solve, solve_variant, SolveOutcome};
 pub use techniques::{grade, grade_variant, GradeOutcome, Step, Technique, Tier};
 pub use variant::{Cage, Variant, VariantKind};
+pub use wire::{error_json, generate_json, grade_json, render_puzzle_json, solve_json};

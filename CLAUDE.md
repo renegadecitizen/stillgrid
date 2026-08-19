@@ -4,28 +4,44 @@ Sudoku web app — classic + variants (X-Sudoku, Jigsaw, Killer), technique-grad
 
 ## What this is
 
-A monorepo with three pieces:
+A monorepo with two pieces. **There is no server** — see "Static architecture" below.
 
-- **`engine/`** — Rust crate (`stillgrid-engine`). Solver, generator, technique-based difficulty grader, variant abstraction. Compiled to 3 CLI binaries: `stillgrid-solve`, `stillgrid-generate`, `stillgrid-grade`.
-- **`server/`** — Node + Express + TypeScript. Spawns the Rust binaries per request. Exposes `/api/solve`, `/api/puzzle`, `/api/grade`, `/api/daily`, `/healthz`. Serves the built SPA + prerendered landing pages.
-- **`web/`** — React 18 + Vite + Tailwind v4 SPA. All UI in `src/App.tsx`. No router. Uses Fraunces serif + Inter sans, cream `#FAF7F2` palette with per-variant accents.
+- **`engine/`** — Rust crate (`stillgrid-engine`). Solver, generator, technique-based difficulty grader, variant abstraction. Compiled **twice**: to `wasm32-unknown-unknown` for the browser, and to 3 native CLI binaries (`stillgrid-solve`, `stillgrid-generate`, `stillgrid-grade`) used at build time.
+- **`web/`** — React 18 + Vite + Tailwind v4 SPA, plus the static-site build. All UI in `src/App.tsx`. No router. Uses Fraunces serif + Inter sans, cream `#FAF7F2` palette with per-variant accents.
+
+## Static architecture (2026-08-19 — replaced the Express server)
+
+The engine runs **in the browser as WebAssembly**. There is no API and no
+backend; the site is a folder of files on a CDN.
+
+- `engine/src/wire.rs` — the JSON wire format, shared by both compile targets. The CLI binaries are thin wrappers over it. **This is the single source of truth for engine output** — change it, and both the browser and the build-time prerender change together.
+- `engine/src/wasm.rs` — the browser ABI. Hand-rolled `extern "C"` exports (no wasm-bindgen, so the build needs no extra tooling): `sg_alloc`/`sg_free`/`sg_result_free` plus `sg_generate`/`sg_solve`/`sg_grade`. Results are length-prefixed UTF-8 JSON buffers.
+- `web/src/engine/wasm.ts` — the entire JS binding layer for the above.
+- `web/src/engine/api.ts` — replaces the old `/api/*` handlers, keeping the tier floors and the 60-retry loop verbatim so difficulty distribution is unchanged.
+- `web/src/engine/daily-seed.ts` — the daily seed derivation, **shared** with the build-time prerenderer so the two cannot drift.
+- `web/scripts/prerender.ts` — bakes `/daily/**` and the merged `sitemap.xml` at build time using the *native* binaries.
+- `web/scripts/verify-build.mjs` — instantiates the built wasm and diffs its output against the native binaries for the same seeds. **The deploy will not ship if these disagree**, because the archive pages and the in-browser puzzle would then contradict each other.
+- `web/data/pool-16.json` — pre-generated 16×16 puzzles. 16×16 generation takes ~16s, which never belonged on a request path (the old server's 15s timeout made it flaky); it is now a shipped asset.
 
 ## Local development
 
 ```bash
-make install      # cargo fetch + npm install in server + web
-make engine       # cargo build --release (3 binaries)
-make dev          # builds engine, runs server (:3001) + vite (:5173) in parallel
+make install      # cargo fetch + wasm target + npm install
+make engine       # cargo build --release (3 native binaries, for the prerender)
+make dev          # builds the wasm engine, then runs vite (:5173)
+make build        # full static build into web/dist
+make verify       # instantiate the built wasm, diff it against the native engine
 ```
 
-Open http://localhost:5173. Vite proxies `/api` → `:3001`.
+Open http://localhost:5173. No API server to run — the engine is in the page.
 
 ## Production / deploy
 
-- Hosted on **Render** via Blueprint (`render.yaml` at repo root triggers auto-deploy on every push to `main`).
-- `Dockerfile` is a multi-stage build: Rust → compile binaries; Node → compile TS server + build SPA; final runtime is Node + the Rust binaries on PATH.
-- DNS: Cloudflare → Render. `stillgrid.app` is the canonical domain.
-- **TypeScript server is compiled at build time** (`tsc → dist/`). Do NOT introduce `tsx` runtime imports — production container won't resolve devDependencies. See `mem_XDy2x_z1wRx5` history.
+- Hosted on **Cloudflare Pages** (free). GitHub Actions builds and uploads via `.github/workflows/deploy.yml`; Cloudflare's own build system is not used, so the Rust/Node toolchain stays pinned and reproducible.
+- DNS: Cloudflare → Pages. `stillgrid.app` is the canonical domain. Full setup and the cutover steps are in `DEPLOY.md`.
+- **The daily archive is rebuilt by a scheduled workflow** (00:10 UTC). It grows by two pages a day; without the rebuild the newest day would 404. A failed run just means the site serves yesterday's build.
+- Routing that Express used to do lives in `web/public/_redirects` (the `/learn/*` rewrites; `/api/*` → 410) and `web/public/_headers` (Cache-Control). Extensionless URLs and `404.html` are handled by Pages natively.
+- Previously: Render Starter, $7/month, retired 2026-08-19.
 
 ## Engine architecture
 
@@ -44,16 +60,16 @@ Open http://localhost:5173. Vite proxies `/api` → `:3001`.
 
 ## Server architecture
 
-- `server/src/engine.ts` — process-spawn wrappers around the 3 binaries. `grade()` accepts `string | GradeInput`; for variants, sends JSON on stdin instead of argv.
-- `server/src/index.ts` — Express routes. Order matters: `express.static(WEB_DIST)` first, then `/api/*` handlers, then explicit landing-page routes (`/classic`, `/killer`, `/jigsaw`, `/xsudoku`), then SPA fallback (`app.get("*", ...)`).
+- `web/src/engine/api.ts` — in-browser replacements for the old endpoints. `gradePuzzle()` accepts a bare puzzle string for classic and the JSON payload form for variants, matching the CLI contract.
+- Routing is now static config, not code: `web/public/_redirects` + `_headers`. Landing pages resolve from their `.html` files automatically; only `/learn/*` needs explicit rewrites because the URL and filename differ.
 - Daily challenge uses `dailySeed(date, kind)` → deterministic per-date seed. Server-side has no DB — every request spawns the generator. Dailies are cached in-memory (`getDaily` promise cache, 512 cap, failures evicted) since they're immutable per date.
-- **Daily archive (2026-07-07, growth Phase 3).** Server-rendered `/daily` index + `/daily/{classic,killer}/YYYY-MM-DD` pages (render logic in `server/src/daily-pages.ts` — pure functions, unit-tested without binaries). Window: `ARCHIVE_START` (2026-05-08) → today (UTC); outside → 404. Pages show the givens grid (killer cages drawn), tier badge, and the grader's technique breakdown with `/learn` links; play CTA uses the `/?d=<kind>&date=` deep link. `/sitemap.xml` is now **dynamic**: the static file (`web/public/sitemap.xml`, still the editable source of truth) + injected daily URLs (`lastmod` = the date) — route registered before `express.static` so it wins. Two new URLs/day with no deploy.
-- `POST /api/grade` accepts optional `variant` (`GRADE_VARIANTS` allowlist: classic|xsudoku; jigsaw/killer 400 — their layouts don't fit a digit string). Backs the `/grade` tool.
-- **Difficulty / tiers (all variants, 2026-06-04).** Difficulty is enabled for *every* variant (was Classic-only). `/api/puzzle?tier=…` works for classic/xsudoku/jigsaw/killer: when a tier is requested (and no explicit `minClues`), the server derives a clue floor from `TIER_FLOORS[variant][tier]` (9×9 only) and the 60-retry loop regenerates until `grade.tier_label` matches; unmatched after 60 → closest puzzle + `tier_matched:false`. The grader's reachable gradient is **Easy → Medium → Nightmare** (honest grader labels; Hard/Diabolical are T3/T4-terminal and too rare to offer — 0–8% at any floor). Offered tiers per (variant,size) live in `tiersFor()` in `web/src/App.tsx`. Constraints (from engine `measure_tier_distribution` + `sweep_min_clues_tiers`): 6×6 is single-difficulty (≈80% easy even at minimal clues) → Any only; killer never grades Easy (min_clues N/A — cage gen ignores it) → Medium/Nightmare; 16×16 clamps to the 47% floor → classic Easy/Medium, xsudoku Any. Tier colors for diabolical/nightmare added (`TIER_COLOR` + `index.css`) — previously `TierBadge` rendered nothing for those grades.
+- **Daily archive (2026-07-07, growth Phase 3).** Server-rendered `/daily` index + `/daily/{classic,killer}/YYYY-MM-DD` pages (render logic in `web/scripts/daily-pages.ts` — pure functions; now run at build time rather than per request). Window: `ARCHIVE_START` (2026-05-08) → today (UTC); outside → 404. Pages show the givens grid (killer cages drawn), tier badge, and the grader's technique breakdown with `/learn` links; play CTA uses the `/?d=<kind>&date=` deep link. `/sitemap.xml` is generated at build time: the static file (`web/public/sitemap.xml`, still the editable source of truth) + injected daily URLs (`lastmod` = the date). Two new URLs/day, picked up by the nightly rebuild.
+- `gradePuzzle()` accepts optional `variant` (`GRADE_VARIANTS` allowlist: classic|xsudoku; jigsaw/killer 400 — their layouts don't fit a digit string). Backs the `/grade` tool.
+- **Difficulty / tiers (all variants, 2026-06-04).** Difficulty is enabled for *every* variant (was Classic-only). `getPuzzle({tier})` works for classic/xsudoku/jigsaw/killer: when a tier is requested (and no explicit `minClues`), it derives a clue floor from `TIER_FLOORS[variant][tier]` (9×9 only) and the 60-retry loop regenerates until `grade.tier_label` matches; unmatched after 60 → closest puzzle + `tier_matched:false`. The grader's reachable gradient is **Easy → Medium → Nightmare** (honest grader labels; Hard/Diabolical are T3/T4-terminal and too rare to offer — 0–8% at any floor). Offered tiers per (variant,size) live in `tiersFor()` in `web/src/App.tsx`. Constraints (from engine `measure_tier_distribution` + `sweep_min_clues_tiers`): 6×6 is single-difficulty (≈80% easy even at minimal clues) → Any only; killer never grades Easy (min_clues N/A — cage gen ignores it) → Medium/Nightmare; 16×16 clamps to the 47% floor → classic Easy/Medium, xsudoku Any. Tier colors for diabolical/nightmare added (`TIER_COLOR` + `index.css`) — previously `TierBadge` rendered nothing for those grades.
 
 ## SEO
 
-- Prerendered HTML landing pages at `/classic`, `/killer`, `/jigsaw`, `/xsudoku`, `/sudoku-16x16`, `/evil-sudoku` (files in `web/public/`), plus the Vite-MPA tool pages `/killer-sudoku-calculator` and `/grade`. Unique title/meta/canonical/OG/Schema.org per page. `/evil-sudoku` maps to the Nightmare tier (never target "nightmare sudoku" — zero volume) and bakes in an engine-pinned sample puzzle (`data-sample-seed`; guarded by a test in `server/src/engine.test.ts`).
+- Prerendered HTML landing pages at `/classic`, `/killer`, `/jigsaw`, `/xsudoku`, `/sudoku-16x16`, `/evil-sudoku` (files in `web/public/`), plus the Vite-MPA tool pages `/killer-sudoku-calculator` and `/grade`. Unique title/meta/canonical/OG/Schema.org per page. `/evil-sudoku` maps to the Nightmare tier (never target "nightmare sudoku" — zero volume) and bakes in an engine-pinned sample puzzle (`data-sample-seed`; guarded by a test in the web suite).
 - The SPA accepts entry params: `?d=<classic|killer>[&date=]` (daily), `?v=<variant>[&size=][&tier=]` (casual) — parsed in `web/src/share.ts`, tier snapped via `tiersFor` on apply.
 - `/robots.txt` and `/sitemap.xml` are served as real text/xml — NOT through the SPA fallback.
 - `index.html` has a `<noscript>` block linking to all 4 landing pages so Google can discover them from `/`.
@@ -71,7 +87,7 @@ Umami Analytics (hosted, cloud.umami.is — free Hobby tier: 100k events/mo, 6-m
 - Script tag in all 16 HTML files (`web/index.html`, the 6 `web/learn*.html` Vite MPA entries, `grade.html`, the calculator, `web/public/*.html` incl. privacy + evil-sudoku). Every tag carries `data-domains="stillgrid.app"` — without it, localhost preview sessions and the editor's HTML file-preview panel execute the tracker and pollute prod stats (found 2026-07-07: junk `text/html,...` paths + phantom events from verification sessions).
 - **Programmatic reads WITHOUT the Pro API** (Cloud API keys are Pro-gated; Hobby has none): the website **share URL** (`https://cloud.umami.is/share/qAcI7OWErmx4wv20`) exposes a token flow the share page itself uses — `GET https://gateway-us.umami.is/api/share/qAcI7OWErmx4wv20` → `{websiteId, token}`, then `GET https://gateway-us.umami.is/api/websites/{websiteId}/{stats|pageviews|metrics?type=path|referrer|event}` with headers `x-umami-share-token: <token>` **and** `x-umami-share-context: 1` (401 without the second one). Read-only, scoped to overview/events/breakdown. Unofficial mechanics — if it breaks, fall back to the dashboard.
 - Typed event helper at `web/src/analytics.ts` — single `track(eventName, props?)` function (calls `window.umami.track`; props are flat, not `{props}`-wrapped).
-- Nine custom events: `puzzle_started`, `puzzle_completed`, `puzzle_abandoned`, `daily_streak_milestone`, `first_visit_ever`, `tier_unmatched` (fires when `/api/puzzle` can't hit a requested tier in 60 retries — sizes the need for the #5 pool), `puzzle_shared` (fires on a successful share/copy from the win panel — top of the viral loop), `calculator_used` (first interaction per `/killer-sudoku-calculator` pageview), `grade_used` (per grade submission on `/grade`; props include outcome + tier).
+- Nine custom events: `puzzle_started`, `puzzle_completed`, `puzzle_abandoned`, `daily_streak_milestone`, `first_visit_ever`, `tier_unmatched` (fires when the generator can't hit a requested tier in 60 retries), `puzzle_shared` (fires on a successful share/copy from the win panel — top of the viral loop), `calculator_used` (first interaction per `/killer-sudoku-calculator` pageview), `grade_used` (per grade submission on `/grade`; props include outcome + tier).
 - Dev mode no-ops via `import.meta.env.PROD` check — localhost traffic doesn't pollute prod stats.
 - Dashboard: https://cloud.umami.is (website ID `a623ea5c-9c7e-45c2-9d15-6c56bdfe0593`)
 - Event taxonomy spec (names/props still authoritative): `docs/superpowers/specs/2026-05-25-plausible-integration-design.md`; provider migration: `docs/superpowers/specs/2026-07-05-umami-migration-design.md`
@@ -105,7 +121,7 @@ Priority order, roughly:
    - **Deferred 16×16 follow-up — Jigsaw + Killer at 16×16:** not in the first 16×16 ship. **Jigsaw@16** — the 9×9 generation tail that gated this is now FIXED (budgeted fill + partition-restart, see below); the next step is to benchmark jigsaw generation at 256 cells (the budget/restart should carry over, but `JIGSAW_FILL_BUDGET` may need size-scaling for n=16) and then expose `size=16` for jigsaw in `variantSupportsSize` + the web selector. **Killer@16** needs cage-generation viability at 256 cells plus cage rendering/entry UX on a 16×16 grid (and grading cost under the cage gate). Both want the variant×size timing benchmarked before exposure. Sequence: (Classic+X 16×16 done) → (jigsaw 9×9 tail fixed) → benchmark + add Jigsaw@16 → scope Killer@16.
    - **`fill_random` MRV — DONE. Jigsaw tail PROFILED then FIXED.** `generator.rs` `fill_random` uses MRV cell selection (fixed the classic 16×16 hang: ~5% of seeds >30 s → ~20 ms). The 9×9 *jigsaw* tail was profiled (`profile_jigsaw_generation_tail`, `#[ignore]`): across 40 seeds **partition** stays ≤~75 ms and the **carve** is a flat ~1–4 ms (slowest single uniqueness check ≤0.7 ms — propagation made it trivial), and the entire tail was **`random_solution` → `fill_random`** (solution-fill spikes of 3.5 s, 5.3 s, and one ~845 s pathological seed). So the roadmap's earlier guess (partition or carve) was wrong — even MRV `fill_random` catastrophically backtracks on certain irregular jigsaw partitions at 9×9. **Fix (DONE):** `fill_random` now takes a node `budget` (`random_solution` stays unbounded for classic/X/Killer → zero behavioral change; new `random_solution_budgeted` is jigsaw-only). The jigsaw branch of `generate_for_n` loops: draw a partition, attempt a budgeted fill (`JIGSAW_FILL_BUDGET = 100_000` nodes), and on budget-abort discard the partition for a fresh one (carve extracted into `carve_puzzle`). Random-restart turns the 845 s fill into a sub-second retry. Regression guard: `jigsaw_generation_has_no_tail` (non-ignored) generates+uniqueness-checks seeds 1..=40 in ~1.4 s total (was 845 s for one seed alone); CLI smoke = 20 gens in 0.82 s. **Jigsaw@16 is now unblocked.**
    - ~~Known follow-up: harden `stillgrid-grade`'s killer cage-input path~~ — **DONE.** `build_variant` validates cage payloads (range/overlap/coverage) → clean JSON errors, with tests. Unblocked exposing grade to user input (`/grade` still ships without killer input — cage entry UX, not safety).
-4. ~~**PWA / offline**~~ — **DONE.** `web/public/manifest.webmanifest` + hand-written `web/public/sw.js` (network-first navigations w/ offline app-shell fallback, stale-while-revalidate assets, network-only `/api`) + brand-mark PNG icons, registered from `main.tsx` in prod only. Also fixed the static-cache headers (sw.js no-store, manifest no-cache, sitemap/robots 1h).
+4. ~~**PWA / offline**~~ — **DONE.** `web/public/manifest.webmanifest` + hand-written `web/public/sw.js` (network-first navigations w/ offline app-shell fallback, stale-while-revalidate assets, network-only for the engine asset) + brand-mark PNG icons, registered from `main.tsx` in prod only. Also fixed the static-cache headers (sw.js no-store, manifest no-cache, sitemap/robots 1h).
 5. **Postgres puzzle pool** — pre-generated puzzles by (variant, tier) so requests are O(1) instead of spawning the generator. Necessary for scale, optional for current load.
 6. **Mobile polish** — tool/digit button rows wrap into 3–4 rows on iPhone widths. ~1–2h.
 7. ~~**Game schema.org data + open graph images**~~ — **DONE.** Per-variant OG/Twitter cards (`og-{classic,xsudoku,jigsaw,killer}.png` + `og-image.png` home, all 1200×630, rendered from the `/tmp/og-card.html` template with real Fraunces/Inter). Each landing page now points `og:image`/`twitter:image` at its own card with `og:image:alt`, and its `Game` JSON-LD is enriched with `image`, `inLanguage`, `isAccessibleForFree`, and a free `Offer`. Home `WebSite` schema gained `image` + `inLanguage`.
@@ -135,8 +151,10 @@ cd engine && cargo test --release
 echo '{"givens":"...","variant":"killer","cages":[...]}' | engine/target/release/stillgrid-grade
 
 # Check production grading
-curl 'https://stillgrid.app/api/puzzle?variant=killer&tier=easy' | jq .
+# The API is gone. To exercise the engine, use the native CLI:
+./engine/target/release/stillgrid-generate --variant killer --seed 42 | jq .
 
 # Generate + grade a daily
-curl 'https://stillgrid.app/api/daily' | jq .
+# Or check a pre-rendered daily page:
+curl -s https://stillgrid.app/daily/classic/$(date -u +%F) | head -40
 ```

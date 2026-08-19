@@ -14,7 +14,7 @@
 //!   killer:              ... + "cages":[{"cells":[..],"sum":N},...]
 
 use std::time::Instant;
-use stillgrid_engine::{generate_for_n, Rng, VariantKind};
+use stillgrid_engine::{generate_for_n, render_puzzle_json, Rng, VariantKind};
 
 struct Args {
     seed: Option<u64>,
@@ -75,43 +75,6 @@ fn parse_args() -> Result<Args, String> {
         }
     }
     Ok(Args { seed, min_clues, count, variant, size })
-}
-
-fn render_puzzle_json(p: &stillgrid_engine::Puzzle) -> String {
-    let mut out = String::new();
-    out.push('{');
-    out.push_str(&format!(r#""variant":"{}","#, p.variant.kind.as_str()));
-    out.push_str(&format!(
-        r#""givens":"{}","solution":"{}","clue_count":{}"#,
-        p.givens.to_string_dotted(),
-        p.solution.to_string_dotted(),
-        p.clue_count
-    ));
-    // Jigsaw: include box partition — slice to the live n*n region only.
-    if p.variant.kind == VariantKind::Jigsaw {
-        let nums: Vec<String> =
-            p.variant.box_of[..p.givens.cells()].iter().map(|b| b.to_string()).collect();
-        out.push_str(&format!(r#","box_of":[{}]"#, nums.join(",")));
-    }
-    // Killer: include cages
-    if p.variant.kind == VariantKind::Killer {
-        let cages: Vec<String> = p
-            .variant
-            .cages
-            .iter()
-            .map(|c| {
-                let cells: Vec<String> = c.cells.iter().map(|x| x.to_string()).collect();
-                format!(r#"{{"cells":[{}],"sum":{}}}"#, cells.join(","), c.sum)
-            })
-            .collect();
-        out.push_str(&format!(r#","cages":[{}]"#, cages.join(",")));
-    }
-    // X-Sudoku flag (for the renderer)
-    if p.variant.kind == VariantKind::XSudoku {
-        out.push_str(r#","diagonals":true"#);
-    }
-    out.push('}');
-    out
 }
 
 fn main() {

@@ -8,11 +8,12 @@ export default defineConfig({
   base: "/",
   server: {
     port: 5173,
-    proxy: {
-      "/api": "http://localhost:3001",
-    },
   },
   build: {
+    // Never inline the engine as a data URI: it must stay a separate,
+    // content-hashed file so it can be cached immutably and streamed to
+    // WebAssembly.instantiateStreaming rather than parsed out of the JS bundle.
+    assetsInlineLimit: (filePath: string) => (filePath.endsWith(".wasm") ? false : undefined),
     rollupOptions: {
       input: {
         main: "index.html",

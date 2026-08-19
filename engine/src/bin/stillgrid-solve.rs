@@ -1,4 +1,4 @@
-//! CLI: read an 81-char puzzle string from argv[1] or stdin, print JSON result.
+//! CLI: read a 36/81/256-char puzzle string from argv[1] or stdin, print JSON.
 //!
 //!   echo "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79" \
 //!     | stillgrid-solve
@@ -8,16 +8,14 @@
 //!   {"outcome":"unsolvable"}
 //!   {"outcome":"error","error":"..."}
 //!
-//! Phase 0: server sidecar pattern. The server spawns this binary per request.
-//! Replace with persistent process + JSON-lines protocol in Phase 2 once we
-//! generate puzzles rather than just solve them.
+//! The solving wire format lives in `stillgrid_engine::wire` so that this
+//! binary and the WebAssembly build emit identical JSON.
 
 use std::io::{self, Read};
-use stillgrid_engine::{solve_variant, Board, SolveOutcome, Variant};
+use stillgrid_engine::{error_json, solve_json};
 
 fn read_input() -> Result<String, String> {
-    let arg = std::env::args().nth(1);
-    if let Some(s) = arg {
+    if let Some(s) = std::env::args().nth(1) {
         return Ok(s);
     }
     let mut buf = String::new();
@@ -25,25 +23,11 @@ fn read_input() -> Result<String, String> {
     Ok(buf)
 }
 
-fn run() -> Result<String, String> {
-    let raw = read_input()?;
-    let board = Board::from_str(&raw)?;
-    let outcome = solve_variant(&board, &Variant::classic_n(board.n()));
-    Ok(match outcome {
-        SolveOutcome::Unique(s) => {
-            format!(r#"{{"outcome":"unique","solution":"{}"}}"#, s.to_string_dotted())
-        }
-        SolveOutcome::Multiple => r#"{"outcome":"multiple"}"#.into(),
-        SolveOutcome::Unsolvable => r#"{"outcome":"unsolvable"}"#.into(),
-    })
-}
-
 fn main() {
-    match run() {
+    match read_input().and_then(|raw| solve_json(&raw)) {
         Ok(json) => println!("{json}"),
         Err(e) => {
-            let escaped = e.replace('\\', "\\\\").replace('"', "\\\"");
-            println!(r#"{{"outcome":"error","error":"{escaped}"}}"#);
+            println!("{}", error_json(&e));
             std::process::exit(1);
         }
     }

@@ -1,0 +1,64 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  # The daily archive grows by two pages a day. Rebuild just after midnight UTC
+  # so the new day's pages, the archive index, and the sitemap all exist. If a
+  # run fails the site simply keeps serving the previous build.
+  schedule:
+    - cron: "10 0 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: build and deploy to cloudflare pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.83"
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # Native binaries drive the build-time prerender of the daily archive.
+      - name: build engine (native)
+        working-directory: engine
+        run: cargo build --release --bins
+
+      - working-directory: web
+        run: npm ci
+
+      # Compiles the engine to wasm, typechecks, bundles, and prerenders.
+      - working-directory: web
+        run: npm run build
+
+      # Refuse to deploy a build whose wasm engine disagrees with the native one
+      # that generated the archive pages.
+      - name: verify build
+        working-directory: web
+        run: node scripts/verify-build.mjs
+
+      - name: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/dist --project-name=stillgrid --branch=main

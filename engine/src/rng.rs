@@ -37,6 +37,11 @@ impl Rng {
     }
 
     /// Seed from the current system time + a small mix. For non-test callers.
+    ///
+    /// Not available on wasm32: the browser build has no clock or pid to draw
+    /// from, and every call site there passes an explicit seed so that puzzles
+    /// stay reproducible against the pre-rendered daily archive.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_entropy() -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
         let nanos =
