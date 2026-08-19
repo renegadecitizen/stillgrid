@@ -61,4 +61,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy web/dist --project-name=stillgrid --branch=${{ github.ref_name }}
+          command: pages deploy web/dist --project-name=stillgrid-app --branch=${{ github.ref_name }}
