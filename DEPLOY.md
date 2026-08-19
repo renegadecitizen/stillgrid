@@ -1,123 +1,99 @@
 # Deploying Stillgrid
 
-The repo is configured to deploy to **Render** via a Docker build. Total time
-from "create GitHub repo" to "site live at a Render URL" is about 15 minutes,
-most of which is the first Docker build.
+Stillgrid is a fully static site. There is no server, no container, and no
+runtime bill — the Rust engine is compiled to WebAssembly and runs in the
+visitor's browser, and every page a crawler can reach is written to disk at
+build time.
 
-## One-time setup
+Hosting is **Cloudflare Pages** (free tier: unlimited bandwidth, unlimited
+requests). GitHub Actions does the build and pushes the result, so the
+toolchain is pinned and reproducible rather than depending on whatever the
+host's build image happens to provide.
 
-### 1. Create the GitHub repo
+## What the build produces
+
+```
+web/dist/
+├── index.html, classic.html, killer.html, …    landing + SPA entry
+├── learn-*.html                                technique guides
+├── assets/
+│   ├── main-<hash>.js / .css                   app bundle
+│   └── stillgrid-engine-<hash>.wasm            the engine (~N00 KB)
+├── daily/
+│   ├── index.html                              archive index
+│   └── <kind>/<date>.html                      one page per archived daily
+├── pool-16.json                                pre-generated 16×16 puzzles
+├── sitemap.xml                                 static URLs + every daily URL
+├── _headers                                    Cache-Control rules
+└── _redirects                                  /learn/* rewrites, /api/* → 410
+```
+
+## Build it locally
 
 ```bash
-cd ~/.chorus/workspace/Projects/stillgrid
-git remote add origin git@github.com:YOUR_USERNAME/stillgrid.git
-git push -u origin main
+rustup target add wasm32-unknown-unknown     # once
+cd engine && cargo build --release --bins    # native, for the prerender step
+cd ../web && npm ci && npm run build         # wasm + bundle + prerender
+npx vite preview                             # serve dist/ locally
 ```
 
-(Create the repo at https://github.com/new — private is fine. Don't initialize
-with README/license — we already have files.)
+`npm run build` runs four steps in order, and each one depends on the last:
 
-### 2. Connect Render to the GitHub repo
+1. `build:wasm` — `cargo build --release --lib --target wasm32-unknown-unknown`,
+   then copies the result into `web/src/engine/` so Vite content-hashes it.
+2. `tsc -b` — typecheck.
+3. `vite build` — bundle into `dist/`.
+4. `prerender` — generate the daily archive, merge the sitemap, copy the 16×16
+   pool. This step shells out to the **native** engine binaries, which is why
+   step 0 above builds them.
 
-1. Sign up / sign in at https://render.com.
-2. **New → Blueprint** → "Connect a repository" → pick your `stillgrid` repo.
-3. Render reads `render.yaml`, shows you a preview of one Web Service named
-   `stillgrid`. Click **Apply**.
-4. First build runs. Expect ~5–8 minutes (Rust compilation is the slow part).
-5. Once green, you get a URL like `https://stillgrid.onrender.com`.
+## One-time Cloudflare setup
 
-### 3. Point stillgrid.app at Render
+1. Create a Pages project (Workers & Pages → Create → Pages → **Direct Upload**,
+   named `stillgrid`). Direct Upload is correct here — Actions builds, not
+   Cloudflare.
+2. Create an API token with the **Cloudflare Pages: Edit** permission.
+3. Add two repository secrets in GitHub (Settings → Secrets → Actions):
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+4. Push to `main`. The `deploy` workflow builds and uploads.
+5. Once the first deploy is green, add the custom domains in the Pages project
+   (Custom domains → `stillgrid.app` and `www.stillgrid.app`).
 
-1. In Render, open the `stillgrid` service → **Settings → Custom Domain**.
-2. Add `stillgrid.app` and `www.stillgrid.app`.
-3. Render shows you DNS records to create. At your domain registrar (Cloudflare):
-   - `stillgrid.app` → `A` record pointing to Render's IP, **or** `CNAME` to
-     `stillgrid.onrender.com` if your registrar supports `CNAME` at apex
-     (Cloudflare does, via CNAME flattening).
-   - `www.stillgrid.app` → `CNAME` to `stillgrid.onrender.com`.
-4. TLS is auto-provisioned by Render once DNS propagates. Usually < 10 min.
+## Cutting the domain over from Render
 
-## Subsequent deploys
+Do this only after a Pages preview URL has been checked by hand. The order
+matters — add the domain to Pages *before* changing DNS, so the certificate is
+ready when traffic arrives.
 
-Every push to `main` triggers an auto-deploy (set in `render.yaml`). To deploy:
+1. In the Pages project, add `stillgrid.app` and `www.stillgrid.app` as custom
+   domains. Cloudflare will show the DNS records it wants.
+2. In the Cloudflare DNS tab for `stillgrid.app`, replace the Render `A` records
+   (`216.24.57.x`) with the `CNAME` Pages asks for. Apex works via CNAME
+   flattening.
+3. Wait for the certificate to go active (usually a few minutes).
+4. Verify, with a hard refresh: the daily archive, a 16×16 puzzle, the `/grade`
+   tool, and `/learn/xy-wing` (the rewrite rules).
+5. **Then** delete the Render service. Not before — while it still exists you
+   can revert by pointing DNS back.
 
-```bash
-git add . && git commit -m "your change" && git push
-```
+Keep the domain registration itself where it is; only the hosting moves.
 
-Render builds the Docker image, runs the new container, swaps it in
-zero-downtime. Watch the build/log stream from the Render dashboard.
+## The daily rebuild
 
-## How the Docker build works
+The archive grows by two pages a day. A scheduled workflow rebuilds and
+redeploys shortly after midnight UTC so the new day's pages exist and the
+archive index and sitemap include them. If it ever fails, the site keeps
+serving yesterday's build — stale by one day, never broken.
 
-`Dockerfile` is multi-stage:
+## Rollback
 
-1. **`engine`** — `rust:1.83-slim` compiles the three Rust binaries
-   (`stillgrid-solve`, `stillgrid-generate`, `stillgrid-grade`) in release mode.
-2. **`web`** — `node:22-slim` runs `npm install` and `vite build`, producing
-   the SPA bundle.
-3. **`runtime`** — `node:22-slim` with only what's needed at run time: the
-   Node server source, the Rust binaries, and the web `dist/`.
+Cloudflare Pages keeps every deployment. Roll back from the dashboard
+(Deployments → … → Rollback) — it's instant and needs no rebuild.
 
-The runtime container exposes port `3001`. The Express server:
-- serves `/api/*` by spawning the Rust binaries
-- serves `/` and any static asset from `web/dist/`
-- falls back to `index.html` for client-side routes (SPA-style)
+## What this used to cost
 
-## Health check
-
-Render polls `GET /healthz` (set in `render.yaml`). If it stops returning
-`200 {ok: true}`, Render restarts the container.
-
-## Costs
-
-- **Render Starter plan**: $7/month. Always-on, no cold starts.
-- **Render Free plan**: $0 but sleeps after 15 min idle. Fine for testing,
-  bad for SEO crawls.
-
-When traffic justifies it (~10K MAU+), bump to Standard ($25/month) for more
-CPU/RAM and worker threads. Or move to Render's autoscaling.
-
-## Phase 2 additions (when puzzle pool lands)
-
-When we wire up Postgres, add to `render.yaml`:
-
-```yaml
-databases:
-  - name: stillgrid-db
-    plan: starter  # $7/mo, includes daily backups
-    region: oregon
-
-services:
-  - type: web
-    name: stillgrid
-    envVars:
-      - fromDatabase:
-          name: stillgrid-db
-          property: connectionString
-        key: DATABASE_URL
-```
-
-And a background worker for the nightly puzzle-pool refill:
-
-```yaml
-  - type: worker
-    name: stillgrid-poolfill
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerCommand: node --import=tsx server/src/poolfill.ts
-    envVars:
-      - fromDatabase: { name: stillgrid-db, property: connectionString }
-        key: DATABASE_URL
-```
-
-## Local-vs-prod parity check
-
-```bash
-# Build the same image locally
-docker build -t stillgrid:local .
-docker run -p 3001:3001 stillgrid:local
-# → http://localhost:3001
-```
-
-If it works locally in the container, it works on Render.
+Render Starter, $7/month, for an always-on container whose only job was to
+shell out to a Rust binary a few times a second. Cloudflare Pages' free tier
+covers this workload with room to spare; the only remaining cost is the
+`stillgrid.app` domain registration.

@@ -1,8 +1,13 @@
-// Server-rendered /daily archive pages. Pure functions only — data fetching
-// (engine spawns + cache) stays in index.ts so everything here unit-tests
-// without binaries.
+// Static /daily archive pages, rendered once at build time.
+//
+// These used to be rendered per-request by the Express server. They are now
+// emitted by `scripts/prerender.ts` into the deployed asset tree, which is why
+// the daily seeds must match `web/src/engine/api.ts` exactly — the page a
+// crawler sees and the puzzle the app loads for that date have to agree.
+//
+// Pure functions only; the puzzle data is passed in.
 
-import type { GeneratedPuzzle, Grade } from "./engine.js";
+import type { GeneratedPuzzle, Grade } from "./types.js";
 
 export const ORIGIN = "https://stillgrid.app";
 

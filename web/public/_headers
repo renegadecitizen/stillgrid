@@ -1,0 +1,32 @@
+# Cache-Control, ported from the Express static handler.
+
+# Hashed build output (JS, CSS, and the engine .wasm) is immutable.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The SPA entry and the service worker must always be revalidated — a stale
+# service worker would pin old assets indefinitely.
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# Short cache so edits reach crawlers within the hour rather than being pinned.
+/sitemap.xml
+  Cache-Control: public, max-age=3600
+/robots.txt
+  Cache-Control: public, max-age=3600
+
+# Daily archive pages are rebuilt once a day; an hour of caching is safe and
+# matches what the server used to send for the current date.
+/daily/*
+  Cache-Control: public, max-age=3600
+
+# The 16×16 pool only changes when the pool is regenerated.
+/pool-16.json
+  Cache-Control: public, max-age=86400

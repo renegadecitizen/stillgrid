@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run build:wasm && tsc -b && vite build && npm run prerender",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "build:wasm": "cargo build --release --lib --target wasm32-unknown-unknown --manifest-path ../engine/Cargo.toml && node scripts/copy-wasm.mjs",
+    "prerender": "esbuild scripts/prerender.ts --bundle --platform=node --format=esm --outfile=node_modules/.stillgrid/prerender.mjs --log-level=warning && node node_modules/.stillgrid/prerender.mjs",
+    "build:web": "tsc -b && vite build && npm run prerender"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -17,9 +20,11 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "esbuild": "^0.25.0",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^29.1.1",

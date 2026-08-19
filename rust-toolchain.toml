@@ -1,8 +1,13 @@
-# Pin the Rust toolchain to match the production Dockerfile (rust:1.83-slim).
-# Without this pin, local dev (latest stable) and CI (rust-toolchain@stable)
-# could use features that don't exist in 1.83 — and Render's build would fail.
+# Pin the Rust toolchain so local builds, CI, and the deploy all agree.
+# Without this pin, local dev (latest stable) and CI could use features that
+# don't exist in 1.83 — and the deploy build would fail.
 # is_multiple_of (stabilized in 1.84) is the cautionary tale: cargo clippy
-# on a newer rustc suggests it; Render's 1.83 then can't compile.
+# on a newer rustc suggests it; a 1.83 build then can't compile.
+#
+# The engine is compiled for two targets from this toolchain: the host (native
+# binaries used by the build-time prerender) and wasm32-unknown-unknown (the
+# browser engine). CI installs both.
 [toolchain]
 channel = "1.83"
 components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]

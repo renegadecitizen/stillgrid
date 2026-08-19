@@ -1,0 +1,24 @@
+# Cloudflare Pages routing — replaces the Express route table.
+#
+# Pages already resolves extensionless requests to the matching .html file, so
+# /classic, /killer, /privacy, /grade and friends need no rule: they are served
+# from classic.html, killer.html, and so on. Likewise /daily/<kind>/<date>
+# resolves to the pre-rendered daily/<kind>/<date>.html, and an unmatched path
+# falls through to 404.html automatically.
+#
+# What DOES need declaring is the /learn/* tree, where the public URL and the
+# built filename differ. These are rewrites (200), not redirects, so the URL
+# the crawler indexed stays exactly as it was under the old server.
+
+/learn/core            /learn-core.html            200
+/learn/advanced        /learn-advanced.html        200
+/learn/variants        /learn-variants.html        200
+/learn/xy-wing         /learn-xy-wing.html         200
+/learn/swordfish       /learn-swordfish.html       200
+/learn/coloring        /learn-coloring.html        200
+/learn/forcing-chains  /learn-forcing-chains.html  200
+
+# The API is gone — the engine runs in the browser now. Anything still calling
+# it (an old cached service worker, a stale bookmark) gets a clear 410 rather
+# than a confusing HTML 404.
+/api/*  /api-gone.json  410

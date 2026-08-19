@@ -20,3 +20,8 @@ pkg/
 
 # git worktrees (isolated workspaces)
 .worktrees/
+
+# The compiled WebAssembly engine is a build artifact: `npm run build:wasm`
+# in web/ produces it from engine/. Never commit it — a stale binary here
+# would silently override a source change.
+web/src/engine/*.wasm

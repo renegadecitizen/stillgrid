@@ -12,6 +12,7 @@ import {
   type RecordOutcome,
 } from "./storage";
 import { track } from "./analytics";
+import { getDaily, getPuzzle, type Puzzle } from "./engine/api";
 import { buildShareText, parseEntryParam, shareResult } from "./share";
 import {
   type BoardState,
@@ -38,28 +39,8 @@ interface Cage {
   sum: number;
 }
 
-interface PuzzleResponse {
-  variant: Variant;
-  givens: string;
-  solution: string;
-  size?: number;
-  clue_count: number;
-  diagonals?: boolean;
-  box_of?: number[];
-  cages?: Cage[];
-  grade?:
-    | {
-        outcome: "solved";
-        tier: number;
-        tier_label: string;
-        steps: number;
-        technique_counts: Record<string, number>;
-      }
-    | { outcome: "stuck"; steps_taken: number };
-  tier_matched?: boolean;
-  requested_tier?: string;
-  note?: string;
-}
+// The puzzle shape comes straight from the engine wire format.
+type PuzzleResponse = Puzzle;
 
 const VARIANT_COLOR: Record<Variant, { main: string; soft: string; label: string }> = {
   classic: { main: "var(--color-sage)", soft: "var(--color-sage-soft)", label: "Classic" },
@@ -139,8 +120,6 @@ export function App() {
     null,
   );
 
-  const isDemo = import.meta.env.VITE_DEMO === "1";
-
   const load = (vArg: Variant = variant, tArg: string = tier, sArg: Size = size) => {
     setPuzzle(null);
     setError(null);
@@ -148,53 +127,32 @@ export function App() {
     setDailyTag(null);
     const t0 = performance.now();
 
-    // Demo pool is 9×9 only — skip it for 6×6 requests and fall through to the
-    // API fetch, which the dev server proxies to :3001.
-    if (isDemo && sArg === 9) {
-      fetch("puzzles.json")
-        .then((r) => r.json())
-        .then((pool: Record<Variant, PuzzleResponse[]>) => {
-          const choices = pool[vArg];
-          if (!choices?.length) return setError(`no demo puzzles for ${vArg}`);
-          const pick = choices[Math.floor(Math.random() * choices.length)]!;
-          setPuzzle(pick);
-          setElapsedMs(Math.round(performance.now() - t0));
-        })
-        .catch((e) => setError(e instanceof Error ? e.message : String(e)));
-      return;
-    }
-
-    const params = new URLSearchParams({ variant: vArg });
-    if (tArg) params.set("tier", tArg);
-    params.set("size", String(sArg));
-    fetch(`/api/puzzle?${params}`)
-      .then((r) => r.json())
-      .then((data: PuzzleResponse | { error: string }) => {
-        if ("error" in data) setError(data.error);
-        else {
-          setPuzzle(data);
-          setElapsedMs(Math.round(performance.now() - t0));
-          // The 60-retry loop couldn't hit the requested tier — track it to
-          // quantify how much a pre-generated pool (#5) would help, and derive
-          // facts (size/requested/got) from the response so they're race-safe.
-          if (data.tier_matched === false) {
-            track("tier_unmatched", {
-              variant: data.variant,
-              size: data.size ?? 9,
-              requested_tier: data.requested_tier ?? tArg,
-              got_tier:
-                data.grade && data.grade.outcome === "solved"
-                  ? data.grade.tier_label
-                  : "stuck",
-            });
-          }
+    // Puzzles are generated in this tab by the WebAssembly engine — there is
+    // no API round-trip any more, so this resolves in a few milliseconds.
+    getPuzzle({ variant: vArg, size: sArg, tier: tArg || null })
+      .then((data) => {
+        setPuzzle(data);
+        setElapsedMs(Math.round(performance.now() - t0));
+        // The retry loop couldn't hit the requested tier — keep tracking it so
+        // the tier floors stay tuned.
+        if (data.tier_matched === false) {
+          track("tier_unmatched", {
+            variant: data.variant,
+            size: data.size ?? 9,
+            requested_tier: data.requested_tier ?? tArg,
+            got_tier:
+              data.grade && data.grade.outcome === "solved"
+                ? data.grade.tier_label
+                : "stuck",
+          });
         }
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
-  // Load today's daily for a given variant. Demo mode reads from puzzles.json
-  // under a "daily" key; production hits /api/daily.
+  // Load today's daily for a given variant. The date seeds the generator, so
+  // every visitor gets the same puzzle and it matches the pre-rendered
+  // /daily/<kind>/<date> archive page exactly.
   const loadDaily = (kind: "classic" | "killer", dateArg?: string) => {
     setPuzzle(null);
     setError(null);
@@ -202,35 +160,8 @@ export function App() {
     const date = dateArg ?? todayKey();
     const t0 = performance.now();
 
-    if (isDemo) {
-      fetch("puzzles.json")
-        .then((r) => r.json())
-        .then(
-          (pool: Record<string, PuzzleResponse[]> & {
-            daily?: { date: string; classic: PuzzleResponse; killer: PuzzleResponse };
-          }) => {
-            const d = pool.daily;
-            if (!d) return setError("no daily in demo pool");
-            const pick = kind === "classic" ? d.classic : d.killer;
-            setVariant(pick.variant);
-            setTier("");
-            setSize(9);
-            setPuzzle(pick);
-            setDailyTag({ date: d.date, kind });
-            setElapsedMs(Math.round(performance.now() - t0));
-          },
-        )
-        .catch((e) => setError(e instanceof Error ? e.message : String(e)));
-      return;
-    }
-
-    fetch(`/api/daily?date=${date}`)
-      .then((r) => r.json())
-      .then((data: { date: string; classic: PuzzleResponse; killer: PuzzleResponse } | { error: string }) => {
-        if ("error" in data) {
-          setError(data.error);
-          return;
-        }
+    getDaily(date)
+      .then((data) => {
         const pick = kind === "classic" ? data.classic : data.killer;
         setVariant(pick.variant);
         setTier("");
@@ -410,7 +341,7 @@ export function App() {
           </aside>
         </div>
       </main>
-      <Footer isDemo={isDemo} />
+      <Footer />
     </div>
   );
 }
@@ -2116,7 +2047,7 @@ function useFeedletterWidget() {
   }, []);
 }
 
-function Footer({ isDemo }: { isDemo: boolean }) {
+function Footer() {
   useFeedletterWidget();
   return (
     <footer className="border-t mt-8" style={{ borderColor: "var(--color-divider)" }}>
@@ -2136,7 +2067,6 @@ function Footer({ isDemo }: { isDemo: boolean }) {
       <div className="max-w-6xl mx-auto px-6 pt-3 pb-8 flex flex-wrap items-center justify-between gap-3 text-xs" style={{ color: "var(--color-ink-soft)" }}>
         <span>© {new Date().getFullYear()} Stillgrid. Made with patience.</span>
         <div className="flex items-center gap-4">
-          {isDemo && <span className="italic">Demo build · pool of pre-baked puzzles</span>}
           <a href="#" className="hover:underline">About</a>
           <a href="#" className="hover:underline">Contact</a>
           {import.meta.env.PROD && (

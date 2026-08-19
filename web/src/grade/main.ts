@@ -10,6 +10,7 @@ import {
   techniqueBreakdown,
   toPuzzleString,
 } from "./ladder";
+import { gradePuzzle, solvePuzzle } from "../engine/api";
 
 type GradeVariant = "classic" | "xsudoku";
 
@@ -228,7 +229,7 @@ function mountGrader(host: HTMLElement): void {
       // solutions (or none) would only ever grade "stuck" and the honest
       // answer is why. The solver CLI is classic-only, so X-Sudoku skips it.
       if (variant === "classic") {
-        const solve = await post<SolveResponse>("/api/solve", { puzzle });
+        const solve = (await solvePuzzle(puzzle)) as SolveResponse;
         if (solve.outcome === "multiple") {
           status("", false);
           renderVerdict("Not a proper puzzle", `This grid has more than one solution, so it can't be graded — a real sudoku has exactly one. Check for a missing given.`);
@@ -242,7 +243,7 @@ function mountGrader(host: HTMLElement): void {
           return;
         }
       }
-      const g = await post<GradeResponse>("/api/grade", { puzzle, variant });
+      const g = (await gradePuzzle(puzzle, variant)) as GradeResponse;
       status("", false);
       renderGrade(g, clues);
       track("grade_used", {
@@ -319,19 +320,6 @@ function mountGrader(host: HTMLElement): void {
   }
 
   buildGrid();
-}
-
-async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(err?.error ?? `Request failed (${res.status})`);
-  }
-  return (await res.json()) as T;
 }
 
 function field(labelText: string, control: HTMLElement, forId?: string): HTMLElement {
